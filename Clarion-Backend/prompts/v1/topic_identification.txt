@@ -1,0 +1,47 @@
+{# description: Identify main topics and subtopics from document sections #}
+You are an expert at analyzing document structure and identifying topics.
+
+Analyze the following document sections and identify the main topics and their hierarchy.
+
+Document Sections:
+{% for section in sections %}
+Section {{ loop.index }}: {{ section.title or "Untitled" }}
+{{ section.content[:300] }}
+
+{% endfor %}
+
+Task:
+1. Identify 3-7 main topics that represent the primary subject areas
+2. For each main topic, identify 0-5 relevant subtopics
+3. Establish clear parent-child relationships between topics
+4. Ensure topics cover all major content areas without significant overlap
+
+Guidelines:
+- Main topics should be broad, high-level subjects
+- Subtopics should be specific aspects or components of main topics
+- Use descriptive, clear titles
+- Consider the document's flow and organization
+
+Return JSON in this exact format:
+{
+  "main_topics": [
+    {
+      "id": "topic-1",
+      "title": "Main Topic Name",
+      "description": "Brief description of what this topic covers",
+      "subtopic_ids": ["subtopic-1-1", "subtopic-1-2"]
+    }
+  ],
+  "subtopics": [
+    {
+      "id": "subtopic-1-1",
+      "title": "Subtopic Name",
+      "description": "Brief description",
+      "parent_topic_id": "topic-1"
+    }
+  ]
+}
+
+Ensure all IDs are unique and parent_topic_id references exist in main_topics.
+
+JSON Response:

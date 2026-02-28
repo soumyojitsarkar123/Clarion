@@ -1,0 +1,116 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Build caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.pylint_cache/
+*.pyc
+
+# Data directories (local, generated)
+Clarion-Backend/data/
+Clarion-Backend/logs/
+Clarion-Backend/vectorstore/
+data/cache/
+*.db
+*.sqlite
+*.sqlite3
+
+# Large files
+*.pkl
+*.pickle
+*.joblib
+*.tar.gz
+*.zip
+*.rar
+
+# Research/Experiment outputs (keep structure, not data)
+Clarion-Backend/data/benchmarks/
+Clarion-Backend/data/reports/
+Clarion-Backend/data/graphs/
+Clarion-Backend/data/vectorstore/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+.directory
+.Spotlight-V100
+.Trashes
+
+# IDE specific
+.vscode/settings.json
+.vscode/launch.json
+.opencode/
+
+# Frontend specific
+node_modules/
+dist/
+build/
+
+# Misc
+nul
+.cache/
+# Internal Documentation (for local use only, not for public GitHub)
+GITHUB_PUSH_GUIDE.md
+GIT_COMMANDS_COPY_PASTE.md
+GITHUB_READY.md
+GITHUB_RELEASE_SUMMARY.md
+IMPLEMENTATION_CHECKLIST.md
+START_HERE.md
+README_FINAL_STATUS.md
+README_GITHUB.md
+GITHUB_SETUP.md
+FRONTEND_IMPLEMENTATION_COMPLETE.md
+QUICK_REFERENCE.md

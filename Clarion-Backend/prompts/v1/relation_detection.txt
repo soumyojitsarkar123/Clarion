@@ -1,0 +1,35 @@
+{# description: Detect semantic relationships between concepts #}
+You are an expert at analyzing semantic relationships between concepts.
+
+Analyze the relationship between these two concepts based on the provided context.
+
+Concept A: {{ concept_a }}
+Concept B: {{ concept_b }}
+
+Context where these concepts appear:
+{{ context }}
+
+Task: Determine the semantic relationship between these concepts.
+
+Possible relation types:
+- PREREQUISITE: Concept A must be understood before Concept B (A is prerequisite for B)
+- DEFINITION: Concept B defines or explains what Concept A means
+- EXPLANATION: Concept B provides explanation or elaboration for Concept A
+- CAUSE_EFFECT: Concept A causes, leads to, or results in Concept B
+- EXAMPLE_OF: Concept B is a specific example or instance of Concept A
+- SIMILAR_TO: Concept A and B are similar, comparable, or analogous
+- PART_OF: Concept B is a component, subset, or part of Concept A
+- DERIVES_FROM: Concept A originates from, is derived from, or extends Concept B
+- NONE: No meaningful semantic relationship exists
+
+Return JSON in this exact format:
+{
+  "relation_type": "PREREQUISITE|DEFINITION|EXPLANATION|CAUSE_EFFECT|EXAMPLE_OF|SIMILAR_TO|PART_OF|DERIVES_FROM|NONE",
+  "confidence": 0.0-1.0,
+  "description": "Brief explanation of why this relationship exists",
+  "direction": "A_to_B|B_to_A|bidirectional|none"
+}
+
+If relation_type is NONE, set confidence to 0.0 and provide minimal description.
+
+JSON Response:

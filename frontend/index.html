@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarion - Document Analysis System</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">📚 Clarion</h1>
+                <p class="subtitle">Professional Document Analysis System</p>
+            </div>
+            <div class="header-status">
+                <div class="status-item">
+                    <span class="status-indicator" id="llm-indicator"></span>
+                    <span id="llm-text">LLM: Checking...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-indicator" id="db-indicator"></span>
+                    <span id="db-text">Database: Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel -->
+            <section class="left-panel">
+                <!-- Upload Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📤 Upload Document</h2>
+                    </div>
+                    <form id="upload-form" class="upload-area">
+                        <input type="file" id="file-input" accept=".pdf,.docx" hidden>
+                        <div class="dropzone">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>Click or drag file</p>
+                            <span>PDF or DOCX (max 50MB)</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </form>
+                    <div id="upload-status" class="status-box"></div>
+                </div>
+
+                <!-- Documents Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📄 Documents</h2>
+                        <button id="refresh-btn" class="btn btn-small">🔄</button>
+                    </div>
+                    <div id="documents-list" class="documents-list">
+                        <p class="empty-state">No documents</p>
+                    </div>
+                </div>
+
+                <!-- Stats Card -->
+                <div class="card">
+                    <h2>📊 Stats</h2>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <span class="label">Total</span>
+                            <span class="value" id="stat-total">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Analyzing</span>
+                            <span class="value" id="stat-processing">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Done</span>
+                            <span class="value" id="stat-completed">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Memory</span>
+                            <span class="value" id="stat-memory">0MB</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel -->
+            <section class="right-panel">
+                <!-- Analysis Card -->
+                <div class="card tall-card">
+                    <div class="card-header">
+                        <h2>🔬 Analysis</h2>
+                    </div>
+                    <div id="doc-info" class="doc-info-box">
+                        <p>Select a document to analyze</p>
+                    </div>
+                    <button id="analyze-btn" class="btn btn-primary" style="display: none;">
+                        Start Analysis
+                    </button>
+                    <div id="analysis-status" class="status-box"></div>
+                    
+                    <!-- Results Panel -->
+                    <div id="results-panel" class="results-panel" style="display: none;">
+                        <div class="result-section">
+                            <h3>Key Concepts</h3>
+                            <div id="concepts-list" class="item-list"></div>
+                        </div>
+                        <div class="result-section">
+                            <h3>Summary</h3>
+                            <div id="summary-text" class="text-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Card -->
+                <div class="card tall-card">
+                    <div class="card-header">
+                        <h2>🕸️ Knowledge Graph</h2>
+                        <div class="graph-controls">
+                            <button class="btn btn-tiny" id="zoom-in" title="Zoom in">+</button>
+                            <button class="btn btn-tiny" id="zoom-out" title="Zoom out">−</button>
+                            <button class="btn btn-tiny" id="fit-graph" title="Fit">⬜</button>
+                        </div>
+                    </div>
+                    <div id="graph-container" class="graph-container"></div>
+                    <div id="graph-info" class="graph-info">No graph</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
