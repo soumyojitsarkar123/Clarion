@@ -4,7 +4,6 @@ Query router - handles RAG-based querying.
 
 import logging
 from fastapi import APIRouter, HTTPException, Body
-from typing import Optional
 
 from models.retrieval import QueryRequest
 from models.response import QueryResponse
@@ -12,6 +11,7 @@ from services.document_service import DocumentService
 from services.retrieval_service import RetrievalService
 from services.knowledge_map_service import KnowledgeMapService
 from services.knowledge_map_service import LLMInterface
+from services.rag_audit_service import get_rag_audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ document_service = DocumentService()
 retrieval_service = RetrievalService()
 knowledge_map_service = KnowledgeMapService()
 llm = LLMInterface()
+rag_audit_service = get_rag_audit_service()
 
 
 @router.post("/{document_id}", response_model=QueryResponse)
@@ -53,6 +54,13 @@ async def query_document(
         )
         
         if not results:
+            rag_audit_service.audit_query(
+                document_id=document_id,
+                query=request.query,
+                top_k=request.top_k,
+                response_text="No relevant information found in the document.",
+                retrieval_results=[],
+            )
             return QueryResponse(
                 query=request.query,
                 results=[],
@@ -75,6 +83,14 @@ Answer:"""
         except Exception as e:
             logger.warning(f"LLM generation failed: {str(e)}")
             response_text = "Unable to generate response at this time."
+
+        rag_audit_service.audit_query(
+            document_id=document_id,
+            query=request.query,
+            top_k=request.top_k,
+            response_text=response_text,
+            retrieval_results=results,
+        )
         
         result_dicts = [
             {

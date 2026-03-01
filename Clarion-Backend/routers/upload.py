@@ -52,7 +52,7 @@ async def upload_document(file: UploadFile = File(...)):
             document_id=document.id,
             filename=document.metadata.filename,
             status="uploaded",
-            message="Document uploaded and processing started"
+            message="Document uploaded successfully. Analysis has not started yet."
         )
         
     except ValueError as e:

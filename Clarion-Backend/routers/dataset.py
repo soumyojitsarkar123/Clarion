@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from services.relation_dataset_service import RelationDatasetService, RelationDatasetRecord
+from utils.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,11 @@ async def get_dataset_stats():
     """
     try:
         stats = dataset_service.get_dataset_stats()
+        stats["storage_paths"] = {
+            "relation_dataset_db": str((settings.data_dir / "relation_dataset.db").resolve()),
+            "main_db": str((settings.data_dir / "clarion.db").resolve()),
+            "data_dir": str(settings.data_dir.resolve()),
+        }
         return stats
         
     except Exception as e:

@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from utils.logger import setup_logging
 from utils.config import settings, ensure_directories
+from services.background_service import get_background_service
+from services.knowledge_map_service import get_llm_interface
 from routers import (
     upload_router,
     analyze_router,
@@ -20,6 +22,8 @@ from routers import (
     status_router,
     dataset_router,
     graph_router,
+    logs_router,
+    system_router,
 )
 
 
@@ -67,6 +71,8 @@ app.include_router(summary_router)
 app.include_router(status_router)
 app.include_router(dataset_router)
 app.include_router(graph_router)
+app.include_router(logs_router)
+app.include_router(system_router)
 
 
 @app.get("/")
@@ -107,13 +113,13 @@ async def system_status():
     import psutil
     import os
 
-    bg_service = BackgroundService()
-    llm = LLMInterface()
-    
+    bg_service = get_background_service()
+    llm = get_llm_interface()
+
     active_jobs = bg_service.list_active_jobs()
-    
+
     # Check LLM availability
-    llm_available = llm._is_ollama_available()
+    llm_available = llm._is_service_available()
 
     # Get system metrics
     try:
@@ -126,22 +132,34 @@ async def system_status():
         memory_mb = 0
         cpu_percent = 0
 
+    provider_name = settings.llm_provider.capitalize()
+
     return {
         "timestamp": __import__("datetime").datetime.now().isoformat(),
         "app_status": "running",
         "services": {
             "llm": {
                 "status": "available" if llm_available else "unavailable (demo mode)",
-                "model": "Ollama" if llm_available else "Demo",
+                "model": f"{provider_name} ({llm.model})" if llm_available else "Demo",
+                "provider": provider_name,
             },
             "database": "ok",
             "embeddings": "ready",
             "graph_engine": "ready",
         },
         "background_jobs": {
-            "active": len([j for j in active_jobs if hasattr(j, 'status') and j.status == "processing"]),
+            "active": len(
+                [
+                    j
+                    for j in active_jobs
+                    if hasattr(j, "status") and j.status == "processing"
+                ]
+            ),
             "total_active": len(active_jobs),
-            "jobs": [{"id": j.job_id, "status": j.status} if hasattr(j, 'job_id') else {} for j in active_jobs[:5]],
+            "jobs": [
+                {"id": j.job_id, "status": j.status} if hasattr(j, "job_id") else {}
+                for j in active_jobs[:5]
+            ],
         },
         "system": {
             "memory_mb": round(memory_mb, 2),

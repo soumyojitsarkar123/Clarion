@@ -143,6 +143,12 @@ class DocumentService:
             
             if file_type == "pdf" and not page_count:
                 page_count = extracted_meta.get("page_count")
+
+            if word_count < 20:
+                raise ValueError(
+                    "No extractable text found in the document. "
+                    "Please upload a text-based PDF/DOCX or run OCR first."
+                )
                 
         except Exception as e:
             logger.error(f"Error extracting text: {str(e)}")

@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     openai_temperature: float = 0.3
     openai_max_tokens: int = 2000
 
+    # LLM Provider Selection
+    # Options: "ollama", "openai", "deepseek", "gemini"
+    llm_provider: str = "ollama"
+
+    # DeepSeek API
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_api_base: str = "https://api.deepseek.com/v1"
+
+    # Google Gemini API
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_api_base: str = "https://generativelanguage.googleapis.com/v1beta"
+
     # Ollama (local models)
     ollama_model: str = "qwen3:latest"
     ollama_api_base: str = "http://localhost:11434/v1"
@@ -55,7 +69,12 @@ class Settings(BaseSettings):
     allowed_extensions: list = [".pdf", ".docx"]
 
     # API Security
-    cors_allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
     cors_allow_credentials: bool = False
 
     # SQLite reliability

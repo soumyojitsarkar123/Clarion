@@ -99,6 +99,15 @@ node_modules/
 dist/
 build/
 
+# Diagnostic and Temporary Scripts
+Clarion-Backend/diag_*.py
+Clarion-Backend/test_*.py
+Clarion-Backend/cleanup_*.py
+Clarion-Backend/supervisor_startup.py
+start_servers.*
+push.ps1
+Clarion-Backend/data/*.json
+
 # Misc
 nul
 .cache/
