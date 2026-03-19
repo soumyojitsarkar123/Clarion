@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarion Observability Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+</head>
+
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <div>
+                <h1>Clarion</h1>
+                <p>TRION Observability and Validation Layer</p>
+            </div>
+            <div class="status-row">
+                <span class="status-pill" id="llm-pill">LLM: checking</span>
+                <span class="status-pill" id="health-pill">System: unknown</span>
+            </div>
+        </header>
+
+        <main class="layout">
+            <aside class="sidebar">
+                <section class="panel">
+                    <h2>Upload</h2>
+                    <form id="upload-form">
+                        <input type="file" id="file-input" accept=".pdf,.docx" />
+                        <button type="submit" class="btn btn-primary">Upload Document</button>
+                    </form>
+                    <div id="upload-status" class="status-box"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-title-row">
+                        <h2>Documents</h2>
+                        <button id="refresh-btn" class="btn">Refresh</button>
+                    </div>
+                    <div id="documents-list" class="documents-list"></div>
+                </section>
+
+                <section class="panel">
+                    <h2>Selected Document</h2>
+                    <div id="doc-info" class="doc-info">No document selected</div>
+                    <button id="analyze-btn" class="btn btn-primary" disabled>Start Analysis</button>
+                    <div id="analysis-status" class="status-box"></div>
+                </section>
+            </aside>
+
+            <section class="workspace">
+                <section class="panel">
+                    <div class="panel-title-row">
+                        <h2>Pipeline State</h2>
+                        <span id="pipeline-summary" class="muted">Waiting for execution</span>
+                    </div>
+                    <div id="pipeline-stages" class="pipeline-stages"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-title-row">
+                        <h2>Analysis Report</h2>
+                        <button id="refresh-report-btn" class="btn">Refresh</button>
+                    </div>
+                    <div id="analysis-report" class="analysis-report">
+                        Select a document to view report details.
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-title-row">
+                        <h2>Live Logs</h2>
+                        <button id="clear-logs-btn" class="btn">Clear</button>
+                    </div>
+                    <pre id="logs-console" class="logs-console"></pre>
+                </section>
+
+                <section class="panel graph-panel">
+                    <div class="panel-title-row">
+                        <h2>Knowledge Graph</h2>
+                        <div class="button-row">
+                            <select id="relation-filter" class="btn" style="min-width: 120px;">
+                                <option value="all">All Relations</option>
+                            </select>
+                            <button id="zoom-in" class="btn">+</button>
+                            <button id="zoom-out" class="btn">-</button>
+                            <button id="fit-graph" class="btn">Fit</button>
+                        </div>
+                    </div>
+                    <div id="graph-container"></div>
+                    <div id="graph-info" class="muted">No graph loaded</div>
+                    <div id="graph-tooltip" class="graph-tooltip" style="display: none;"></div>
+                </section>
+
+                <section class="panel data-panel">
+                    <div class="panel-title-row">
+                        <h2>Extracted Concepts</h2>
+                        <span id="concepts-count" class="muted">0 concepts</span>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="concepts-table">
+                            <thead>
+                                <tr>
+                                    <th>Concept</th>
+                                    <th>Definition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="2" class="muted" style="text-align: center;">No concepts loaded</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel stats-grid">
+                    <div class="stat-block">
+                        <h3>Graph Stats</h3>
+                        <div id="graph-stats"></div>
+                    </div>
+                    <div class="stat-block">
+                        <h3>Dataset Stats</h3>
+                        <div id="dataset-stats"></div>
+                    </div>
+                    <div class="stat-block">
+                        <h3>System Health</h3>
+                        <div id="system-health"></div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+    <script src="app.js?v=2"></script>
+</body>
+
+</html>

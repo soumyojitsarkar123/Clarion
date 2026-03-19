@@ -1,0 +1,30 @@
+{# description: Extract key concepts from educational text #}
+You are an expert at extracting key concepts from educational and technical text.
+
+Task: Extract the most important concepts from the following text.
+
+Text:
+{{ context }}
+
+Instructions:
+1. Identify key concepts, technical terms, and core ideas
+2. Provide a clear, concise definition for each concept
+3. Focus on concepts that are essential for understanding the material
+4. Include both explicit concepts and implicit important ideas
+5. Limit to {{ max_concepts }} most important concepts
+
+For each concept, provide:
+- name: The exact concept name as it appears or should be referenced
+- definition: A clear, educational definition (1-2 sentences)
+- importance: high/medium/low based on centrality to the text
+
+Return a JSON array of objects with this exact structure:
+[
+  {
+    "name": "Concept Name",
+    "definition": "Clear, concise educational definition",
+    "importance": "high"
+  }
+]
+
+JSON Response:

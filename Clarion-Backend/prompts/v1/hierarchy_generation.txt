@@ -1,0 +1,59 @@
+{# description: Generate conceptual hierarchy from concepts and relations #}
+You are an expert at organizing concepts into learning hierarchies.
+
+Given the following concepts and their relationships, organize them into hierarchical learning layers.
+
+Concepts:
+{% for concept in concepts %}
+- {{ concept.name }}: {{ concept.definition or "No definition provided" }}
+{% endfor %}
+
+Relations:
+{% for relation in relations %}
+- {{ relation.from_concept }} --[{{ relation.relation_type }}]--> {{ relation.to_concept }}
+{% endfor %}
+
+Task: Organize concepts into hierarchical layers based on:
+1. Prerequisite chains (what must be learned first)
+2. Abstraction levels (foundational concepts vs. applied concepts)
+3. Complexity (simple → complex)
+4. Dependencies (concepts with fewer prerequisites are foundational)
+
+Layer Guidelines:
+- Level 1 (Foundation): Core concepts with no prerequisites, fundamental principles
+- Level 2 (Intermediate): Builds on foundation, requires basic understanding
+- Level 3 (Advanced): Complex concepts requiring solid foundation
+- Level 4 (Expert): Highly specialized or cutting-edge topics
+
+Return JSON in this exact format:
+{
+  "layers": [
+    {
+      "level": 1,
+      "name": "Foundation",
+      "description": "Core concepts with no prerequisites",
+      "concept_ids": ["concept-1", "concept-2"]
+    },
+    {
+      "level": 2,
+      "name": "Intermediate",
+      "description": "Builds on foundation concepts",
+      "concept_ids": ["concept-3"]
+    }
+  ],
+  "prerequisite_chains": [
+    {
+      "target_concept": "concept-3",
+      "chain": ["concept-1", "concept-2", "concept-3"],
+      "description": "Must learn 1 and 2 before 3"
+    }
+  ]
+}
+
+Guidelines:
+- Assign each concept to exactly one layer
+- Create prerequisite chains showing learning paths
+- Ensure chains respect PREREQUISITE relations
+- Target 2-4 layers total
+
+JSON Response:
