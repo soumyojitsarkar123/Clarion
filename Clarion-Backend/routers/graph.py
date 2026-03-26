@@ -29,6 +29,13 @@ async def get_graph(document_id: str):
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
+        cytoscape_path = settings.data_dir / "graphs" / f"{document_id}_cytoscape.json"
+        if cytoscape_path.exists():
+            import json
+
+            data = json.loads(cytoscape_path.read_text(encoding="utf-8"))
+            return data
+
         json_path = graph_json_path(document_id)
 
         if json_path.exists():

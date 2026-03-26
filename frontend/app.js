@@ -74,16 +74,7 @@ function bindEvents() {
     document.getElementById("refresh-report-btn").addEventListener("click", loadAnalysisReport);
 
     document.getElementById("relation-filter").addEventListener("change", (e) => {
-        const filterVal = e.target.value;
-        if (graph) {
-            graph.edges().forEach(edge => {
-                if (filterVal === "all" || filterVal === "none" || edge.data('relation_type') === filterVal) {
-                    edge.style('display', 'element');
-                } else {
-                    edge.style('display', 'none');
-                }
-            });
-        }
+        applyRelationFilter(e.target.value);
     });
 
     document.getElementById("zoom-in").addEventListener("click", () => {
@@ -147,6 +138,9 @@ async function loadDocuments() {
         }
 
         for (const doc of documents) {
+            if (selectedDocId === doc.id) {
+                selectedDoc = doc;
+            }
             const item = document.createElement("button");
             item.type = "button";
             item.className = "document-item";
@@ -187,10 +181,21 @@ function selectDocument(doc) {
 
     resetPipelineBoard();
     connectLogStream();
-    loadGraph(doc.id);
-    refreshInspectorPanels();
+    if (isDocumentAnalyzed(doc)) {
+        loadGraph(doc.id);
+        loadAnalysisReport();
+    } else {
+        resetGraphPanels("Graph will appear after analysis completes.");
+        document.getElementById("analysis-report").textContent = "Analysis report will appear after processing completes.";
+        renderDatasetStats({
+            total_records: 0,
+            labeled_records: 0,
+            unlabeled_records: 0,
+            exportFolder: "Pending analysis",
+            latestExport: "No export yet",
+        });
+    }
     refreshPipelineStatus();
-    loadAnalysisReport();
     monitorPipeline();
 }
 
@@ -200,6 +205,14 @@ async function startAnalysis() {
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = "Submitting...";
     setStatus("analysis-status", "Submitting pipeline job...", "info");
+    document.getElementById("analysis-report").textContent = "Analysis in progress. Summary and findings will appear when processing completes.";
+    renderDatasetStats({
+        total_records: 0,
+        labeled_records: 0,
+        unlabeled_records: 0,
+        exportFolder: "Export will appear after analysis",
+        latestExport: "Generating dataset export",
+    });
     resetPipelineBoard();
 
     try {
@@ -239,7 +252,6 @@ function monitorPipeline() {
     monitorTimer = setInterval(async () => {
         if (!selectedDocId) return;
         await refreshPipelineStatus();
-        await refreshInspectorPanels();
         await loadAnalysisReport();
     }, 1200);
 }
@@ -267,8 +279,8 @@ async function refreshPipelineStatus() {
                     analyzeBtn.textContent = "Start Analysis";
                     if (payload.status === "completed") {
                         setStatus("analysis-status", "Pipeline completed.", "success");
-                        loadDocuments();
-                        loadGraph(selectedDocId);
+                        await loadDocuments();
+                        await loadGraph(selectedDocId);
                     }
                     if (payload.status === "failed") {
                         setStatus("analysis-status", `Pipeline failed: ${payload.error || "unknown error"}`, "error");
@@ -368,8 +380,7 @@ function renderLegacyPipelineStatus(payload) {
 
         if (completed) {
             setStatus("analysis-status", "Pipeline completed.", "success");
-            loadDocuments();
-            loadGraph(selectedDocId);
+            loadDocuments().then(() => loadGraph(selectedDocId));
         } else if (failed) {
             setStatus("analysis-status", `Pipeline failed: ${currentJob?.error_message || "unknown error"}`, "error");
         }
@@ -546,7 +557,6 @@ function appendLogLine(payload) {
     const consoleBox = document.getElementById("logs-console");
     const stage = payload.stage || "system";
     const event = payload.event || "log";
-    const timestamp = payload.timestamp || new Date().toISOString();
     const message = payload.message || "";
 
     let colorClass = "";
@@ -561,7 +571,7 @@ function appendLogLine(payload) {
 
     const lineSpan = document.createElement("span");
     lineSpan.className = colorClass;
-    lineSpan.textContent = `[${timestamp}] [${stage}] [${event}] ${message}\n`;
+    lineSpan.textContent = `[${stage}] [${event}] ${message}\n`;
     consoleBox.appendChild(lineSpan);
 
     trimLogs(consoleBox);
@@ -594,80 +604,98 @@ function initGraph() {
                 style: {
                     "background-color": function (ele) {
                         const type = ele.data('type');
-                        if (type === 'topic') return '#38bdf8';
-                        if (type === 'subtopic') return '#818cf8';
-                        if (type === 'document') return '#f43f5e';
-                        return '#1f7c70';
+                        if (type === 'topic') return '#0ea5a4';
+                        if (type === 'subtopic') return '#3b82f6';
+                        if (type === 'document') return '#f97316';
+                        return '#1d4ed8';
                     },
                     shape: function (ele) {
                         const type = ele.data('type');
-                        if (type === 'topic') return 'hexagon';
-                        if (type === 'subtopic') return 'diamond';
-                        if (type === 'document') return 'star';
-                        return 'ellipse';
+                        if (type === 'document') return 'round-rectangle';
+                        return 'round-rectangle';
                     },
-                    label: "data(label)",
+                    label: function (ele) {
+                        return graphDisplayLabel(ele.data());
+                    },
                     color: "#f8fafc",
-                    "text-valign": "bottom",
+                    "text-valign": "center",
                     "text-halign": "center",
-                    "text-margin-y": 4,
-                    "text-outline-color": "#0f172a",
-                    "text-outline-width": 2,
+                    "text-wrap": "wrap",
+                    "text-max-width": function (ele) {
+                        const type = ele.data('type');
+                        if (type === 'document') return 135;
+                        if (type === 'topic') return 150;
+                        if (type === 'subtopic') return 145;
+                        return 140;
+                    },
                     "font-size": function (ele) {
                         const type = ele.data('type');
-                        if (type === 'topic') return '13px';
+                        if (type === 'document') return '13px';
+                        if (type === 'topic') return '12px';
                         if (type === 'subtopic') return '11px';
-                        return '9px';
+                        return '10px';
                     },
                     "font-weight": function (ele) {
-                        return (ele.data('type') === 'topic' || ele.data('type') === 'subtopic') ? 'bold' : 'normal';
+                        return (ele.data('type') === 'document' || ele.data('type') === 'topic') ? '700' : '600';
                     },
                     width: function (ele) {
                         const type = ele.data('type');
-                        if (type === 'topic') return 50;
-                        if (type === 'subtopic') return 40;
-                        if (type === 'document') return 60;
-                        return 30;
+                        if (type === 'document') return 150;
+                        if (type === 'topic') return 168;
+                        if (type === 'subtopic') return 158;
+                        return 150;
                     },
                     height: function (ele) {
                         const type = ele.data('type');
-                        if (type === 'topic') return 50;
-                        if (type === 'subtopic') return 40;
-                        if (type === 'document') return 60;
-                        return 30;
+                        if (type === 'document') return 52;
+                        if (type === 'topic') return 48;
+                        if (type === 'subtopic') return 46;
+                        return 44;
                     },
                     "border-width": 2,
-                    "border-color": "#475569",
-                    "text-outline-width": 1,
-                    "text-outline-color": "#0b1120"
+                    "border-color": function (ele) {
+                        const type = ele.data('type');
+                        if (type === 'document') return '#ea580c';
+                        if (type === 'topic') return '#0f766e';
+                        if (type === 'subtopic') return '#2563eb';
+                        return '#1e40af';
+                    },
+                    padding: "8px",
+                    "overlay-padding": "6px"
                 },
             },
             {
                 selector: "edge",
                 style: {
-                    width: 1.5,
-                    "line-color": "#475569",
-                    "target-arrow-color": "#475569",
+                    width: function (ele) {
+                        return ele.data('relation_type') === 'hierarchy' ? 2.2 : 1.2;
+                    },
+                    "line-color": function (ele) {
+                        return ele.data('relation_type') === 'hierarchy' ? '#475569' : '#64748b';
+                    },
+                    "target-arrow-color": function (ele) {
+                        return ele.data('relation_type') === 'hierarchy' ? '#475569' : '#64748b';
+                    },
                     "target-arrow-shape": "triangle",
-                    "curve-style": "taxi",
-                    "taxi-direction": "downward",
-                    "edge-distances": "node-position",
-                    opacity: 0.6,
-                    label: "data(relation_type)",
-                    "font-size": "8px",
-                    "text-rotation": "autorotate",
-                    "text-margin-y": -10,
-                    "color": "#94a3b8"
+                    "curve-style": "bezier",
+                    opacity: function (ele) {
+                        return ele.data('relation_type') === 'hierarchy' ? 0.9 : 0.45;
+                    },
+                    label: "",
+                },
+            },
+            {
+                selector: 'edge[relation_type = "hierarchy"]',
+                style: {
+                    "target-arrow-shape": "none",
                 },
             },
         ],
         layout: {
-            name: "breadthfirst",
-            directed: true,
+            name: "preset",
             padding: 50,
-            spacingFactor: 1.25,
             animate: true,
-            nodeDimensionsIncludeLabels: true
+            fit: true,
         },
         autoungrabify: true,
         userZoomingEnabled: true,
@@ -678,13 +706,27 @@ function initGraph() {
     graph.on('mouseover', 'node', function (e) {
         const data = e.target.data();
         const tooltip = document.getElementById("graph-tooltip");
-        const centrality = data.centrality !== undefined ? Number(data.centrality).toFixed(3) : "n/a";
-        const community = data.community || "n/a";
+        const nodeType = String(data.type || "node").replaceAll("-", " ");
+        const centrality = Number(data.centrality ?? data.pagerank ?? 0).toFixed(3);
         const definition = data.definition || data.description || "No definition available.";
         tooltip.innerHTML = `<strong>${escapeHtml(data.label)}</strong><br>
-                             <div>Community: ${escapeHtml(community)}</div>
-                             <div>Centrality: ${escapeHtml(centrality)}</div>
+                             <div>Type: ${escapeHtml(nodeType)}</div>
+                             <div>Importance: ${escapeHtml(centrality)}</div>
                              <div style="font-size: 0.75rem; margin-top: 6px; color: #cbd5e1">${escapeHtml(definition)}</div>`;
+        tooltip.style.display = "block";
+    });
+
+    graph.on('mouseover', 'edge', function (e) {
+        const data = e.target.data();
+        const tooltip = document.getElementById("graph-tooltip");
+        const relationLabel = graphRelationLabel(data.relation_type);
+        const relationDescription =
+            data.description ||
+            (String(data.relation_type || "").toLowerCase() === "explanation"
+                ? "Related concepts found together in the same source sections."
+                : "Connection between nodes in the knowledge map.");
+        tooltip.innerHTML = `<strong>${escapeHtml(relationLabel)}</strong><br>
+                             <div style="font-size: 0.75rem; margin-top: 6px; color: #cbd5e1">${escapeHtml(relationDescription)}</div>`;
         tooltip.style.display = "block";
     });
 
@@ -697,53 +739,78 @@ function initGraph() {
         }
     });
 
-    graph.on('mouseout', 'node', function () {
+    graph.on('mouseout', 'node, edge', function () {
         document.getElementById("graph-tooltip").style.display = "none";
     });
 }
 
 async function loadGraph(documentId) {
+    if (!isDocumentAnalyzed(selectedDoc)) {
+        resetGraphPanels("Graph will appear after analysis completes.");
+        return;
+    }
     try {
         const response = await fetch(`${API_BASE}/graph/${documentId}`);
         if (!response.ok) {
-            document.getElementById("graph-info").textContent = "No graph available.";
-            graph.elements().remove();
+            resetGraphPanels("No graph available.");
             return;
         }
         const payload = await response.json();
-        const elements = toGraphElements(payload);
+        const elements = simplifyGraphElements(toGraphElements(payload));
         graph.elements().remove();
         graph.add(elements);
         graph.layout({
-            name: "breadthfirst",
-            directed: true,
-            spacingFactor: 2.0,
-            roots: cy => cy.nodes('[type = "document"]'),
-            animate: true
+            name: "preset",
+            positions: buildMindMapPositions(elements),
+            animate: true,
+            fit: true,
+            padding: 50,
         }).run();
         graph.autoungrabify(true);
-        document.getElementById("graph-info").textContent = `${graph.nodes().length} nodes / ${graph.edges().length} edges`;
+        const nodeCount = graph.nodes().length;
+        const edgeCount = graph.edges().length;
+        const semanticEdgeCount = graph.edges().filter(edge => edge.data('relation_type') !== 'hierarchy').length;
+        document.getElementById("graph-info").textContent = `${nodeCount} nodes / ${edgeCount} edges (${semanticEdgeCount} semantic)`;
         populateGraphFilterAndTable(elements);
+        applyRelationFilter(document.getElementById("relation-filter")?.value || "hierarchy");
     } catch (error) {
         document.getElementById("graph-info").textContent = "Graph load failed.";
     }
 }
 
+function resetGraphPanels(message) {
+    document.getElementById("graph-info").textContent = message;
+    graph.elements().remove();
+    populateGraphFilterAndTable([]);
+}
+
 function populateGraphFilterAndTable(elementsArr) {
     const nodes = elementsArr.filter(e => e.data && (e.data.source === undefined));
     const edges = elementsArr.filter(e => e.data && e.data.source !== undefined);
+    const structuralLabels = new Set(
+        nodes
+            .filter((node) => ["document", "topic", "subtopic"].includes(String(node.data?.type || "").toLowerCase()))
+            .map((node) => normalizeConceptLabel(node.data?.label || node.data?.name || ""))
+            .filter(Boolean)
+    );
+    const conceptNodes = nodes
+        .filter((node) => String(node.data?.type || "").toLowerCase() === "concept")
+        .filter((node) => !structuralLabels.has(normalizeConceptLabel(node.data?.label || node.data?.name || "")))
+        .filter((node) => isDisplayableConcept(node.data));
 
     const tbody = document.querySelector("#concepts-table tbody");
     tbody.innerHTML = "";
 
-    let sortedNodes = [...nodes].sort((a, b) => (Number(b.data?.centrality || 0) - Number(a.data?.centrality || 0)));
+    let sortedNodes = [...conceptNodes].sort((a, b) => (
+        Number(b.data?.centrality ?? b.data?.pagerank ?? 0) - Number(a.data?.centrality ?? a.data?.pagerank ?? 0)
+    ));
     if (sortedNodes.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align: center;">No concepts loaded</td></tr>`;
     } else {
         const html = sortedNodes.slice(0, 100).map(n => {
             const data = n.data;
             const label = data.label || data.id;
-            const desc = data.definition || data.description || "-";
+            const desc = displayableConceptDefinition(data);
             return `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(desc)}</td></tr>`;
         }).join("");
         tbody.innerHTML = html;
@@ -755,43 +822,322 @@ function populateGraphFilterAndTable(elementsArr) {
         if (e.data.relation_type) edgeTypes.add(e.data.relation_type);
     });
     const filter = document.getElementById("relation-filter");
-    filter.innerHTML = `<option value="all">All Relations</option>`;
-    edgeTypes.forEach(t => {
+    const currentValue = filter.value || "hierarchy";
+    filter.innerHTML = `
+        <option value="hierarchy">Structure Only</option>
+        <option value="all">All Relations</option>
+        <option value="semantic">Semantic Only</option>
+    `;
+    [...edgeTypes].sort().forEach(t => {
+        if (t === "hierarchy") return;
         const opt = document.createElement("option");
         opt.value = t;
         opt.textContent = t;
         filter.appendChild(opt);
     });
+    filter.value = [...filter.options].some((option) => option.value === currentValue) ? currentValue : "hierarchy";
+}
+
+function normalizeConceptLabel(value) {
+    return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isDisplayableConcept(data) {
+    const label = String(data?.label || data?.name || "").trim();
+    const normalized = normalizeConceptLabel(label);
+    if (!label) return false;
+    if (label.length > 50) return false;
+    if (/\d/.test(label)) return false;
+    if (/^(document|question|questions|page|attempt|part|section)$/i.test(label)) return false;
+    if (/page\s+\d+/i.test(label)) return false;
+    if (/attempt\s+\d+/i.test(label)) return false;
+    if (/(check the schedule|semester examination|end semester|dashboard|reporting)/i.test(label)) return false;
+
+    const words = normalized.match(/[a-z][a-z'-]*/g) || [];
+    if (!words.length || words.length > 4) return false;
+    const noiseWords = new Set([
+        "the", "and", "for", "with", "from", "into", "page", "attempt", "question", "questions",
+        "part", "section", "check", "schedule", "semester", "examination", "reporting",
+    ]);
+    const meaningfulWords = words.filter((word) => !noiseWords.has(word));
+    if (!meaningfulWords.length) return false;
+    if (words.length >= 3 && meaningfulWords.length < words.length - 1) return false;
+    return true;
+}
+
+function displayableConceptDefinition(data) {
+    const raw = String(data?.definition || data?.description || "").trim();
+    if (!raw) return "Source concept identified from document text.";
+    if (/frequent concept inferred from document context/i.test(raw)) {
+        return "Source concept identified from document text.";
+    }
+    return raw;
+}
+
+function applyRelationFilter(filterVal) {
+    if (!graph) return;
+    graph.edges().forEach((edge) => {
+        const relationType = String(edge.data('relation_type') || '').toLowerCase();
+        let visible = false;
+        if (filterVal === "all") {
+            visible = true;
+        } else if (filterVal === "hierarchy") {
+            visible = relationType === "hierarchy";
+        } else if (filterVal === "semantic") {
+            visible = relationType !== "hierarchy";
+        } else {
+            visible = relationType === String(filterVal || "").toLowerCase();
+        }
+        edge.style('display', visible ? 'element' : 'none');
+    });
+}
+
+function simplifyGraphElements(elementsArr) {
+    const nodes = elementsArr.filter((item) => item.data && item.data.source === undefined);
+    const edges = elementsArr.filter((item) => item.data && item.data.source !== undefined);
+    const nodeMap = new Map(nodes.map((node) => [String(node.data.id), node]));
+    const hierarchyEdges = edges.filter((edge) => String(edge.data?.relation_type || "").toLowerCase() === "hierarchy");
+    const incomingHierarchy = new Map();
+    const outgoingHierarchy = new Map();
+
+    hierarchyEdges.forEach((edge) => {
+        const source = String(edge.data.source);
+        const target = String(edge.data.target);
+        if (!outgoingHierarchy.has(source)) outgoingHierarchy.set(source, []);
+        if (!incomingHierarchy.has(target)) incomingHierarchy.set(target, []);
+        outgoingHierarchy.get(source).push(edge);
+        incomingHierarchy.get(target).push(edge);
+    });
+
+    const nodesToRemove = new Set();
+    const edgesToRemove = new Set();
+    const edgesToAdd = [];
+    const replacementKeys = new Set();
+
+    nodes.forEach((node) => {
+        const data = node.data || {};
+        const nodeType = String(data.type || "").toLowerCase();
+        if (!["topic", "subtopic"].includes(nodeType)) return;
+
+        const outgoing = outgoingHierarchy.get(String(data.id)) || [];
+        if (outgoing.length !== 1) return;
+
+        const childEdge = outgoing[0];
+        const childNode = nodeMap.get(String(childEdge.data.target));
+        if (!childNode || String(childNode.data?.type || "").toLowerCase() !== "concept") return;
+
+        const nodeLabel = normalizeConceptLabel(data.label || data.name || "");
+        const childLabel = normalizeConceptLabel(childNode.data?.label || childNode.data?.name || "");
+        if (!nodeLabel || nodeLabel !== childLabel) return;
+
+        nodesToRemove.add(String(data.id));
+        edgesToRemove.add(String(childEdge.data.id));
+
+        const incoming = incomingHierarchy.get(String(data.id)) || [];
+        incoming.forEach((edge) => {
+            edgesToRemove.add(String(edge.data.id));
+            const sourceId = String(edge.data.source);
+            const targetId = String(childNode.data.id);
+            const replacementKey = `${sourceId}->${targetId}`;
+            if (sourceId === targetId || replacementKeys.has(replacementKey)) return;
+            replacementKeys.add(replacementKey);
+            edgesToAdd.push({
+                data: {
+                    id: `collapsed-${sourceId}-${targetId}`,
+                    source: sourceId,
+                    target: targetId,
+                    relation_type: "hierarchy",
+                    description: "Collapsed duplicate hierarchy wrapper.",
+                },
+            });
+        });
+    });
+
+    const keptNodes = nodes.filter((node) => !nodesToRemove.has(String(node.data.id)));
+    const keptEdges = edges.filter((edge) => !edgesToRemove.has(String(edge.data.id)));
+    return [...keptNodes, ...keptEdges, ...edgesToAdd];
+}
+
+function buildMindMapPositions(elementsArr) {
+    const nodes = elementsArr.filter((item) => item.data && item.data.source === undefined);
+    const edges = elementsArr.filter((item) => item.data && item.data.source !== undefined);
+    const hierarchyEdges = edges.filter((edge) => String(edge.data?.relation_type || "").toLowerCase() === "hierarchy");
+    const childMap = new Map();
+    const nodeMap = new Map();
+
+    nodes.forEach((node) => {
+        nodeMap.set(String(node.data.id), node.data);
+        childMap.set(String(node.data.id), []);
+    });
+
+    hierarchyEdges.forEach((edge) => {
+        const source = String(edge.data.source);
+        const target = String(edge.data.target);
+        if (!childMap.has(source)) {
+            childMap.set(source, []);
+        }
+        childMap.get(source).push(target);
+    });
+
+    const sortChildren = (leftId, rightId) => {
+        const left = nodeMap.get(leftId) || {};
+        const right = nodeMap.get(rightId) || {};
+        const leftType = layoutTypeOrder(String(left.type || ""));
+        const rightType = layoutTypeOrder(String(right.type || ""));
+        if (leftType !== rightType) {
+            return leftType - rightType;
+        }
+        return String(left.label || "").localeCompare(String(right.label || ""));
+    };
+
+    childMap.forEach((children, key) => {
+        children.sort(sortChildren);
+        childMap.set(key, children);
+    });
+
+    const positions = {};
+    const visited = new Set();
+    const horizontalSpacing = 190;
+    const verticalSpacing = 130;
+    let leafCursor = 0;
+
+    const rootNode = nodes.find((node) => String(node.data?.type || "").toLowerCase() === "document");
+    const rootId = rootNode ? String(rootNode.data.id) : (nodes[0] ? String(nodes[0].data.id) : null);
+
+    const placeNode = (nodeId, depth) => {
+        visited.add(nodeId);
+        const children = (childMap.get(nodeId) || []).filter((childId) => nodeMap.has(childId));
+        const y = 90 + (depth * verticalSpacing);
+        if (!children.length) {
+            const x = 120 + (leafCursor * horizontalSpacing);
+            leafCursor += 1;
+            positions[nodeId] = { x, y };
+            return x;
+        }
+
+        const childXs = children.map((childId) => placeNode(childId, depth + 1));
+        const x = (Math.min(...childXs) + Math.max(...childXs)) / 2;
+        positions[nodeId] = { x, y };
+        return x;
+    };
+
+    if (rootId) {
+        placeNode(rootId, 0);
+    }
+
+    const orphanNodes = nodes
+        .map((node) => String(node.data.id))
+        .filter((id) => !visited.has(id))
+        .sort(sortChildren);
+
+    orphanNodes.forEach((nodeId) => {
+        const data = nodeMap.get(nodeId) || {};
+        const type = String(data.type || "").toLowerCase();
+        const depth = type === "topic" ? 1 : type === "subtopic" ? 2 : type === "concept" ? 3 : 0;
+        positions[nodeId] = {
+            x: 120 + (leafCursor * horizontalSpacing),
+            y: 90 + (depth * verticalSpacing),
+        };
+        leafCursor += 1;
+    });
+
+    return positions;
+}
+
+function layoutTypeOrder(type) {
+    const normalized = String(type || "").toLowerCase();
+    if (normalized === "document") return 0;
+    if (normalized === "topic") return 1;
+    if (normalized === "subtopic") return 2;
+    if (normalized === "concept") return 3;
+    return 4;
+}
+
+function graphDisplayLabel(data) {
+    const label = String(data?.label || data?.name || "").trim();
+    const type = String(data?.type || data?.node_type || "").toLowerCase();
+    if (!label) return "";
+
+    let maxLength = 22;
+    if (type === "document") maxLength = 18;
+    else if (type === "topic") maxLength = 24;
+    else if (type === "subtopic") maxLength = 22;
+    else if (type === "concept") maxLength = 18;
+
+    const compact = label.replace(/\s+/g, " ").trim();
+    if (compact.length <= maxLength) {
+        return compact;
+    }
+    return `${compact.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+}
+
+function graphRelationLabel(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized) return "Relation";
+    if (normalized === "hierarchy") return "Hierarchy";
+    if (normalized === "explanation") return "Related Concepts";
+    return normalized
+        .split("-")
+        .map((part) => part ? part[0].toUpperCase() + part.slice(1) : "")
+        .join(" ");
+}
+
+function normalizeGraphNode(node, index) {
+    const raw = node?.data ? { ...node.data } : { ...(node || {}) };
+    const normalized = {
+        id: String(raw.id || `node-${index}`),
+        label: raw.label || raw.name || String(raw.id || `node-${index}`),
+        type: raw.type || raw.node_type || "unknown",
+        centrality: raw.centrality ?? raw.pagerank,
+        pagerank: raw.pagerank,
+        community: raw.community,
+        definition: raw.definition || raw.description,
+        ...raw,
+    };
+    normalized.id = String(normalized.id);
+    normalized.label = normalized.label || normalized.name || normalized.id;
+    normalized.type = normalized.type || normalized.node_type || "unknown";
+    normalized.centrality = normalized.centrality ?? normalized.pagerank;
+    return { data: normalized };
+}
+
+function normalizeGraphEdge(edge, index) {
+    const raw = edge?.data ? { ...edge.data } : { ...(edge || {}) };
+    const normalized = {
+        id: String(raw.id || `edge-${index}`),
+        source: String(raw.source || ""),
+        target: String(raw.target || ""),
+        relation_type: raw.relation_type || raw.type || "unknown",
+        description: raw.description,
+        ...raw,
+    };
+    normalized.id = String(normalized.id);
+    normalized.source = String(normalized.source || "");
+    normalized.target = String(normalized.target || "");
+    normalized.relation_type = normalized.relation_type || normalized.type || "unknown";
+    return { data: normalized };
 }
 
 function toGraphElements(payload) {
     if (payload.elements) {
         const nodes = payload.elements.nodes || [];
         const edges = payload.elements.edges || [];
-        return [...nodes, ...edges];
+        return [
+            ...nodes.map((node, index) => normalizeGraphNode(node, index)),
+            ...edges.map((edge, index) => normalizeGraphEdge(edge, index)),
+        ];
     }
     if (Array.isArray(payload)) {
-        return payload;
+        return payload.map((item, index) => {
+            const data = item?.data || item || {};
+            if (data.source !== undefined && data.target !== undefined) {
+                return normalizeGraphEdge(item, index);
+            }
+            return normalizeGraphNode(item, index);
+        });
     }
-    const nodes = (payload.nodes || []).map((node) => ({
-        data: {
-            id: String(node.id),
-            label: node.label || node.name || String(node.id),
-            centrality: node.centrality,
-            community: node.community,
-            definition: node.definition || node.description,
-            ...node
-        },
-    }));
-    const edges = (payload.links || payload.edges || []).map((edge, index) => ({
-        data: {
-            id: String(edge.id || `e-${index}`),
-            source: String(edge.source),
-            target: String(edge.target),
-            relation_type: edge.relation_type || edge.type || "unknown",
-            ...edge
-        },
-    }));
+    const nodes = (payload.nodes || []).map((node, index) => normalizeGraphNode(node, index));
+    const edges = (payload.links || payload.edges || []).map((edge, index) => normalizeGraphEdge(edge, index));
     return [...nodes, ...edges];
 }
 
@@ -818,127 +1164,27 @@ async function refreshSystemStatus() {
                 healthPayload.status === "healthy"
                     ? "rgba(71, 208, 125, 0.25)"
                     : "rgba(232, 179, 75, 0.25)";
-            renderHealthStats(healthPayload);
         }
     } catch (error) {
         // Keep UI responsive when backend is down.
     }
 }
 
-async function refreshInspectorPanels() {
-    if (!selectedDocId) {
-        return;
-    }
-    try {
-        const [graphResp, datasetResp, healthResp] = await Promise.all([
-            fetch(`${API_BASE}/system/graph-stats?document_id=${encodeURIComponent(selectedDocId)}`),
-            fetch(`${API_BASE}/system/dataset-stats?document_id=${encodeURIComponent(selectedDocId)}`),
-            fetch(`${API_BASE}/system/health-check?document_id=${encodeURIComponent(selectedDocId)}`),
-        ]);
-
-        if (graphResp.ok) {
-            const graphStats = await graphResp.json();
-            renderGraphStats(graphStats);
-        } else if (graphResp.status === 404) {
-            await refreshLegacyGraphStats();
-        }
-        if (datasetResp.ok) {
-            const datasetStats = await datasetResp.json();
-            renderDatasetStats(datasetStats);
-        } else if (datasetResp.status === 404) {
-            await refreshLegacyDatasetStats();
-        }
-        if (healthResp.ok) {
-            const healthStats = await healthResp.json();
-            renderHealthStats(healthStats);
-        } else if (healthResp.status === 404) {
-            await refreshLegacyHealthStats();
-        }
-    } catch (error) {
-        // Ignore periodic inspector errors.
-    }
-}
-
-async function refreshLegacyGraphStats() {
-    try {
-        const response = await fetch(`${API_BASE}/knowledge-map/${encodeURIComponent(selectedDocId)}`);
-        if (!response.ok) return;
-        const payload = await response.json();
-        renderGraphStats({
-            concept_count: (payload.concepts || []).length,
-            relation_count: (payload.relations || []).length,
-            graph_density: "n/a (legacy)",
-            central_nodes: [],
-        });
-    } catch (error) {
-        // Ignore fallback errors.
-    }
-}
-
-async function refreshLegacyDatasetStats() {
-    try {
-        const response = await fetch(`${API_BASE}/dataset/relations/stats`);
-        if (!response.ok) return;
-        const payload = await response.json();
-        renderDatasetStats(payload);
-    } catch (error) {
-        // Ignore fallback errors.
-    }
-}
-
-async function refreshLegacyHealthStats() {
-    try {
-        const response = await fetch(`${API_BASE}/system-status`);
-        if (!response.ok) return;
-        const payload = await response.json();
-        renderHealthStats({
-            status: "legacy",
-            checks: {
-                embedding_service_health: { status: payload.services?.embeddings || "unknown" },
-                vectorstore_integrity: { status: "unknown" },
-                graph_integrity: { status: payload.services?.graph_engine || "unknown" },
-                dataset_integrity: { status: "unknown" },
-                llm_connectivity: { status: payload.services?.llm?.status || "unknown" },
-            },
-        });
-    } catch (error) {
-        // Ignore fallback errors.
-    }
-}
-
-function renderGraphStats(stats) {
-    const centralNodes = (stats.central_nodes || [])
-        .map((node) => `${node.label || node.node_id} (${Number(node.score || 0).toFixed(2)})`)
-        .join(", ") || "None";
-    document.getElementById("graph-stats").innerHTML = `
-        Concepts: ${stats.concept_count || 0}<br>
-        Relations: ${stats.relation_count || 0}<br>
-        Density: ${stats.graph_density || 0}<br>
-        Central Nodes: ${centralNodes}
-    `;
+function isDocumentAnalyzed(doc) {
+    return String(doc?.status || "").toLowerCase() === "analyzed";
 }
 
 function renderDatasetStats(stats) {
-    const validation = stats.validation_stats || {};
-    const datasetDb = stats.storage_paths?.relation_dataset_db || "unknown";
+    const validationRate = Number(stats.validationRate || 0);
+    const datasetFolder = stats.exportFolder || "unknown";
+    const latestFile = stats.latestExport || "Will appear after export";
     document.getElementById("dataset-stats").innerHTML = `
         Records: ${stats.total_records || 0}<br>
         Labeled: ${stats.labeled_records || 0}<br>
         Unlabeled: ${stats.unlabeled_records || 0}<br>
-        Validation Rate: ${(Number(validation.validation_rate || 0) * 100).toFixed(1)}%<br>
-        Dataset DB: ${escapeHtml(datasetDb)}
-    `;
-}
-
-function renderHealthStats(stats) {
-    const checks = stats.checks || {};
-    document.getElementById("system-health").innerHTML = `
-        Status: ${stats.status || "unknown"}<br>
-        Embedding: ${checks.embedding_service_health?.status || "unknown"}<br>
-        Vectorstore: ${checks.vectorstore_integrity?.status || "unknown"}<br>
-        Graph: ${checks.graph_integrity?.status || "unknown"}<br>
-        Dataset: ${checks.dataset_integrity?.status || "unknown"}<br>
-        LLM: ${checks.llm_connectivity?.status || "unknown"}
+        Validation Rate: ${(validationRate * 100).toFixed(1)}%<br>
+        Dataset Folder: ${escapeHtml(datasetFolder)}<br>
+        Latest Export: ${escapeHtml(latestFile)}
     `;
 }
 
@@ -954,18 +1200,46 @@ async function loadAnalysisReport() {
         );
         if (!response.ok) {
             reportBox.textContent = "Analysis report not available yet.";
+            renderDatasetStats({
+                total_records: 0,
+                labeled_records: 0,
+                unlabeled_records: 0,
+                exportFolder: "Awaiting report",
+                latestExport: "No export yet",
+            });
             return;
         }
         const payload = await response.json();
         renderAnalysisReport(payload);
+        renderDatasetStatusFromReport(payload);
     } catch (error) {
         reportBox.textContent = "Failed to load analysis report.";
     }
 }
 
+function renderDatasetStatusFromReport(report) {
+    const artifacts = report.artifacts || {};
+    const exportPath = normalizeDatasetExportPath(artifacts.dataset_export);
+    renderDatasetStats({
+        total_records: Number(artifacts.dataset_records || 0),
+        labeled_records: 0,
+        unlabeled_records: Number(artifacts.dataset_records || 0),
+        validationRate: 0,
+        exportFolder: exportPath ? exportPath.replace(/[\\/][^\\/]+$/, "") : "D:\\Clarion\\data\\datasets",
+        latestExport: exportPath || "No export yet",
+    });
+}
+
+function normalizeDatasetExportPath(pathValue) {
+    const raw = String(pathValue || "").trim();
+    if (!raw) return "";
+    if (/^[a-zA-Z]:\\/.test(raw)) return raw;
+    const fileName = raw.split(/[\\/]/).pop();
+    return fileName ? `D:\\Clarion\\data\\datasets\\${fileName}` : raw;
+}
+
 function renderAnalysisReport(report) {
     const reportBox = document.getElementById("analysis-report");
-    const summary = report.summary || {};
     const insights = report.insights || {};
     const validationFailures = (report.stage_validations || []).filter(
         (item) => item.validation_passed === false
@@ -988,10 +1262,6 @@ function renderAnalysisReport(report) {
     const findings = (insights.key_findings || [])
         .map((item) => `- ${escapeHtml(item)}`)
         .join("<br>");
-    const recommendations = (insights.recommendations || [])
-        .map((item) => `- ${escapeHtml(item)}`)
-        .join("<br>");
-
     const narrativeSummary = insights.narrative_summary || insights.overview || "No summary available.";
 
     reportBox.innerHTML = `
@@ -1012,11 +1282,6 @@ function renderAnalysisReport(report) {
         <div class="report-section">
             <h3>Key Findings</h3>
             <div class="findings-list">${findings || "No key findings identified."}</div>
-        </div>
-
-        <div class="report-section">
-            <h3>Insights & Recommendations</h3>
-            <div class="findings-list">${recommendations || "No recommendations generated."}</div>
         </div>
 
         <div class="report-footer">

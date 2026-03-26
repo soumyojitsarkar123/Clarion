@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import networkx as nx
@@ -180,6 +181,7 @@ async def get_dataset_stats(
                 **stats,
                 "validation_stats": validation,
                 "storage_paths": _storage_locations(),
+                "latest_export_file": _latest_dataset_export_file(document_id=None),
             }
 
         conn = sqlite_connect(str(settings.data_dir / "relation_dataset.db"))
@@ -230,6 +232,7 @@ async def get_dataset_stats(
                 "validation_rate": round(labeled / total, 4) if total else 0.0,
             },
             "storage_paths": _storage_locations(),
+            "latest_export_file": _latest_dataset_export_file(document_id=document_id),
         }
     except sqlite3.OperationalError:
         return {
@@ -244,6 +247,7 @@ async def get_dataset_stats(
                 "validation_rate": 0.0,
             },
             "storage_paths": _storage_locations(),
+            "latest_export_file": _latest_dataset_export_file(document_id=document_id),
         }
     except Exception as error:
         logger.error("Dataset stats retrieval failed: %s", error)
@@ -419,11 +423,27 @@ def _dataset_validation_stats(document_id: Optional[str] = None) -> Dict[str, An
 
 
 def _storage_locations() -> Dict[str, str]:
+    repo_root = Path(__file__).resolve().parents[2]
+    workspace_dataset_dir = repo_root / "data" / "datasets"
     return {
         "data_dir": str(settings.data_dir.resolve()),
         "main_db": str((settings.data_dir / "clarion.db").resolve()),
         "relation_dataset_db": str((settings.data_dir / "relation_dataset.db").resolve()),
+        "dataset_exports_dir": str(workspace_dataset_dir.resolve()),
         "vectorstore_dir": str(settings.vectorstore_dir.resolve()),
         "graphs_dir": str((settings.data_dir / "graphs").resolve()),
         "logs_dir": str(settings.logs_dir.resolve()),
     }
+
+
+def _latest_dataset_export_file(document_id: Optional[str]) -> Optional[str]:
+    repo_root = Path(__file__).resolve().parents[2]
+    dataset_dir = repo_root / "data" / "datasets"
+    if not dataset_dir.exists():
+        return None
+
+    pattern = f"*{document_id}*_relations.json" if document_id else "*_relations.json"
+    matches = sorted(dataset_dir.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
+    if not matches:
+        return None
+    return str(matches[0].resolve())

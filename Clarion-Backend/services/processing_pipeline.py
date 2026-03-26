@@ -6,6 +6,7 @@ ingestion → chunking → embedding → mapping → graph → evaluation → hi
 """
 
 import logging
+import re
 from typing import Optional, Callable, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
@@ -326,6 +327,12 @@ class ProcessingPipeline:
                         chunks=chunks,
                     )
                     results["artifacts"]["dataset_records"] = dataset_records
+                    dataset_export_path = self.relation_dataset_service.export_document_snapshot(
+                        document_id=document_id,
+                        document_filename=document.metadata.filename if document.metadata else None,
+                    )
+                    if dataset_export_path:
+                        results["artifacts"]["dataset_export"] = str(dataset_export_path)
             else:
                 knowledge_map = self.knowledge_map_service.get_knowledge_map(document_id)
                 await update_progress(JobStatus.MAPPING.value, 65)
@@ -586,10 +593,12 @@ class ProcessingPipeline:
             summary=summary_metrics,
             top_concepts=top_concepts,
             relation_breakdown=relation_breakdown,
+            structured_summary=summary,
         )
         recommendations = self._build_recommendations(
             evaluation=evaluation,
             stage_validations=stage_validations,
+            structured_summary=summary,
         )
 
         return {
@@ -619,7 +628,7 @@ class ProcessingPipeline:
         }
 
     def _build_overview_text(self, summary: Dict[str, Any], narrative_summary: Optional[str] = None) -> str:
-        if narrative_summary:
+        if narrative_summary and "llm unavailable" not in narrative_summary.lower():
             return narrative_summary
         
         concept_count = int(summary.get("concept_count") or 0)
@@ -693,8 +702,55 @@ class ProcessingPipeline:
         summary: Dict[str, Any],
         top_concepts: List[Dict[str, Any]],
         relation_breakdown: List[Dict[str, Any]],
+        structured_summary: Optional[Any] = None,
     ) -> List[str]:
         findings: List[str] = []
+
+        if structured_summary:
+            concepts: List[str] = []
+            seen_concepts = set()
+            for section in structured_summary.sections:
+                for concept in section.related_concepts[:4]:
+                    normalized = self._normalize_finding_concept(concept)
+                    if not normalized or normalized in seen_concepts:
+                        continue
+                    seen_concepts.add(normalized)
+                    concepts.append(normalized)
+                    if len(concepts) >= 6:
+                        break
+                if len(concepts) >= 6:
+                    break
+
+            if concepts:
+                findings.append(
+                    f"Main themes: {self._join_readable_phrases(concepts[:4])}."
+                )
+                if len(concepts) > 4:
+                    findings.append(
+                        f"Additional topics: {self._join_readable_phrases(concepts[4:6])}."
+                    )
+
+            summary_text = str(getattr(structured_summary, "overall_summary", "") or "")
+            if "assessment-style questions" in summary_text.lower():
+                findings.append(
+                    "Format: assessment-style questions covering both conceptual understanding and applied problems."
+                )
+
+            for section in structured_summary.sections[:5]:
+                for point in section.key_points[:2]:
+                    text = str(point).strip()
+                    if not self._is_user_facing_finding(text):
+                        continue
+                    if text.lower().startswith(("covers ", "also touches on ")):
+                        continue
+                    if not text.endswith((".", "!", "?")):
+                        text = f"{text}."
+                    findings.append(text)
+                    if len(findings) >= 6:
+                        return findings[:6]
+
+            if findings:
+                return findings[:6]
 
         if top_concepts:
             concept_names = ", ".join([item["name"] for item in top_concepts[:5]])
@@ -727,6 +783,7 @@ class ProcessingPipeline:
         self,
         evaluation: Dict[str, Any],
         stage_validations: List[Dict[str, Any]],
+        structured_summary: Optional[Any] = None,
     ) -> List[str]:
         recommendations: List[str] = []
 
@@ -745,7 +802,12 @@ class ProcessingPipeline:
 
         if not recommendations:
             recommendations.append(
-                "No major quality issues detected. You can proceed with Q&A and downstream workflows."
+                "No major quality issues detected. The summary is ready for review and downstream Q&A."
+            )
+
+        if structured_summary and structured_summary.metadata.get("llm_summary_accepted") is False:
+            recommendations.append(
+                "The summary was generated from extracted document text because the live model response was unavailable or unusable."
             )
 
         # Preserve order while removing duplicates.
@@ -758,6 +820,66 @@ class ProcessingPipeline:
             seen.add(key)
             deduped.append(item)
         return deduped[:6]
+
+    def _is_user_facing_finding(self, text: str) -> bool:
+        """Filter summary bullets so the report shows readable content findings."""
+        cleaned = str(text or "").strip()
+        if not cleaned:
+            return False
+        lowered = cleaned.lower()
+        if lowered.startswith("key focus:"):
+            return False
+        if any(
+            phrase in lowered
+            for phrase in [
+                "subject code",
+                "full tmarks",
+                "which of the following is the possible number",
+                "page ",
+            ]
+        ):
+            return False
+        words = re.findall(r"[A-Za-z][A-Za-z'-]+", cleaned)
+        if len(words) < 5:
+            return False
+        alpha_count = sum(char.isalpha() for char in cleaned)
+        digit_count = sum(char.isdigit() for char in cleaned)
+        if alpha_count and digit_count > alpha_count * 0.12:
+            return False
+        return True
+
+    def _normalize_finding_concept(self, text: str) -> Optional[str]:
+        """Normalize section concepts into report-safe topic labels."""
+        cleaned = re.sub(r"\s+", " ", str(text or "")).strip().lower()
+        cleaned = cleaned.replace("-", " ")
+        if not cleaned or any(char.isdigit() for char in cleaned):
+            return None
+        blocked = {
+            "bject", "name", "following", "possible", "number", "all", "attempt",
+            "question", "questions", "mathematics lll", "mathematics", "rlation",
+            "popr", "mean height", "page", "term", "type", "days", "suppose",
+        }
+        if cleaned in blocked:
+            return None
+        words = re.findall(r"[a-z][a-z']+", cleaned)
+        if not words:
+            return None
+        alpha_only = "".join(words)
+        vowel_count = sum(char in "aeiou" for char in alpha_only)
+        if len(alpha_only) >= 6 and vowel_count < max(1, len(alpha_only) * 0.2):
+            return None
+        return cleaned
+
+    def _join_readable_phrases(self, items: List[str]) -> str:
+        """Join topic labels for a short user-facing phrase."""
+        cleaned = [str(item).strip() for item in items if str(item).strip()]
+        if not cleaned:
+            return ""
+        if len(cleaned) == 1:
+            return cleaned[0]
+        if len(cleaned) == 2:
+            return f"{cleaned[0]} and {cleaned[1]}"
+        return f"{', '.join(cleaned[:-1])}, and {cleaned[-1]}"
     
     async def _stage_ingestion(self, document_id: str) -> Document:
         """Stage 1: Validate document and extract metadata."""

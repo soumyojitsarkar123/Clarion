@@ -14,6 +14,7 @@ import uuid
 import sqlite3
 import hashlib
 import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -24,9 +25,10 @@ from collections import defaultdict
 import numpy as np
 
 from utils.config import settings
-from services.knowledge_map_service import LLMInterface
 from services.knowledge_map_service import KnowledgeMapService
 from services.document_service import DocumentService
+from core.llm.factory import LLMFactory
+from core.llm.base import BaseLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +80,16 @@ class DatasetFactoryService:
         self.llm_sample_rate = settings.dataset_llm_sample_rate
         self.batch_size = settings.dataset_batch_size
         self.export_format = settings.dataset_export_format
+        self.require_llm_for_export = settings.dataset_require_llm_for_export
 
         # Lazy-loaded services
-        self._llm = None
+        self._provider: Optional[BaseLLMProvider] = None
+        self._provider_error: Optional[str] = None
         self._embedding_model = None
         self._embedding_cache = {}  # In-memory cache for deduplication
         self.document_service = DocumentService()
         self.knowledge_map_service = KnowledgeMapService()
+        self._process_lock = threading.Lock()
 
         # Statistics
         self.stats = {
@@ -100,11 +105,15 @@ class DatasetFactoryService:
         logger.info("DatasetFactoryService initialized")
 
     @property
-    def llm(self) -> LLMInterface:
-        """Lazy-load LLM interface."""
-        if self._llm is None:
-            self._llm = LLMInterface()
-        return self._llm
+    def provider(self) -> Optional[BaseLLMProvider]:
+        """Lazy-load the default configured LLM provider."""
+        if self._provider is None and self._provider_error is None:
+            try:
+                self._provider = LLMFactory.create_default()
+            except Exception as error:
+                self._provider_error = str(error)
+                logger.warning("Dataset factory provider unavailable: %s", error)
+        return self._provider
 
     def _init_database(self) -> None:
         """Initialize dataset tracking database."""
@@ -275,11 +284,20 @@ class DatasetFactoryService:
             + 0.2 * float(no_placeholder)
         )
 
-        # Keep dataset generation deterministic and fast for live demos.
-        return round(heuristic_score, 3)
+        llm_score = None
+        if self.provider is not None:
+            llm_score = self._llm_quality_validation(sample_text, sample_type)
 
-    def _llm_quality_validation(self, text: str, sample_type: str) -> float:
+        if llm_score is None:
+            return round(heuristic_score, 3)
+
+        return round((0.45 * heuristic_score) + (0.55 * llm_score), 3)
+
+    def _llm_quality_validation(self, text: str, sample_type: str) -> Optional[float]:
         """LLM-based quality validation."""
+        if self.provider is None:
+            return None
+
         prompt = f"""Evaluate the quality of this training sample for fine-tuning an AI assistant.
 
 Sample Type: {sample_type}
@@ -295,18 +313,25 @@ Rate the quality from 0.0 to 1.0 based on:
 Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
 
         try:
-            response = self.llm.generate(prompt)
+            response = asyncio.run(
+                self.provider.generate(
+                    prompt=prompt,
+                    system_message="You are a strict dataset quality rater. Return only a number between 0.0 and 1.0.",
+                    temperature=0.0,
+                    max_tokens=16,
+                )
+            )
             # Extract number from response
             import re
 
-            numbers = re.findall(r"\d+\.?\d*", response)
+            numbers = re.findall(r"\d+\.?\d*", response.content)
             if numbers:
                 score = float(numbers[0])
                 return min(1.0, max(0.0, score))
         except Exception as e:
             logger.debug(f"LLM quality validation failed: {e}")
 
-        return 0.7  # Default moderate score
+        return None
 
     def compute_embedding(self, text: str) -> np.ndarray:
         """
@@ -360,6 +385,85 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
 
         return False
 
+    def _normalize_training_text(self, text: str) -> str:
+        """Normalize chunk text before trainability checks."""
+        normalized = " ".join((text or "").split())
+        normalized = re.sub(r"\b([A-Za-z])(?:\s+[A-Za-z]){3,}\b", lambda m: m.group(0).replace(" ", ""), normalized)
+        return normalized.strip()
+
+    def _looks_administrative_or_noisy(self, text: str) -> bool:
+        """Detect roster-like, metadata-heavy, or otherwise poor training content."""
+        normalized = self._normalize_training_text(text).lower()
+        if not normalized:
+            return True
+
+        blocked_markers = [
+            "roll no",
+            "enrollment number",
+            "work assigned",
+            "name sec",
+            "attendance",
+            "marks obtained",
+            "group members",
+            "group member",
+            "submitted by",
+            "department of",
+            "prof.",
+            "professor",
+        ]
+        if any(marker in normalized for marker in blocked_markers):
+            return True
+
+        if len(re.findall(r"\d", normalized)) > max(12, len(normalized) // 8):
+            return True
+
+        alpha_tokens = re.findall(r"[A-Za-z][A-Za-z'-]+", normalized)
+        if len(alpha_tokens) < 20:
+            return True
+
+        unique_ratio = len(set(token.lower() for token in alpha_tokens)) / max(len(alpha_tokens), 1)
+        if unique_ratio < 0.35:
+            return True
+
+        return False
+
+    def _is_trainable_chunk(self, text: str) -> bool:
+        """Keep only chunks that are self-contained enough for supervised training."""
+        normalized = self._normalize_training_text(text)
+        if len(normalized) < 180:
+            return False
+        if self._looks_administrative_or_noisy(normalized):
+            return False
+
+        sentence_like_units = re.split(r"(?<=[.!?])\s+", normalized)
+        substantial_units = [unit for unit in sentence_like_units if len(unit.split()) >= 8]
+        return len(substantial_units) >= 2
+
+    def _is_trainable_sample(
+        self,
+        input_text: str,
+        output_text: str,
+        context: str,
+    ) -> bool:
+        """Reject samples that still look administrative, fragmentary, or weak."""
+        input_clean = self._normalize_training_text(input_text)
+        output_clean = self._normalize_training_text(output_text)
+        context_clean = self._normalize_training_text(context)
+        combined = " ".join([input_clean, output_clean, context_clean]).lower()
+        if self._looks_administrative_or_noisy(combined):
+            return False
+
+        output_words = re.findall(r"[A-Za-z][A-Za-z'-]+", output_clean)
+        if len(output_words) < 18:
+            return False
+        if len(re.findall(r"[A-Za-z][A-Za-z'-]+", input_clean)) < 4:
+            return False
+        if len(set(word.lower() for word in output_words)) < 12:
+            return False
+        if not any(punct in output_clean for punct in [".", ":", ";"]):
+            return False
+        return True
+
     def create_training_sample(
         self,
         document_id: str,
@@ -374,6 +478,14 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
 
         # Combine for quality scoring
         sample_text = f"{input_text} {output_text}"
+
+        if self.require_llm_for_export and self.provider is None:
+            return None
+
+        if not self._is_trainable_sample(input_text, output_text, context):
+            self.stats["quality_filtered"] += 1
+            logger.debug("Sample filtered as non-trainable")
+            return None
 
         # Quality check
         quality_score = self.score_sample_quality(sample_text, sample_type)
@@ -391,6 +503,12 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
             return None
 
         # Create sample
+        provider_model = None
+        if self.provider is not None:
+            try:
+                provider_model = self.provider.get_model_info().model_name
+            except Exception:
+                provider_model = None
         sample = TrainingSample(
             id=str(uuid.uuid4()),
             document_id=document_id,
@@ -403,8 +521,9 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
             metadata={
                 "word_count": len(sample_text.split()),
                 "char_count": len(sample_text),
-                "model_used": settings.ollama_model,
+                "model_used": provider_model or settings.ollama_model,
                 "quality_threshold": self.quality_threshold,
+                "trainable": True,
             },
             created_at=datetime.now().isoformat(),
         )
@@ -417,137 +536,138 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
 
         Builds a per-document training dataset grounded in selected chunks.
         """
-        logger.info(f"Processing document {document_id} for dataset generation")
-        start_time = datetime.now()
+        with self._process_lock:
+            logger.info(f"Processing document {document_id} for dataset generation")
+            start_time = datetime.now()
 
-        samples = []
-        total_generated = 0
-        quality_scores = []
-        exported_files: List[str] = []
-        generation_mode = "deterministic"
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        document = self.document_service.get_document(document_id)
+            samples = []
+            total_generated = 0
+            quality_scores = []
+            exported_files: List[str] = []
+            generation_mode = "llm_required"
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            document = self.document_service.get_document(document_id)
 
-        # Get all chunks for this document
-        cursor.execute(
-            """
-            SELECT chunk_id, content, position_index 
-            FROM chunks 
-            WHERE document_id = ?
-            ORDER BY position_index
-        """,
-            (document_id,),
-        )
-
-        chunks = cursor.fetchall()
-        logger.info(f"Found {len(chunks)} chunks in document {document_id}")
-
-        concept_titles = self._concept_chunk_titles(document_id)
-        chunks_to_process = self._select_chunks_for_dataset(chunks, concept_titles)
-        logger.info(
-            "Processing %d selected chunks for dataset generation (%d total chunks)",
-            len(chunks_to_process),
-            len(chunks),
-        )
-
-        selected_chunks = []
-        for chunk in chunks_to_process:
-            chunk_text = chunk["content"]
-            if not chunk_text or len(chunk_text) < 80:
-                continue
-
-            selected_chunks.append(
-                {
-                    "chunk_id": chunk["chunk_id"],
-                    "position_index": int(chunk["position_index"]),
-                    "section_title": concept_titles.get(chunk["chunk_id"])
-                    or self._clean_section_title(
-                        chunk["content"], chunk["chunk_id"], chunk["position_index"]
-                    ),
-                    "content": chunk_text.strip(),
-                    "word_count": len(chunk_text.split()),
-                    "context": self._build_context(cursor, document_id, chunk["position_index"]),
-                }
+            # Get all chunks for this document
+            cursor.execute(
+                """
+                SELECT chunk_id, content, position_index 
+                FROM chunks 
+                WHERE document_id = ?
+                ORDER BY position_index
+            """,
+                (document_id,),
             )
 
-        generation_records, generation_mode = self._generate_dataset_records(
-            document=document,
-            selected_chunks=selected_chunks,
-        )
+            chunks = cursor.fetchall()
+            logger.info(f"Found {len(chunks)} chunks in document {document_id}")
 
-        for record in generation_records:
-            chunk_id = record.get("chunk_id", "")
-            chunk_text = record.get("source_text", "")
-            sample = self.create_training_sample(
-                document_id=document_id,
-                chunk_id=chunk_id,
-                chunk_text=chunk_text,
-                sample_type=record.get("sample_type", "qa"),
-                input_text=record.get("instruction", ""),
-                output_text=record.get("response", ""),
-                context=record.get("context", ""),
+            concept_titles = self._concept_chunk_titles(document_id)
+            chunks_to_process = self._select_chunks_for_dataset(chunks, concept_titles)
+            logger.info(
+                "Processing %d selected chunks for dataset generation (%d total chunks)",
+                len(chunks_to_process),
+                len(chunks),
             )
-            if not sample:
-                continue
 
-            sample.metadata.update(
-                {
-                    "concepts": record.get("concepts", []),
-                    "grounding_excerpt": record.get("grounding_excerpt", ""),
-                    "section_title": record.get("section_title", ""),
-                    "generation_mode": generation_mode,
-                }
-            )
-            samples.append(sample)
-            total_generated += 1
-            quality_scores.append(sample.quality_score)
-            self._save_sample(cursor, sample)
+            selected_chunks = []
+            for chunk in chunks_to_process:
+                chunk_text = self._normalize_training_text(chunk["content"])
+                if not self._is_trainable_chunk(chunk_text):
+                    continue
 
-        conn.commit()
-        conn.close()
+                selected_chunks.append(
+                    {
+                        "chunk_id": chunk["chunk_id"],
+                        "position_index": int(chunk["position_index"]),
+                        "section_title": concept_titles.get(chunk["chunk_id"])
+                        or self._clean_section_title(
+                            chunk["content"], chunk["chunk_id"], chunk["position_index"]
+                        ),
+                        "content": chunk_text,
+                        "word_count": len(chunk_text.split()),
+                        "context": self._build_context(cursor, document_id, chunk["position_index"]),
+                    }
+                )
 
-        if samples:
-            exported_files = self._export_document_dataset(
-                batch_id=str(uuid.uuid4()),
+            generation_records, generation_mode = self._generate_dataset_records(
                 document=document,
                 selected_chunks=selected_chunks,
+            )
+
+            for record in generation_records:
+                chunk_id = record.get("chunk_id", "")
+                chunk_text = record.get("source_text", "")
+                sample = self.create_training_sample(
+                    document_id=document_id,
+                    chunk_id=chunk_id,
+                    chunk_text=chunk_text,
+                    sample_type=record.get("sample_type", "qa"),
+                    input_text=record.get("instruction", ""),
+                    output_text=record.get("response", ""),
+                    context=record.get("context", ""),
+                )
+                if not sample:
+                    continue
+
+                sample.metadata.update(
+                    {
+                        "concepts": record.get("concepts", []),
+                        "grounding_excerpt": record.get("grounding_excerpt", ""),
+                        "section_title": record.get("section_title", ""),
+                        "generation_mode": generation_mode,
+                    }
+                )
+                samples.append(sample)
+                total_generated += 1
+                quality_scores.append(sample.quality_score)
+                self._save_sample(cursor, sample)
+
+            conn.commit()
+            conn.close()
+
+            if samples:
+                exported_files = self._export_document_dataset(
+                    batch_id=str(uuid.uuid4()),
+                    document=document,
+                    selected_chunks=selected_chunks,
+                    samples=samples,
+                    generation_mode=generation_mode,
+                )
+
+            duration = (datetime.now() - start_time).total_seconds()
+
+            # Create batch record
+            batch = DatasetBatch(
+                id=str(uuid.uuid4()),
                 samples=samples,
+                document_ids=[document_id],
+                sample_count=total_generated,
+                avg_quality=float(np.mean(quality_scores))
+                if quality_scores
+                else 0.0,
+                created_at=datetime.now().isoformat(),
+                exported_files=exported_files,
+                selected_chunk_count=len(selected_chunks),
                 generation_mode=generation_mode,
             )
 
-        duration = (datetime.now() - start_time).total_seconds()
+            # Log generation
+            self._log_generation(
+                document_id, total_generated, len(samples), batch.avg_quality, duration
+            )
 
-        # Create batch record
-        batch = DatasetBatch(
-            id=str(uuid.uuid4()),
-            samples=samples,
-            document_ids=[document_id],
-            sample_count=total_generated,
-            avg_quality=float(np.mean(quality_scores))
-            if quality_scores
-            else 0.0,
-            created_at=datetime.now().isoformat(),
-            exported_files=exported_files,
-            selected_chunk_count=len(selected_chunks),
-            generation_mode=generation_mode,
-        )
+            self.stats["total_processed"] += 1
+            self.stats["total_samples"] += total_generated
+            self.stats["last_run"] = datetime.now().isoformat()
 
-        # Log generation
-        self._log_generation(
-            document_id, total_generated, len(samples), batch.avg_quality, duration
-        )
+            logger.info(
+                f"Generated {total_generated} samples from {document_id} in {duration:.1f}s"
+            )
 
-        self.stats["total_processed"] += 1
-        self.stats["total_samples"] += total_generated
-        self.stats["last_run"] = datetime.now().isoformat()
-
-        logger.info(
-            f"Generated {total_generated} samples from {document_id} in {duration:.1f}s"
-        )
-
-        return batch
+            return batch
 
     def _select_chunks_for_dataset(
         self,
@@ -558,20 +678,25 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
         if not chunks:
             return []
         concept_titles = concept_titles or {}
+        candidate_chunks = [
+            row for row in chunks if self._is_trainable_chunk(row["content"] or "")
+        ]
+        if not candidate_chunks:
+            return []
 
         def sort_key(row: sqlite3.Row) -> Tuple[int, int, int]:
             title_bonus = 2 if row["chunk_id"] in concept_titles else 1 if self._clean_section_title(row["content"], row["chunk_id"], row["position_index"]) else 0
             word_count = len((row["content"] or "").split())
             return (title_bonus, min(word_count, 280), -int(row["position_index"]))
 
-        ranked = sorted(chunks, key=sort_key, reverse=True)
+        ranked = sorted(candidate_chunks, key=sort_key, reverse=True)
         selected: List[sqlite3.Row] = []
         seen_titles = set()
 
         if concept_titles:
             concept_rank = {chunk_id: index for index, chunk_id in enumerate(concept_titles.keys())}
             concept_rows = sorted(
-                [row for row in chunks if row["chunk_id"] in concept_titles],
+                [row for row in candidate_chunks if row["chunk_id"] in concept_titles],
                 key=lambda row: concept_rank.get(row["chunk_id"], 9999),
             )
             for row in concept_rows:
@@ -599,14 +724,14 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
             if len(selected) >= 5:
                 break
 
-        if len(selected) < min(4, len(chunks)):
-            fallback = sorted(chunks, key=lambda row: int(row["position_index"]))
+        if len(selected) < min(4, len(candidate_chunks)):
+            fallback = sorted(candidate_chunks, key=lambda row: int(row["position_index"]))
             used_ids = {row["chunk_id"] for row in selected}
             for row in fallback:
                 if row["chunk_id"] in used_ids:
                     continue
                 selected.append(row)
-                if len(selected) >= min(5, len(chunks)):
+                if len(selected) >= min(5, len(candidate_chunks)):
                     break
 
         return sorted(selected, key=lambda row: int(row["position_index"]))
@@ -684,47 +809,33 @@ Respond with ONLY a number between 0.0 and 1.0 (e.g., 0.85)"""
         document,
         selected_chunks: List[Dict[str, Any]],
     ) -> Tuple[List[Dict[str, Any]], str]:
-        """Generate chunk-grounded dataset records, optionally refined by a cloud model."""
+        """Generate chunk-grounded dataset records using the available LLM provider."""
         if not selected_chunks:
             return [], "deterministic"
 
-        cloud_provider = self._get_cloud_provider()
-        if cloud_provider:
-            records = self._generate_with_cloud(
-                provider=cloud_provider,
+        provider = self.provider
+        if provider is not None:
+            records = self._generate_with_provider(
+                provider=provider,
                 document_title=document.metadata.filename if document else "Document",
                 selected_chunks=selected_chunks,
             )
             if records:
-                return records, f"cloud_{cloud_provider}"
+                provider_name = provider.get_model_info().provider.value
+                return records, f"llm_{provider_name}"
+
+        if self.require_llm_for_export:
+            return [], "llm_unavailable"
 
         return self._generate_deterministic_records(selected_chunks), "deterministic"
 
-    def _get_cloud_provider(self) -> Optional[str]:
-        """Pick the first configured cloud provider for refinement."""
-        if self._is_secret_configured(settings.openai_api_key):
-            return "openai"
-        if self._is_secret_configured(settings.gemini_api_key):
-            return "gemini"
-        return None
-
-    def _is_secret_configured(self, secret: Optional[str]) -> bool:
-        value = (secret or "").strip()
-        if not value:
-            return False
-        placeholders = {
-            "your_openai_api_key_here",
-            "your_deepseek_api_key_here",
-        }
-        return value.lower() not in placeholders
-
-    def _generate_with_cloud(
+    def _generate_with_provider(
         self,
-        provider: str,
+        provider: BaseLLMProvider,
         document_title: str,
         selected_chunks: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """Refine selected chunks into a clean JSON dataset using a cloud model."""
+        """Refine selected chunks into a clean JSON dataset using the configured provider."""
         payload = [
             {
                 "chunk_id": chunk["chunk_id"],
@@ -758,6 +869,10 @@ Rules:
 - Each response should be 1 to 4 sentences.
 - grounding_excerpt must be copied from the source chunk and remain under 220 characters.
 - concepts must contain the 1 to 4 most relevant terms from that chunk.
+- Reject administrative rosters, marksheets, attendance-style text, author lists, team-member tables, and metadata-heavy chunks.
+- Skip any chunk that is not self-contained enough for direct supervised fine-tuning.
+- Do not emit generic pairs about websites, backend roles, departments, enrollment data, or personnel assignments.
+- Return only samples that are directly usable for supervised fine-tuning.
 
 Document title: {document_title}
 Selected chunks:
@@ -765,69 +880,46 @@ Selected chunks:
 """.strip()
 
         try:
-            if provider == "openai":
-                response_text = self._call_openai_json(prompt)
-            elif provider == "gemini":
-                response_text = self._call_gemini_json(prompt)
-            else:
-                return []
-            parsed = self._extract_json_object(response_text) or {}
+            schema = {
+                "type": "object",
+                "properties": {
+                    "samples": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "chunk_id": {"type": "string"},
+                                "sample_type": {"type": "string"},
+                                "instruction": {"type": "string"},
+                                "response": {"type": "string"},
+                                "concepts": {"type": "array", "items": {"type": "string"}},
+                                "grounding_excerpt": {"type": "string"},
+                            },
+                            "required": ["chunk_id", "sample_type", "instruction", "response"],
+                        },
+                    }
+                },
+                "required": ["samples"],
+            }
+            parsed = asyncio.run(
+                provider.generate_structured(
+                    prompt=prompt,
+                    output_schema=schema,
+                    system_message=(
+                        "You create only high-quality supervised fine-tuning samples. "
+                        "Use only the source text. Exclude noisy or administrative content."
+                    ),
+                )
+            ) or {}
             return self._normalize_cloud_samples(parsed.get("samples", []), selected_chunks)
         except Exception as error:
-            logger.warning("Cloud dataset refinement failed (%s): %s", provider, error)
+            provider_name = "unknown"
+            try:
+                provider_name = provider.get_model_info().provider.value
+            except Exception:
+                pass
+            logger.warning("LLM dataset refinement failed (%s): %s", provider_name, error)
             return []
-
-    def _call_openai_json(self, prompt: str) -> str:
-        """Call OpenAI chat completions for structured dataset generation."""
-        import requests
-
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.openai_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.openai_model,
-                "temperature": 0.2,
-                "max_tokens": 2200,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You generate JSON only. Never wrap JSON in markdown fences.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-            },
-            timeout=45,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload["choices"][0]["message"]["content"]
-
-    def _call_gemini_json(self, prompt: str) -> str:
-        """Call Gemini for structured dataset generation."""
-        import requests
-
-        response = requests.post(
-            f"{settings.gemini_api_base}/models/{settings.gemini_model}:generateContent?key={settings.gemini_api_key}",
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.2,
-                    "maxOutputTokens": 2200,
-                },
-            },
-            timeout=45,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return (
-            payload.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
-        )
 
     def _extract_json_object(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract a JSON object from model output."""
@@ -1003,10 +1095,12 @@ Selected chunks:
                 WHERE document_id = ? AND position_index = ?
             """,
                 (document_id, position - 1),
-            )
-            row = cursor.fetchone()
-            if row:
-                context_chunks.append(f"[Previous]: {row[0][:500]}")
+        )
+        row = cursor.fetchone()
+        if row:
+            previous = self._normalize_training_text(row[0][:500])
+            if previous and not self._looks_administrative_or_noisy(previous):
+                context_chunks.append(f"[Previous]: {previous}")
 
         # Next chunk
         cursor.execute(
@@ -1018,7 +1112,9 @@ Selected chunks:
         )
         row = cursor.fetchone()
         if row:
-            context_chunks.append(f"[Next]: {row[0][:500]}")
+            next_text = self._normalize_training_text(row[0][:500])
+            if next_text and not self._looks_administrative_or_noisy(next_text):
+                context_chunks.append(f"[Next]: {next_text}")
 
         return "\n".join(context_chunks)
 
@@ -1170,6 +1266,12 @@ Selected chunks:
             "document_title": document.metadata.filename,
             "generated_at": datetime.now().isoformat(),
             "generation_mode": generation_mode,
+            "trainability": {
+                "is_directly_model_trainable": True,
+                "format": "instruction_response_sft",
+                "llm_curated": generation_mode.startswith("llm_"),
+                "grounded_only": True,
+            },
             "selected_chunks": [
                 {
                     "chunk_id": chunk["chunk_id"],
@@ -1215,6 +1317,7 @@ Selected chunks:
                         "quality_score": sample.quality_score,
                         "concepts": sample.metadata.get("concepts", []),
                         "grounding_excerpt": sample.metadata.get("grounding_excerpt", ""),
+                        "trainable": True,
                     },
                 }
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -1388,6 +1491,8 @@ Selected chunks:
                 "dedup_threshold": self.dedup_threshold,
                 "llm_sample_rate": self.llm_sample_rate,
                 "batch_size": self.batch_size,
+                "require_llm_for_export": self.require_llm_for_export,
+                "background_postprocess_enabled": settings.dataset_background_postprocess_enabled,
             },
             "runtime_stats": self.stats,
         }

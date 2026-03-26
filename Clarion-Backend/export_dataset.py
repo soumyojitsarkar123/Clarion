@@ -22,12 +22,20 @@ def export():
     for record in export_data.get("records", []):
         clean_record = {
             "concept_a": record.get("concept_a"),
+            "concept_a_normalized": record.get("concept_a_normalized"),
             "relation_type": record.get("relation_type"),
             "concept_b": record.get("concept_b"),
+            "concept_b_normalized": record.get("concept_b_normalized"),
             "llm_confidence": record.get("llm_confidence"),
+            "extraction_confidence": record.get("extraction_confidence"),
+            "confidence_source": record.get("confidence_source"),
             "cooccurrence_score": record.get("cooccurrence_score"),
             "semantic_similarity": record.get("semantic_similarity"),
             "chunk_context": record.get("chunk_context"),
+            "source_chunk_ids": record.get("source_chunk_ids"),
+            "quality_score": record.get("quality_score"),
+            "quality_flags": record.get("quality_flags"),
+            "relation_description": record.get("relation_description"),
             "created_at": record.get("created_at")
         }
         clean_records.append(clean_record)
@@ -35,6 +43,7 @@ def export():
     final_output = {
         "format": export_data.get("format"),
         "count": export_data.get("count"),
+        "quality_summary": export_data.get("quality_summary", {}),
         "records": clean_records
     }
     

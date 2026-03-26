@@ -66,7 +66,7 @@ class DiagnosticsService:
 
     def check_embedding_service(self) -> Dict[str, Any]:
         try:
-            _ = EmbeddingService()
+            embedding_service = EmbeddingService()
             try:
                 import sentence_transformers  # noqa: F401
                 package_status = "installed"
@@ -81,7 +81,7 @@ class DiagnosticsService:
                 "status": "healthy",
                 "detail": "Embedding service initialized",
                 "model_name": settings.embedding_model_name,
-                "device": settings.embedding_device,
+                "device": embedding_service.device,
                 "package_status": package_status,
             }
         except Exception as error:
@@ -235,4 +235,3 @@ def get_diagnostics_service() -> DiagnosticsService:
     if _instance is None:
         _instance = DiagnosticsService()
     return _instance
-

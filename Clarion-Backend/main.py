@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from utils.logger import setup_logging
-from utils.config import settings, ensure_directories
+from utils.config import settings, ensure_directories, initialize_compute_settings
 from services.background_service import get_background_service
 from services.knowledge_map_service import get_llm_interface
 from routers import (
@@ -21,6 +21,7 @@ from routers import (
     summary_router,
     status_router,
     dataset_router,
+    dataset_factory_router,
     graph_router,
     logs_router,
     system_router,
@@ -31,9 +32,11 @@ from routers import (
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     ensure_directories()
+    resolved_device = initialize_compute_settings()
     setup_logging(log_level="INFO", log_file=str(settings.logs_dir / "clarion.log"))
     logger = logging.getLogger(__name__)
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    logger.info("Embedding device resolved to %s", resolved_device)
     yield
     logger.info("Application shutdown")
 
@@ -70,6 +73,7 @@ app.include_router(query_router)
 app.include_router(summary_router)
 app.include_router(status_router)
 app.include_router(dataset_router)
+app.include_router(dataset_factory_router)
 app.include_router(graph_router)
 app.include_router(logs_router)
 app.include_router(system_router)

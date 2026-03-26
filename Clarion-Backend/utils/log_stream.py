@@ -36,11 +36,7 @@ class LogStreamBroker:
         with self._lock:
             items = [event for event in self._events if event["sequence"] > after_sequence]
             if document_id:
-                items = [
-                    event
-                    for event in items
-                    if event.get("document_id") in (None, "", document_id)
-                ]
+                items = [event for event in items if event.get("document_id") == document_id]
             if limit > 0:
                 items = items[-limit:]
             return [dict(item) for item in items]
@@ -59,4 +55,3 @@ def get_log_stream_broker() -> LogStreamBroker:
     if _broker is None:
         _broker = LogStreamBroker()
     return _broker
-

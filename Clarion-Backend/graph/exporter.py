@@ -99,6 +99,10 @@ class GraphExporter:
         
         # Export nodes
         for node_id, node_data in graph.nodes(data=True):
+            display_centrality = node_data.get("centrality")
+            if display_centrality is None:
+                display_centrality = node_data.get("pagerank")
+
             node_element = {
                 "data": {
                     "id": node_id,
@@ -108,9 +112,12 @@ class GraphExporter:
             }
             
             # Add optional fields if present
-            for field in ["definition", "context", "centrality", "community", "layer"]:
+            for field in ["definition", "context", "community", "layer"]:
                 if field in node_data and node_data[field] is not None:
                     node_element["data"][field] = node_data[field]
+
+            if display_centrality is not None:
+                node_element["data"]["centrality"] = display_centrality
             
             # Add metadata
             if "chunk_ids" in node_data:

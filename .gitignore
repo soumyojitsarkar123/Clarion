@@ -56,9 +56,15 @@ Clarion-Backend/data/
 Clarion-Backend/logs/
 Clarion-Backend/vectorstore/
 data/cache/
-*.db
-*.sqlite
-*.sqlite3
+data/vectorstore/
+data/tmpqv2ftf86/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+# Keep datasets folder structure but ignore actual data files
+data/datasets/**
+!data/datasets/
+!data/datasets/.gitkeep
 
 # Large files
 *.pkl

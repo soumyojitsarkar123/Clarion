@@ -8,7 +8,7 @@ import json
 import re
 import ast
 from collections import Counter, defaultdict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Sequence
 import logging
 
 from models.chunk import Chunk
@@ -26,6 +26,54 @@ from utils.sqlite import connect as sqlite_connect
 logger = logging.getLogger(__name__)
 
 _llm_instance = None
+
+_CONCEPT_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "from", "into", "your",
+    "have", "has", "were", "was", "are", "our", "their", "which", "when",
+    "where", "than", "also", "can", "will", "should", "could", "would",
+    "about", "after", "before", "between", "because", "using", "used",
+    "document", "section", "analysis", "system", "data", "model", "question",
+    "questions", "attempt", "page", "pages", "marks", "mark", "each", "part",
+    "answer", "subject", "code", "full", "semester", "stream", "paper",
+    "unit", "module", "write", "explain", "define", "state", "show", "find",
+    "document", "content", "topic", "topics", "text", "note", "notes",
+}
+
+_GENERIC_CONCEPT_NAMES = {
+    "document",
+    "question",
+    "questions",
+    "page",
+    "part",
+    "attempt",
+    "marks",
+    "answer",
+    "topic",
+    "topics",
+    "section",
+    "analysis",
+    "content",
+    "company",
+    "number",
+    "days",
+    "marks",
+    "each",
+    "possible",
+    "new",
+    "standard",
+}
+
+_ALLOWED_MULTIWORD_CONCEPTS = {
+    "hypothesis testing",
+    "null hypothesis",
+    "alternative hypothesis",
+    "random sample",
+    "sample mean",
+    "sample distribution",
+    "sampling distribution",
+    "simple random sampling",
+    "standard normal variate",
+}
 
 
 def get_llm_interface() -> "LLMInterface":
@@ -48,6 +96,7 @@ class LLMInterface:
         self.max_tokens = settings.llm_max_tokens
         self._client = None
         self._available = None
+        self.last_error = None
 
         # Configure based on provider
         if self.provider == "ollama":
@@ -79,6 +128,10 @@ class LLMInterface:
             self._client = OpenAI(api_key=self.api_key, base_url=self.api_base)
         return self._client
 
+    def _get_ollama_base_url(self) -> str:
+        """Return Ollama base URL without the OpenAI compatibility suffix."""
+        return self.api_base[:-3] if self.api_base.endswith("/v1") else self.api_base.rstrip("/")
+
     def _is_service_available(self) -> bool:
         """Check if the configured LLM service is available."""
         if self._available is not None:
@@ -89,11 +142,36 @@ class LLMInterface:
 
             if self.provider == "ollama":
                 response = requests.get(
-                    f"{self.api_base.replace('/v1', '')}/api/tags", timeout=2
+                    f"{self._get_ollama_base_url()}/api/tags",
+                    timeout=settings.ollama_health_timeout_seconds,
                 )
-                self._available = response.status_code == 200
-                if self._available:
-                    logger.info(f"Ollama service is available ({self.model})")
+                if response.status_code == 200:
+                    payload = response.json()
+                    models = payload.get("models", [])
+                    model_names = {
+                        str(item.get("name", "")).strip()
+                        for item in models
+                        if isinstance(item, dict)
+                    }
+                    model_names.update(
+                        {
+                            str(item.get("model", "")).strip()
+                            for item in models
+                            if isinstance(item, dict)
+                        }
+                    )
+                    self._available = self.model in model_names
+                    if self._available:
+                        logger.info(f"Ollama service is available ({self.model})")
+                    else:
+                        logger.warning(
+                            "Ollama is running but model '%s' is not installed. Installed models: %s",
+                            self.model,
+                            ", ".join(sorted([name for name in model_names if name])) or "none",
+                        )
+                else:
+                    logger.warning(f"Ollama service returned status {response.status_code}")
+                    self._available = False
 
             elif self.provider == "openai":
                 if not self.api_key:
@@ -125,14 +203,15 @@ class LLMInterface:
 
             if not self._available:
                 logger.warning(
-                    f"{self.provider} service not available, using demo mode"
+                    f"{self.provider} service not available, using fallback analysis"
                 )
 
             return bool(self._available)
 
         except Exception as e:
             self._available = False
-            logger.warning(f"{self.provider} service error: {e}, using demo mode")
+            self.last_error = str(e)
+            logger.warning(f"{self.provider} service error: {e}, using fallback analysis")
             return False
 
     def _call_api(self, prompt: str) -> str:
@@ -167,18 +246,23 @@ class LLMInterface:
                 else:
                     raise Exception(f"Gemini API error: {response.text}")
             else:
+                timeout = (
+                    settings.ollama_request_timeout_seconds
+                    if self.provider == "ollama"
+                    else 180
+                )
                 response = client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    timeout=180,
+                    timeout=timeout,
                 )
                 return response.choices[0].message.content or ""
 
         except Exception as e:
-            logger.warning(f"LLM call failed: {str(e)}, falling back to demo mode")
-            self._available = False
+            logger.warning(f"LLM call failed: {str(e)}, falling back to deterministic analysis")
+            self.last_error = str(e)
             return self._fallback_generate(prompt)
 
     def _fallback_generate(self, prompt: str) -> str:
@@ -589,18 +673,17 @@ class KnowledgeMapService:
         """
         logger.info(f"Building knowledge map for document {document_id}")
 
-        concepts = self._extract_concepts(chunks)
+        # Use fast heuristic-based extraction instead of LLM
+        # LLM calls often hang with qwen3.5:4b on complex prompts
+        concepts = self._extract_concepts_heuristic(chunks)
+        logger.info(f"Extracted {len(concepts)} concepts using heuristic analysis")
 
-        logger.info(f"Extracted {len(concepts)} concepts")
+        relations = self._detect_relations_by_cooccurrence(concepts, chunks)
+        logger.info(f"Detected {len(relations)} relations using co-occurrence")
 
-        relations = self._detect_relations(concepts, chunks)
-
-        logger.info(f"Detected {len(relations)} relations")
-
-        topic_structure = self.llm.identify_topics(chunks)
-
-        main_topics = self._build_main_topics(topic_structure.get("main_topics", []))
-        subtopics = self._build_subtopics(topic_structure.get("subtopics", []))
+        # Build simple topic structure from concepts
+        main_topics = self._extract_main_topics_heuristic(concepts, chunks)
+        subtopics = []
 
         knowledge_map = KnowledgeMap(
             document_id=document_id,
@@ -612,6 +695,7 @@ class KnowledgeMapService:
                 "total_concepts": len(concepts),
                 "total_relations": len(relations),
                 "total_topics": len(main_topics),
+                "extraction_method": "heuristic",
             },
         )
 
@@ -748,54 +832,72 @@ class KnowledgeMapService:
     def _extract_concepts_heuristic(
         self, chunks: List[Chunk], seen_names: Optional[set] = None
     ) -> List[Concept]:
-        """Deterministic fallback concept extractor using frequent terms."""
+        """Deterministic fallback concept extractor using cleaned topic phrases."""
         seen_names = seen_names or set()
-        stopwords = {
-            "the", "and", "for", "with", "that", "this", "from", "into", "your",
-            "have", "has", "were", "was", "are", "our", "their", "which", "when",
-            "where", "than", "also", "can", "will", "should", "could", "would",
-            "about", "after", "before", "between", "because", "using", "used",
-            "document", "section", "analysis", "system", "data", "model",
-        }
+        phrase_counter: Counter[str] = Counter()
+        phrase_sources: Dict[str, List[str]] = defaultdict(list)
+        phrase_sentences: Dict[str, str] = {}
 
-        token_counter: Counter = Counter()
-        token_sources: Dict[str, List[str]] = defaultdict(list)
-
-        for chunk in chunks[:10]:
-            words = re.findall(r"\b[A-Za-z][A-Za-z0-9\-]{3,}\b", chunk.content)
-            for raw_word in words:
-                word = raw_word.lower()
-                if word in stopwords:
-                    continue
-                token_counter[word] += 1
-                if len(token_sources[word]) < 3:
-                    token_sources[word].append(chunk.chunk_id)
+        for chunk in chunks[:16]:
+            clean_text = self._prepare_text_for_concepts(chunk.content)
+            if not clean_text:
+                continue
 
             if chunk.section_title:
-                title = chunk.section_title.strip()
-                if len(title) >= 3:
-                    key = title.lower()
-                    token_counter[key] += 2
-                    if len(token_sources[key]) < 3:
-                        token_sources[key].append(chunk.chunk_id)
+                section_candidate = self._normalize_concept_candidate(chunk.section_title)
+                if section_candidate:
+                    phrase_counter[section_candidate] += 3
+                    self._append_source(phrase_sources, section_candidate, chunk.chunk_id)
+
+            for phrase in self._extract_concept_candidates(clean_text):
+                phrase_counter[phrase] += 1
+                self._append_source(phrase_sources, phrase, chunk.chunk_id)
+                if phrase not in phrase_sentences:
+                    match_sentence = self._find_supporting_sentence(clean_text, phrase)
+                    if match_sentence:
+                        phrase_sentences[phrase] = match_sentence
 
         concepts: List[Concept] = []
-        for token, freq in token_counter.most_common(14):
-            if freq < 2:
+        selected_names: List[str] = []
+        ranked_phrases = sorted(
+            phrase_counter.items(),
+            key=lambda item: self._concept_rank_score(
+                item[0],
+                item[1],
+                len(phrase_sources.get(item[0], [])),
+            ),
+            reverse=True,
+        )
+        for phrase, score in ranked_phrases[:30]:
+            if score < 2:
                 continue
-            name = token.title()
-            if name.lower() in seen_names:
+            display_name = self._display_concept_name(phrase)
+            normalized_name = display_name.lower()
+            if normalized_name in seen_names:
                 continue
-            seen_names.add(name.lower())
+            if self._is_redundant_concept(display_name, selected_names):
+                continue
+
+            sentence = phrase_sentences.get(phrase, "")
+            definition = self._build_concept_definition(display_name, sentence)
+            context = sentence or None
+            chunk_ids = phrase_sources.get(phrase, [])[:3]
+            if not chunk_ids and not context:
+                continue
+
+            seen_names.add(normalized_name)
+            selected_names.append(display_name)
             concepts.append(
                 Concept(
                     id=str(uuid.uuid4()),
-                    name=name,
-                    definition=f"Frequent concept inferred from document context (frequency={freq}).",
-                    context=None,
-                    chunk_ids=token_sources.get(token, [])[:3],
+                    name=display_name,
+                    definition=definition,
+                    context=context,
+                    chunk_ids=chunk_ids,
                 )
             )
+            if len(concepts) >= 12:
+                break
 
         return concepts
 
@@ -847,6 +949,383 @@ class KnowledgeMapService:
                 )
 
         return relations[:40]
+
+    def _extract_main_topics_heuristic(
+        self, concepts: List[Concept], chunks: List[Chunk]
+    ) -> List[MainTopic]:
+        """Build main topics from document section titles and concepts."""
+        topics: List[MainTopic] = []
+        seen_titles = set()
+        concept_name_map = {concept.name.lower(): concept for concept in concepts}
+        concept_keys = {
+            self._normalize_concept_candidate(concept.name) or concept.name.lower()
+            for concept in concepts
+        }
+        title_chunk_map: Dict[str, set[str]] = defaultdict(set)
+
+        for chunk in chunks[:16]:
+            if not chunk.section_title or not chunk.section_title.strip():
+                continue
+            normalized = self._normalize_topic_title(chunk.section_title)
+            if not normalized:
+                continue
+            title_chunk_map[normalized.lower()].add(chunk.chunk_id)
+
+        # First, extract from section titles
+        for chunk in chunks[:10]:
+            if not chunk.section_title or not chunk.section_title.strip():
+                continue
+            title = self._normalize_topic_title(chunk.section_title)
+            if not title:
+                continue
+            lowered_title = title.lower()
+            normalized_title_key = self._normalize_concept_candidate(title) or lowered_title
+            if lowered_title in seen_titles:
+                continue
+            if lowered_title in concept_name_map or normalized_title_key in concept_keys:
+                continue
+
+            concept_ids = self._match_topic_concepts(
+                topic_title=title,
+                concepts=concepts,
+                topic_chunk_ids=title_chunk_map.get(lowered_title, set()),
+            )
+            if not concept_ids:
+                continue
+            if self._topic_duplicates_concept(title, concept_ids, concepts):
+                continue
+
+            seen_titles.add(lowered_title)
+            topics.append(
+                MainTopic(
+                    id=str(uuid.uuid4()),
+                    title=title,
+                    description="Topic inferred from a document heading.",
+                    concept_ids=concept_ids,
+                    subtopic_ids=[],
+                )
+            )
+            if len(topics) >= 5:
+                break
+
+        return topics
+
+    def _topic_duplicates_concept(
+        self,
+        topic_title: str,
+        concept_ids: Sequence[str],
+        concepts: Sequence[Concept],
+    ) -> bool:
+        """Return True when a topic would just repeat the same concept label."""
+        topic_key = self._normalize_concept_candidate(topic_title) or topic_title.lower()
+        concept_map = {concept.id: concept for concept in concepts}
+        matched_keys = {
+            self._normalize_concept_candidate(concept_map[concept_id].name) or concept_map[concept_id].name.lower()
+            for concept_id in concept_ids
+            if concept_id in concept_map
+        }
+        if not matched_keys:
+            return False
+        return len(matched_keys) == 1 and topic_key in matched_keys
+
+    def _match_topic_concepts(
+        self,
+        topic_title: str,
+        concepts: Sequence[Concept],
+        topic_chunk_ids: set[str],
+    ) -> List[str]:
+        """Attach the most relevant concepts to a topic using chunk overlap and token overlap."""
+        ranked: List[tuple[float, str]] = []
+        topic_words = {
+            token for token in re.findall(r"[A-Za-z][A-Za-z'-]+", topic_title.lower())
+            if not self._is_generic_unigram(token)
+        }
+
+        for concept in concepts:
+            score = 0.0
+            concept_words = {
+                token for token in re.findall(r"[A-Za-z][A-Za-z'-]+", concept.name.lower())
+                if not self._is_generic_unigram(token)
+            }
+            if topic_chunk_ids and set(concept.chunk_ids or []).intersection(topic_chunk_ids):
+                score += 2.0
+            if concept_words and topic_words:
+                overlap = len(concept_words & topic_words)
+                if overlap:
+                    score += 1.0 + (0.5 * overlap)
+            if score <= 0:
+                continue
+            ranked.append((score, concept.id))
+
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        return [concept_id for _, concept_id in ranked[:5]]
+
+    def _prepare_text_for_concepts(self, text: str) -> str:
+        """Remove boilerplate lines before heuristic concept extraction."""
+        lines: List[str] = []
+        for raw_line in (text or "").splitlines():
+            cleaned = re.sub(r"\s+", " ", raw_line).strip(" -:\t\r\n")
+            if not cleaned:
+                continue
+            lowered = cleaned.lower()
+            if self._is_noise_line(lowered):
+                continue
+            lines.append(cleaned)
+        return "\n".join(lines)
+
+    def _extract_concept_candidates(self, text: str) -> List[str]:
+        """Extract unigram and phrase candidates from cleaned text."""
+        candidates: List[str] = []
+        token_sequences = [
+            re.findall(r"[A-Za-z][A-Za-z'-]{2,}", sentence.lower())
+            for sentence in re.split(r"(?<=[.!?])\s+|\n+", text)
+            if sentence.strip()
+        ]
+
+        for tokens in token_sequences:
+            normalized_tokens = [
+                self._canonical_concept_token(token)
+                for token in tokens
+                if self._canonical_concept_token(token)
+            ]
+            length = len(normalized_tokens)
+            for size in (3, 2, 1):
+                if length < size:
+                    continue
+                for start in range(0, length - size + 1):
+                    phrase = " ".join(normalized_tokens[start:start + size])
+                    normalized = self._normalize_concept_candidate(phrase)
+                    if normalized:
+                        candidates.append(normalized)
+        return candidates
+
+    def _normalize_concept_candidate(self, value: str) -> str:
+        """Normalize and validate a concept candidate."""
+        cleaned = re.sub(r"\s+", " ", str(value or "")).strip(" -:\t\r\n")
+        cleaned = re.sub(r"^[\-\*\d\.\)\s]+", "", cleaned)
+        cleaned = re.sub(r"\s*[:;,.-]\s*$", "", cleaned)
+        if not cleaned:
+            return ""
+        cleaned = cleaned.lower()
+        if cleaned.startswith(("page ", "attempt ", "part ")):
+            return ""
+        if self._is_instruction_phrase(cleaned):
+            return ""
+
+        words = re.findall(r"[A-Za-z][A-Za-z'-]+", cleaned)
+        if not words or len(words) > 4:
+            return ""
+        if any(word in _CONCEPT_STOPWORDS for word in words):
+            if len(words) == 1 or sum(word not in _CONCEPT_STOPWORDS for word in words) < max(1, len(words) - 1):
+                return ""
+        normalized_words = [self._canonical_concept_token(word) for word in words]
+        normalized_words = [word for word in normalized_words if word]
+        if not normalized_words:
+            return ""
+        if normalized_words == ["testing", "hypothesis"]:
+            normalized_words = ["hypothesis", "testing"]
+        phrase = " ".join(normalized_words)
+        if not self._is_valid_concept_name(phrase):
+            return ""
+        return phrase
+
+    def _canonical_concept_token(self, token: str) -> str:
+        """Collapse simple variants into cleaner concept tokens."""
+        aliases = {
+            "samples": "sample",
+            "sampling": "sampling",
+            "means": "mean",
+            "distributions": "distribution",
+            "hypotheses": "hypothesis",
+            "parameters": "parameter",
+            "populations": "population",
+            "statistics": "statistic",
+        }
+        normalized = token.lower().strip("-'")
+        return aliases.get(normalized, normalized)
+
+    def _is_valid_concept_name(self, phrase: str) -> bool:
+        """Reject OCR fragments, instructions, and sentence-like strings."""
+        if not phrase:
+            return False
+        compact = phrase.replace(" ", "")
+        if len(compact) < 4 or len(compact) > 40:
+            return False
+        if phrase in _GENERIC_CONCEPT_NAMES:
+            return False
+        if self._is_instruction_phrase(phrase):
+            return False
+        if re.search(r"\d", phrase):
+            return False
+        words = re.findall(r"[A-Za-z][A-Za-z'-]+", phrase)
+        if not words:
+            return False
+        if any(len(word) < 3 for word in words):
+            return False
+        if len(words) == 1 and words[0] in _CONCEPT_STOPWORDS:
+            return False
+        if len(words) == 1 and self._is_generic_unigram(words[0]):
+            return False
+        if len(words) == 1 and len(words[0]) < 4:
+            return False
+        if len(words) > 1 and (words[0] in _CONCEPT_STOPWORDS or words[-1] in _CONCEPT_STOPWORDS):
+            return False
+        if (
+            len(words) > 1
+            and phrase not in _ALLOWED_MULTIWORD_CONCEPTS
+            and (self._is_generic_unigram(words[0]) or self._is_generic_unigram(words[-1]))
+        ):
+            return False
+        alpha_only = "".join(words)
+        vowel_count = sum(ch in "aeiou" for ch in alpha_only.lower())
+        if vowel_count < max(1, len(alpha_only) * 0.18):
+            return False
+        return True
+
+    def _display_concept_name(self, phrase: str) -> str:
+        """Convert normalized phrases into user-facing concept names."""
+        display_map = {
+            "hypothesis testing": "Hypothesis Testing",
+            "null hypothesis": "Null Hypothesis",
+            "alternative hypothesis": "Alternative Hypothesis",
+            "random sampling": "Random Sampling",
+            "simple random sampling": "Simple Random Sampling",
+            "sampling distribution": "Sampling Distribution",
+        }
+        if phrase in display_map:
+            return display_map[phrase]
+        return " ".join(word.capitalize() for word in phrase.split())
+
+    def _build_concept_definition(self, concept_name: str, sentence: str) -> Optional[str]:
+        """Create a short grounded description from source text."""
+        cleaned = re.sub(r"\s+", " ", str(sentence or "")).strip()
+        if not cleaned:
+            return None
+        cleaned = re.sub(r"^[^A-Za-z]+", "", cleaned)
+        lowered = cleaned.lower()
+        if not cleaned or cleaned[:1].islower() or self._looks_like_instruction_sentence(lowered):
+            return None
+        digit_count = sum(char.isdigit() for char in cleaned)
+        alpha_count = sum(char.isalpha() for char in cleaned)
+        if "{" in cleaned or "}" in cleaned or (alpha_count and digit_count > alpha_count * 0.08):
+            return None
+        if len(cleaned) > 180:
+            cleaned = cleaned[:177].rsplit(" ", 1)[0].strip() + "..."
+        if not cleaned.endswith((".", "!", "?")):
+            cleaned = f"{cleaned}."
+        return cleaned
+
+    def _find_supporting_sentence(self, text: str, phrase: str) -> str:
+        """Return the first clean sentence mentioning the concept phrase."""
+        for raw_sentence in re.split(r"(?<=[.!?])\s+|\n+", text):
+            sentence = re.sub(r"\s+", " ", raw_sentence).strip()
+            if not sentence:
+                continue
+            sentence = re.sub(r"^[^A-Za-z]+", "", sentence)
+            if len(re.findall(r"[A-Za-z][A-Za-z'-]+", sentence)) < 5:
+                continue
+            lowered = sentence.lower()
+            if phrase.lower() in lowered and not self._is_noise_line(lowered) and not self._looks_like_instruction_sentence(lowered):
+                return sentence[:220]
+        return ""
+
+    def _append_source(self, source_map: Dict[str, List[str]], phrase: str, chunk_id: str) -> None:
+        """Track source chunks without duplicating chunk IDs."""
+        if chunk_id and chunk_id not in source_map[phrase]:
+            source_map[phrase].append(chunk_id)
+
+    def _is_redundant_concept(self, concept_name: str, selected_names: Sequence[str]) -> bool:
+        """Suppress generic one-word concepts when a stronger phrase already exists."""
+        lower_name = concept_name.lower()
+        lower_words = set(lower_name.split())
+        for existing in selected_names:
+            existing_lower = existing.lower()
+            existing_words = set(existing_lower.split())
+            if lower_name == existing_lower:
+                return True
+            if len(lower_words) == 1 and lower_words.issubset(existing_words):
+                return True
+            if len(existing_words) == 1 and existing_words.issubset(lower_words):
+                return False
+        return False
+
+    def _normalize_topic_title(self, value: str) -> str:
+        """Clean section titles before turning them into graph topic nodes."""
+        normalized = self._normalize_concept_candidate(value)
+        if not normalized:
+            return ""
+        return self._display_concept_name(normalized)
+
+    def _concept_rank_score(self, phrase: str, frequency: int, source_count: int) -> tuple[float, int, int]:
+        """Rank concepts by quality, preferring clean multi-word topics over generic frequent words."""
+        words = phrase.split()
+        bonus = 0.0
+        if len(words) >= 2:
+            bonus += 2.0
+        if any(word in {"sampling", "distribution", "hypothesis", "population", "parameter", "statistic"} for word in words):
+            bonus += 1.0
+        if len(words) == 1 and self._is_generic_unigram(words[0]):
+            bonus -= 2.5
+        return (frequency + bonus + (source_count * 0.2), source_count, len(words))
+
+    def _is_generic_unigram(self, word: str) -> bool:
+        """Reject common academic filler words that are not useful standalone concepts."""
+        return word in _GENERIC_CONCEPT_NAMES or word in {
+            "question", "random", "possible", "following", "given", "find",
+            "define", "explain", "state", "show", "meaning", "sampled",
+            "size", "time", "value", "normal", "error", "type", "taken",
+            "drawn", "replacement", "without",
+        }
+
+    def _is_instruction_phrase(self, lowered_text: str) -> bool:
+        """Reject layout and instruction phrases from concept extraction."""
+        markers = [
+            "attempt",
+            "answer any",
+            "answer all",
+            "each question",
+            "question carries",
+            "page ",
+            "part ",
+            "full marks",
+            "subject code",
+        ]
+        return any(marker in lowered_text for marker in markers)
+
+    def _looks_like_instruction_sentence(self, lowered_text: str) -> bool:
+        """Avoid using question prompts as concept definitions."""
+        normalized = re.sub(r"^[^a-z]+", "", lowered_text)
+        starters = (
+            "find ",
+            "define ",
+            "explain ",
+            "state ",
+            "show ",
+            "which ",
+            "what ",
+            "suppose ",
+            "given ",
+            "distinguish ",
+        )
+        return normalized.startswith(starters) or self._is_instruction_phrase(normalized)
+
+    def _is_noise_line(self, lowered_text: str) -> bool:
+        """Reject lines that are mostly headers, instructions, or OCR noise."""
+        if not lowered_text:
+            return True
+        if self._is_instruction_phrase(lowered_text):
+            return True
+        if re.fullmatch(r"page\s+\d+(\s+of\s+\d+)?", lowered_text):
+            return True
+        if re.fullmatch(r"part\s*[-:]?\s*[a-z0-9]+", lowered_text):
+            return True
+        alpha_chars = [char for char in lowered_text if char.isalpha()]
+        if len(alpha_chars) < 4:
+            return True
+        vowel_count = sum(char in "aeiou" for char in alpha_chars)
+        if len(alpha_chars) >= 8 and vowel_count < max(1, len(alpha_chars) * 0.18):
+            return True
+        return False
 
     def _build_main_topics(self, topic_data: List[Dict]) -> List[MainTopic]:
         """Build main topics from LLM output."""

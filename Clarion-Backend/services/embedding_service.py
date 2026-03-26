@@ -11,7 +11,7 @@ import logging
 
 from vectorstore import VectorStore
 from models.chunk import Chunk
-from utils.config import settings
+from utils.config import settings, initialize_compute_settings
 from utils.sqlite import connect as sqlite_connect
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class EmbeddingService:
     def __init__(self):
         self.model_name = settings.embedding_model_name
         self.batch_size = settings.embedding_batch_size
-        self.device = settings.embedding_device
+        self.device = settings.embedding_device_actual or initialize_compute_settings()
         self.model: Optional[Any] = None
         self.fallback_dimension = 384
         self.using_fallback_embeddings = False
@@ -61,8 +61,26 @@ class EmbeddingService:
                     "Failed to import sentence-transformers. Check dependency compatibility."
                 ) from e
             logger.info(f"Loading embedding model: {self.model_name}")
-            self.model = SentenceTransformer(self.model_name, device=self.device)
-            logger.info("Embedding model loaded successfully")
+            try:
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    local_files_only=True,
+                )
+                logger.info("Embedding model loaded successfully from local cache")
+            except Exception as local_error:
+                logger.info(
+                    "Embedding model not found in local cache; attempting remote load. Reason: %s",
+                    local_error,
+                )
+                try:
+                    self.model = SentenceTransformer(self.model_name, device=self.device)
+                    logger.info("Embedding model loaded successfully")
+                except Exception as remote_error:
+                    raise RuntimeError(
+                        "Embedding model could not be loaded. Ensure the model is cached locally "
+                        "or provide network/Hugging Face access for the first download."
+                    ) from remote_error
     
     def generate_embeddings(self, chunks: List[Chunk]) -> List[List[float]]:
         """

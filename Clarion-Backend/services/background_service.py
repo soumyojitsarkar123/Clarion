@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from utils.config import settings
 from utils.graph_store import graph_json_path, graph_pickle_path
 from utils.sqlite import connect as sqlite_connect
+from services.dataset_factory_service import get_dataset_factory
 
 logger = logging.getLogger(__name__)
 
@@ -464,6 +465,7 @@ class BackgroundService:
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._repository = JobRepository(db_path)
         self._active_tasks: Dict[str, asyncio.Task] = {}
+        self._dataset_tasks: Dict[str, asyncio.Task] = {}
 
         # logger.info(f"Background service initialized (max_concurrent={max_concurrent})")
 
@@ -648,6 +650,14 @@ class BackgroundService:
                 await process_func(
                     job.document_id, progress_callback=progress_callback, **kwargs
                 )
+
+                if settings.dataset_generation_enabled and settings.dataset_background_postprocess_enabled:
+                    job.metadata["dataset_generation_status"] = "queued"
+                    self._repository.update(job)
+                    dataset_task = asyncio.create_task(
+                        self._run_dataset_generation(job.document_id, job.job_id)
+                    )
+                    self._dataset_tasks[job.document_id] = dataset_task
 
                 # Mark as completed
                 job.status = JobStatus.COMPLETED
@@ -953,6 +963,40 @@ class BackgroundService:
                 self._repository.update(job)
                 if job.job_id in self._active_tasks:
                     del self._active_tasks[job.job_id]
+
+    async def _run_dataset_generation(self, document_id: str, job_id: str) -> None:
+        """Run curated dataset generation in the background without blocking analysis UX."""
+        job = self._repository.get(job_id)
+        if job:
+            job.metadata["dataset_generation_status"] = "running"
+            self._repository.update(job)
+
+        try:
+            factory = get_dataset_factory()
+            batch = await asyncio.to_thread(factory.process_document, document_id)
+            latest_export = factory.get_latest_export(document_id=document_id)
+
+            job = self._repository.get(job_id)
+            if job:
+                status = "completed"
+                if batch.sample_count == 0 and batch.generation_mode in {"llm_unavailable", "llm_required"}:
+                    status = "skipped"
+                job.metadata["dataset_generation_status"] = status
+                job.metadata["dataset_sample_count"] = batch.sample_count
+                job.metadata["dataset_generation_mode"] = batch.generation_mode
+                if latest_export and batch.sample_count > 0:
+                    job.metadata["dataset_export_path"] = latest_export.get("export_path")
+                    job.metadata["dataset_jsonl_path"] = latest_export.get("jsonl_path")
+                self._repository.update(job)
+        except Exception as error:
+            logger.warning("Background dataset generation failed for %s: %s", document_id, error)
+            job = self._repository.get(job_id)
+            if job:
+                job.metadata["dataset_generation_status"] = "failed"
+                job.metadata["dataset_generation_error"] = str(error)
+                self._repository.update(job)
+        finally:
+            self._dataset_tasks.pop(document_id, None)
 
     def get_queue_stats(self) -> Dict[str, Any]:
         """Get queue statistics."""

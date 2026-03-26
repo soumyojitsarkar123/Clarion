@@ -187,12 +187,16 @@ class GraphBuilder:
     
     def _add_hierarchy_edges(self, knowledge_map: KnowledgeMap) -> None:
         """Add edges connecting topics/subtopics to their concepts."""
+        document_id = f"doc_{self.document_id}"
+        assigned_concept_ids = set()
+
         # Connect main topics to concepts
         for topic in knowledge_map.main_topics:
             topic_id = f"topic_{topic.id}"
             for concept_id in topic.concept_ids:
                 concept_node_id = f"concept_{concept_id}"
                 if concept_node_id in self.graph:
+                    assigned_concept_ids.add(concept_id)
                     self.graph.add_edge(
                         topic_id, concept_node_id,
                         relation_type=GraphEdgeType.HIERARCHY.value,
@@ -205,11 +209,37 @@ class GraphBuilder:
             for concept_id in subtopic.concept_ids:
                 concept_node_id = f"concept_{concept_id}"
                 if concept_node_id in self.graph:
+                    assigned_concept_ids.add(concept_id)
                     self.graph.add_edge(
                         subtopic_id, concept_node_id,
                         relation_type=GraphEdgeType.HIERARCHY.value,
                         weight=0.9
                     )
+
+        # If no trustworthy topic hierarchy exists, fall back to a clean
+        # document -> concept structure instead of duplicating concept names as topics.
+        if not knowledge_map.main_topics and not knowledge_map.subtopics:
+            for concept in knowledge_map.concepts:
+                concept_node_id = f"concept_{concept.id}"
+                if concept_node_id in self.graph:
+                    self.graph.add_edge(
+                        document_id, concept_node_id,
+                        relation_type=GraphEdgeType.HIERARCHY.value,
+                        weight=0.7
+                    )
+            return
+
+        # Concepts that were not attached to any heading still need a home in the hierarchy.
+        for concept in knowledge_map.concepts:
+            if concept.id in assigned_concept_ids:
+                continue
+            concept_node_id = f"concept_{concept.id}"
+            if concept_node_id in self.graph:
+                self.graph.add_edge(
+                    document_id, concept_node_id,
+                    relation_type=GraphEdgeType.HIERARCHY.value,
+                    weight=0.65
+                )
     
     def _add_relation_edges(self, relations: List[Relation]) -> None:
         """Add semantic relation edges between concepts."""

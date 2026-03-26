@@ -118,9 +118,13 @@ async def get_relations(
                     "concept_b": r.concept_b,
                     "relation_type": r.relation_type,
                     "llm_confidence": r.llm_confidence,
+                    "relation_confidence": (r.metadata or {}).get("relation_confidence", r.llm_confidence),
                     "cooccurrence_score": r.cooccurrence_score,
                     "semantic_similarity": r.semantic_similarity,
                     "chunk_context": r.chunk_context[:300],
+                    "source_chunk_ids": r.source_chunk_ids,
+                    "quality_score": (r.metadata or {}).get("quality_score"),
+                    "quality_flags": (r.metadata or {}).get("quality_flags", []),
                     "is_valid": r.is_valid,
                     "created_at": r.created_at.isoformat()
                 }

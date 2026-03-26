@@ -10,6 +10,8 @@ from core.llm.base import BaseLLMProvider, ProviderType, LLMProviderError
 from core.llm.openai_provider import OpenAIProvider
 from core.llm.kimi_provider import KimiProvider
 from core.llm.glm_provider import GLMProvider
+from core.llm.ollama_provider import OllamaProvider
+from utils.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ class LLMFactory:
     """
 
     _providers: Dict[ProviderType, Type[BaseLLMProvider]] = {
-        ProviderType.OLLAMA: GLMProvider,
+        ProviderType.OLLAMA: OllamaProvider,
         ProviderType.OPENAI: OpenAIProvider,
         ProviderType.KIMI: KimiProvider,
         ProviderType.GLM: GLMProvider,
@@ -133,35 +135,68 @@ class LLMFactory:
         """
         Create default provider from environment variables.
 
-        Uses OLLAMA_MODEL env var for local Ollama models.
-
         Returns:
             Default configured provider
         """
-        ollama_model = os.getenv("OLLAMA_MODEL")
+        provider_type = str(
+            os.getenv("LLM_PROVIDER")
+            or os.getenv("DEFAULT_LLM_PROVIDER")
+            or settings.llm_provider
+            or "ollama"
+        ).lower()
 
-        if ollama_model:
-            provider_type = "ollama"
+        temperature = float(os.getenv("LLM_TEMPERATURE", str(settings.llm_temperature)))
+        max_tokens = int(os.getenv("LLM_MAX_TOKENS", str(settings.llm_max_tokens)))
+        timeout = int(
+            os.getenv(
+                "LLM_TIMEOUT",
+                str(
+                    settings.ollama_request_timeout_seconds
+                    if provider_type == "ollama"
+                    else 60
+                ),
+            )
+        )
+
+        if provider_type == "ollama":
             config = {
                 "api_key": "ollama",
-                "model": ollama_model,
-                "api_base": os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
-                "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3")),
-                "max_tokens": int(os.getenv("LLM_MAX_TOKENS", "2000")),
-                "timeout": int(os.getenv("LLM_TIMEOUT", "120")),
+                "model": os.getenv("OLLAMA_MODEL", settings.ollama_model),
+                "api_base": os.getenv("OLLAMA_API_BASE", settings.ollama_api_base),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "timeout": timeout,
             }
-        else:
-            provider_type = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+        elif provider_type == "openai":
             config = {
-                "api_key": os.getenv(f"{provider_type.upper()}_API_KEY"),
-                "model": os.getenv(f"{provider_type.upper()}_MODEL"),
-                "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3")),
-                "max_tokens": int(os.getenv("LLM_MAX_TOKENS", "2000")),
-                "timeout": int(os.getenv("LLM_TIMEOUT", "60")),
+                "api_key": os.getenv("OPENAI_API_KEY", settings.openai_api_key or ""),
+                "model": os.getenv("OPENAI_MODEL", settings.openai_model),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "timeout": timeout,
             }
-            api_base = os.getenv(f"{provider_type.upper()}_API_BASE")
+        elif provider_type == "glm":
+            config = {
+                "api_key": os.getenv("GLM_API_KEY", ""),
+                "model": os.getenv("GLM_MODEL", "chatglm3-6b"),
+                "api_base": os.getenv("GLM_API_BASE", GLMProvider.DEFAULT_API_BASE),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "timeout": timeout,
+            }
+        elif provider_type == "kimi":
+            config = {
+                "api_key": os.getenv("KIMI_API_KEY", ""),
+                "model": os.getenv("KIMI_MODEL", "moonshot-v1-8k"),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "timeout": timeout,
+            }
+            api_base = os.getenv("KIMI_API_BASE")
             if api_base:
                 config["api_base"] = api_base
+        else:
+            raise LLMProviderError(f"Unknown default provider: {provider_type}")
 
         config = {k: v for k, v in config.items() if v is not None}
 

@@ -28,6 +28,23 @@ except ImportError:
 DEFAULT_API_BASE = "http://localhost:8000"
 
 
+def normalize_status_state(status: dict) -> str:
+    """Normalize the current status payload into a simple CLI state string."""
+    current_job = status.get("current_job") or {}
+    job_status = str(current_job.get("status") or "").lower()
+    document_status = str(status.get("document_status") or "").lower()
+
+    if job_status in {"failed", "cancelled"}:
+        return job_status
+    if status.get("has_active_job") and job_status:
+        return "processing"
+    if document_status == "analyzed":
+        return "completed"
+    if document_status:
+        return document_status
+    return "unknown"
+
+
 def upload_document(file_path: str, api_base: str = DEFAULT_API_BASE) -> str:
     """Upload a single document and return document_id."""
     if not os.path.exists(file_path):
@@ -86,7 +103,7 @@ def wait_for_completion(
 
     while True:
         status = get_status(document_id, api_base)
-        state = status.get("state", "unknown")
+        state = normalize_status_state(status)
 
         if state in ("completed", "failed", "error"):
             print(f"Done! State: {state}")
@@ -118,7 +135,7 @@ def upload_and_analyze(
     else:
         if wait:
             status = wait_for_completion(doc_id, api_base)
-            print(f"Final status: {status.get('state')}")
+            print(f"Final status: {normalize_status_state(status)}")
 
     return doc_id
 
@@ -190,9 +207,14 @@ def task_wait(args) -> int:
 def task_status(args) -> int:
     """Get document status."""
     status = get_status(args.document_id, args.api_base)
+    state = normalize_status_state(status)
     print(f"Document: {args.document_id}")
-    print(f"State: {status.get('state')}")
-    print(f"Status: {status.get('status')}")
+    print(f"State: {state}")
+    print(f"Document Status: {status.get('document_status')}")
+    current_job = status.get("current_job") or {}
+    if current_job:
+        print(f"Current Job Status: {current_job.get('status')}")
+        print(f"Current Stage: {current_job.get('current_stage')}")
     return 0
 
 
