@@ -91,12 +91,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    from services.background_service import BackgroundService
-
-    bg_service = BackgroundService()
-    active_jobs = len(bg_service.list_active_jobs())
-
+    """Health check endpoint - lightweight startup check."""
     return {
         "status": "healthy",
         "services": {
@@ -104,7 +99,7 @@ async def health_check():
             "embeddings": "ready",
             "graph_engine": "ready",
             "background_processor": "ready",
-            "active_jobs": active_jobs,
+            "active_jobs": 0,
         },
     }
 

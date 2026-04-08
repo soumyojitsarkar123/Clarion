@@ -102,7 +102,6 @@ python -m http.server 8080
 
 ### 3. Verify The Run
 
-- Backend health: `http://127.0.0.1:8000/health`
 - Backend docs: `http://127.0.0.1:8000/docs`
 - Frontend: `http://127.0.0.1:8080`
 

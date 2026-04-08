@@ -14,12 +14,14 @@ function Wait-ForHttpReady {
     param(
         [Parameter(Mandatory = $true)][string]$Url,
         [Parameter(Mandatory = $true)]$Process,
-        [int]$TimeoutSeconds = 60
+        [int]$TimeoutSeconds = 120
     )
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $elapsed = 0
     while ((Get-Date) -lt $deadline) {
         if ($Process.HasExited) {
+            Write-Host "Backend process exited. Check logs at: scripts\.run\backend.out.log"
             return $false
         }
 
@@ -29,6 +31,11 @@ function Wait-ForHttpReady {
                 return $true
             }
         } catch {
+        }
+
+        $elapsed += 2
+        if ($elapsed % 10 -eq 0) {
+            Write-Host "Waiting for backend... ($elapsed/$TimeoutSeconds seconds)"
         }
 
         Start-Sleep -Seconds 2
@@ -81,7 +88,22 @@ if (-not (Wait-ForHttpReady -Url "http://127.0.0.1:8000/health" -Process $proces
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
     }
     Remove-Item $BackendPidFile -Force -ErrorAction SilentlyContinue
-    throw "Backend process started but http://127.0.0.1:8000/health did not become ready in time."
+    
+    Write-Host ""
+    Write-Host "ERROR: Backend health check failed after 120 seconds."
+    Write-Host ""
+    Write-Host "Common causes:"
+    Write-Host "  1. Ollama is not running (required if using ollama provider)"
+    Write-Host "     Run: ollama serve"
+    Write-Host "  2. Models are downloading or initializing (first run)"
+    Write-Host "  3. Another service is using port 8000"
+    Write-Host ""
+    Write-Host "Check backend logs:"
+    Write-Host "  Stdout: $BackendOutLog"
+    Write-Host "  Stderr: $BackendErrLog"
+    Write-Host ""
+    
+    throw "Backend failed to start. See diagnostics above."
 }
 
 $process.Id | Set-Content $BackendPidFile

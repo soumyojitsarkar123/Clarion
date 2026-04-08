@@ -956,109 +956,37 @@ class KnowledgeMapService:
         """Build main topics from document section titles and concepts."""
         topics: List[MainTopic] = []
         seen_titles = set()
-        concept_name_map = {concept.name.lower(): concept for concept in concepts}
-        concept_keys = {
-            self._normalize_concept_candidate(concept.name) or concept.name.lower()
-            for concept in concepts
-        }
-        title_chunk_map: Dict[str, set[str]] = defaultdict(set)
-
-        for chunk in chunks[:16]:
-            if not chunk.section_title or not chunk.section_title.strip():
-                continue
-            normalized = self._normalize_topic_title(chunk.section_title)
-            if not normalized:
-                continue
-            title_chunk_map[normalized.lower()].add(chunk.chunk_id)
 
         # First, extract from section titles
-        for chunk in chunks[:10]:
-            if not chunk.section_title or not chunk.section_title.strip():
-                continue
-            title = self._normalize_topic_title(chunk.section_title)
-            if not title:
-                continue
-            lowered_title = title.lower()
-            normalized_title_key = self._normalize_concept_candidate(title) or lowered_title
-            if lowered_title in seen_titles:
-                continue
-            if lowered_title in concept_name_map or normalized_title_key in concept_keys:
-                continue
+        for i, chunk in enumerate(chunks[:10]):
+            if chunk.section_title and chunk.section_title.strip():
+                title = self._normalize_topic_title(chunk.section_title)
+                if title and title.lower() not in seen_titles:
+                    seen_titles.add(title.lower())
+                    topics.append(
+                        MainTopic(
+                            id=str(uuid.uuid4()),
+                            title=title,
+                            description="Topic inferred from a document heading.",
+                            concept_ids=[],
+                            subtopic_ids=[],
+                        )
+                    )
 
-            concept_ids = self._match_topic_concepts(
-                topic_title=title,
-                concepts=concepts,
-                topic_chunk_ids=title_chunk_map.get(lowered_title, set()),
-            )
-            if not concept_ids:
-                continue
-            if self._topic_duplicates_concept(title, concept_ids, concepts):
-                continue
-
-            seen_titles.add(lowered_title)
-            topics.append(
-                MainTopic(
-                    id=str(uuid.uuid4()),
-                    title=title,
-                    description="Topic inferred from a document heading.",
-                    concept_ids=concept_ids,
-                    subtopic_ids=[],
+        # If no section titles, use top concepts as main topics
+        if not topics and concepts:
+            for concept in concepts[:5]:
+                topics.append(
+                    MainTopic(
+                        id=str(uuid.uuid4()),
+                        title=concept.name,
+                        description=concept.definition or "Main concept",
+                        concept_ids=[concept.id],
+                        subtopic_ids=[],
+                    )
                 )
-            )
-            if len(topics) >= 5:
-                break
 
         return topics
-
-    def _topic_duplicates_concept(
-        self,
-        topic_title: str,
-        concept_ids: Sequence[str],
-        concepts: Sequence[Concept],
-    ) -> bool:
-        """Return True when a topic would just repeat the same concept label."""
-        topic_key = self._normalize_concept_candidate(topic_title) or topic_title.lower()
-        concept_map = {concept.id: concept for concept in concepts}
-        matched_keys = {
-            self._normalize_concept_candidate(concept_map[concept_id].name) or concept_map[concept_id].name.lower()
-            for concept_id in concept_ids
-            if concept_id in concept_map
-        }
-        if not matched_keys:
-            return False
-        return len(matched_keys) == 1 and topic_key in matched_keys
-
-    def _match_topic_concepts(
-        self,
-        topic_title: str,
-        concepts: Sequence[Concept],
-        topic_chunk_ids: set[str],
-    ) -> List[str]:
-        """Attach the most relevant concepts to a topic using chunk overlap and token overlap."""
-        ranked: List[tuple[float, str]] = []
-        topic_words = {
-            token for token in re.findall(r"[A-Za-z][A-Za-z'-]+", topic_title.lower())
-            if not self._is_generic_unigram(token)
-        }
-
-        for concept in concepts:
-            score = 0.0
-            concept_words = {
-                token for token in re.findall(r"[A-Za-z][A-Za-z'-]+", concept.name.lower())
-                if not self._is_generic_unigram(token)
-            }
-            if topic_chunk_ids and set(concept.chunk_ids or []).intersection(topic_chunk_ids):
-                score += 2.0
-            if concept_words and topic_words:
-                overlap = len(concept_words & topic_words)
-                if overlap:
-                    score += 1.0 + (0.5 * overlap)
-            if score <= 0:
-                continue
-            ranked.append((score, concept.id))
-
-        ranked.sort(key=lambda item: item[0], reverse=True)
-        return [concept_id for _, concept_id in ranked[:5]]
 
     def _prepare_text_for_concepts(self, text: str) -> str:
         """Remove boilerplate lines before heuristic concept extraction."""

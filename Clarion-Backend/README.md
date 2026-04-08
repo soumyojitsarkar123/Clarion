@@ -1,31 +1,31 @@
-# Clarion Backend
+# Clarion — Backend
 
-FastAPI backend for document ingestion, chunking, embeddings, knowledge-map generation, summaries, dataset capture, and graph export.
+FastAPI backend for document ingestion, chunking, embeddings, knowledge-map generation, summaries, relation dataset capture, and graph export.
 
-## Current Backend Reality
+---
 
-This backend is provider-aware, but it is not purely LLM-driven.
+## What This Is
 
-What the code currently does by default:
+Clarion is a research-oriented document intelligence pipeline. It accepts PDF/DOCX uploads and produces:
 
-- extracts text from uploaded PDF/DOCX files
-- chunks text by document structure
-- creates embeddings with SentenceTransformers
-- stores/retrieves vectors with FAISS
-- builds knowledge maps using deterministic heuristic extraction and co-occurrence relations
-- generates document-grounded summaries using deterministic fallback logic
-- stores graph exports, summaries, and relation datasets in SQLite/JSON artifacts
+- **Chunk-based embeddings** using SentenceTransformers + FAISS
+- **Knowledge maps** via heuristic concept and co-occurrence relation extraction
+- **Structured summaries** grounded in extracted document content
+- **Relation datasets** exported as CSV/JSON for downstream research use
+- **Graph exports** in Cytoscape-compatible JSON format
 
-That is important for anyone reproducing results: the codebase currently favors graceful deterministic behavior over blocking on live model inference.
+The backend is provider-aware but does not require a live LLM to function. Core extraction and analysis pipelines use deterministic heuristics. LLM calls (via Ollama by default) are used where available for enrichment tasks and will gracefully fall back when unavailable.
 
-## Runtime Model Configuration
+---
 
-Defaults come from [utils/config.py](utils/config.py).
+## Runtime Configuration
 
-| Component | Setting | Current default |
+Defaults are defined in [`utils/config.py`](utils/config.py).
+
+| Component | Setting | Default |
 |---|---|---|
 | Embedding model | `EMBEDDING_MODEL_NAME` | `BAAI/bge-large-en-v1.5` |
-| Embedding device | `EMBEDDING_DEVICE` | `auto` |
+| Embedding device | `EMBEDDING_DEVICE` | `auto` (resolves to cuda / mps / cpu) |
 | LLM provider | `LLM_PROVIDER` | `ollama` |
 | Ollama model | `OLLAMA_MODEL` | `qwen3.5:4b` |
 | Ollama base URL | `OLLAMA_API_BASE` | `http://localhost:11434/v1` |
@@ -33,95 +33,105 @@ Defaults come from [utils/config.py](utils/config.py).
 | Chunk overlap | `CHUNK_OVERLAP` | `50` |
 | SQLite timeout | `SQLITE_TIMEOUT_SECONDS` | `30.0` |
 
-Supported LLM providers in code:
+Supported LLM providers:
 
-- `ollama`
+- `ollama` (default, local)
 - `openai`
 - `deepseek`
 - `gemini`
 
-Important notes:
+`OPENAI_API_KEY` and other provider keys are optional and only required if you switch providers.
 
-- `OPENAI_API_KEY` is optional, not required by default.
-- Ollama is the default provider, but the backend still runs useful analysis without a successful live generation call.
-- Embedding device `auto` is resolved at startup to `cuda`, `mps`, or `cpu`.
+---
 
-## Deterministic Vs Live-Provider Behavior
+## Deterministic vs. Live-Provider Behaviour
 
-### Deterministic-first paths
+### Deterministic paths (always run)
 
-- knowledge-map extraction in [knowledge_map_service.py](services/knowledge_map_service.py)
-- structured summary generation in [summary_service.py](services/summary_service.py)
-- relation dataset snapshot export in [relation_dataset_service.py](services/relation_dataset_service.py)
+- Text extraction and chunking — [`services/chunking_service.py`](services/chunking_service.py)
+- Knowledge-map extraction — [`services/knowledge_map_service.py`](services/knowledge_map_service.py)
+- Relation dataset capture — [`services/relation_dataset_service.py`](services/relation_dataset_service.py)
+- Summary generation fallback — [`services/summary_service.py`](services/summary_service.py)
 
-### Provider-aware paths
+### Provider-aware paths (require a live LLM)
 
-- LLM availability and provider configuration in [knowledge_map_service.py](services/knowledge_map_service.py)
-- query/response generation routes and services
-- system health/status checks
+- LLM-enriched relation confidence scoring
+- Query answering via RAG
+- Dataset refinement and quality scoring
 
-### Why this matters
+> If a live provider is unavailable, the backend logs a warning and continues with deterministic output. Results will differ depending on whether LLM enrichment ran successfully.
 
-If someone assumes every run is driven by live Ollama/OpenAI output, they will misunderstand the observed results. The current backend intentionally falls back to deterministic processing when the provider is unavailable, slow, or unusable.
+---
 
-## Pydantic Schema Inventory
+## Data Models
 
-The backend schema layer is in [models](models):
+Schema layer is in [`models/`](models/):
 
-- [document.py](models/document.py): uploaded document metadata and status
-- [chunk.py](models/chunk.py): chunk records and section metadata
-- [embedding.py](models/embedding.py): vector payload schemas
-- [knowledge_map.py](models/knowledge_map.py): concepts, relations, topics
-- [graph.py](models/graph.py): graph export schemas and node/edge typing
-- [retrieval.py](models/retrieval.py): retrieval result payloads
-- [summary.py](models/summary.py): structured summaries and sections
-- [response.py](models/response.py): API response wrappers
+| File | Contents |
+|---|---|
+| [`document.py`](models/document.py) | Document metadata and processing status |
+| [`chunk.py`](models/chunk.py) | Chunk records and section metadata |
+| [`embedding.py`](models/embedding.py) | Vector payload schemas |
+| [`knowledge_map.py`](models/knowledge_map.py) | Concepts, relations, topics |
+| [`graph.py`](models/graph.py) | Graph export schemas and node/edge typing |
+| [`retrieval.py`](models/retrieval.py) | Retrieval result payloads |
+| [`summary.py`](models/summary.py) | Structured summaries and sections |
+| [`response.py`](models/response.py) | API response wrappers |
 
-If you are changing the API, keep these schemas and the router responses aligned.
+---
 
 ## Storage Layout
 
-When the backend is started from `Clarion-Backend/`, the main storage root is:
+All runtime artifacts are written relative to `Clarion-Backend/data/`:
 
-- [data](data)
+| Path | Contents |
+|---|---|
+| `data/clarion.db` | Main SQLite database (documents, chunks, jobs, samples) |
+| `data/relation_dataset.db` | Relation dataset records |
+| `data/graphs/` | Per-document Cytoscape graph exports (JSON) |
+| `data/datasets/` | Per-document relation snapshots (CSV/JSON) |
+| `data/vectorstore/` | FAISS vector index files |
 
-Important files/directories:
+Readable dataset snapshots are also mirrored to `../data/datasets/`.
 
-- app database: [clarion.db](data/clarion.db)
-- relation dataset database: [relation_dataset.db](data/relation_dataset.db)
-- graph exports: [graphs](data/graphs)
-- readable dataset snapshots: [datasets](data/datasets)
-- logs: [logs](logs)
+Logs are written to `logs/clarion.log` at runtime (not committed to version control).
 
-The workspace also mirrors readable dataset snapshots to:
-
-- [../data/datasets](../data/datasets)
+---
 
 ## API Surface
 
-Routers currently mounted in [main.py](main.py):
+Routers mounted in [`main.py`](main.py):
 
-- `/upload`
-- `/analyze`
-- `/knowledge-map`
-- `/query`
-- `/summary`
-- `/status`
-- `/dataset`
-- `/graph`
-- `/logs`
-- `/system`
+| Prefix | Purpose |
+|---|---|
+| `/upload` | Upload PDF/DOCX documents |
+| `/analyze` | Trigger full analysis pipeline |
+| `/knowledge-map` | Retrieve knowledge maps |
+| `/query` | RAG-based document querying |
+| `/summary` | Retrieve document summaries |
+| `/status` | Processing job status |
+| `/dataset` | Access relation datasets |
+| `/dataset/factory` | Dataset generation and export |
+| `/graph` | Graph exports |
+| `/logs` | Runtime log access |
+| `/system` | System status and provider info |
 
-Examples:
+Key endpoints:
 
-- `POST /upload`
-- `POST /analyze/{document_id}`
-- `GET /knowledge-map/{document_id}`
-- `GET /summary/{document_id}`
-- `GET /graph/{document_id}`
-- `GET /dataset/relations`
-- `GET /dataset/relations/stats`
-- `GET /system-status`
+```
+POST   /upload
+POST   /analyze/{document_id}
+GET    /knowledge-map/{document_id}
+GET    /summary/{document_id}
+GET    /graph/{document_id}
+GET    /dataset/relations
+GET    /dataset/relations/stats
+GET    /system-status
+```
+
+Interactive API docs available at [`http://127.0.0.1:8000/docs`](http://127.0.0.1:8000/docs) when running locally.
+
+---
 
 ## Setup
 
@@ -134,11 +144,9 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. Optional `.env`
+### 2. Configure (optional)
 
-Create `Clarion-Backend/.env` only if you need to override defaults.
-
-Example:
+Create `Clarion-Backend/.env` only if you need to override defaults:
 
 ```ini
 LLM_PROVIDER=ollama
@@ -153,54 +161,33 @@ CHUNK_OVERLAP=50
 SQLITE_TIMEOUT_SECONDS=30.0
 ```
 
-### 3. Run the API
+### 3. Run
 
 ```powershell
 python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-Windows helper scripts also exist in [../scripts](../scripts), but the command above is the cleanest documented path.
+Windows helper scripts are also available in [`../scripts`](../scripts).
 
-### 4. Verify The Backend
+### 4. Verify
 
-- API root: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 - Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- Health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- System status: [http://127.0.0.1:8000/system-status](http://127.0.0.1:8000/system-status)
 
-## Reproducibility Checklist
+---
 
-If reproducibility matters, record these for every run:
+## Reproducibility Notes
 
-1. Working directory used to launch the backend.
-2. Exact values of `LLM_PROVIDER`, provider model, embedding model, and embedding device.
-3. Whether the run used live provider responses or deterministic fallback behavior.
-4. Whether embeddings loaded successfully or the deterministic embedding fallback was used.
-5. `CHUNK_SIZE`, `CHUNK_OVERLAP`, and `MIN_CHUNK_SIZE`.
-6. Input file checksum or exact source document copy.
+When recording results, capture:
 
-Important implementation notes:
+1. Exact values of `LLM_PROVIDER`, model name, embedding model, and device.
+2. Whether runs used live LLM responses or deterministic fallback.
+3. Whether embeddings loaded from an existing FAISS index or were re-computed.
+4. `CHUNK_SIZE`, `CHUNK_OVERLAP`.
+5. Input file checksum or exact source document.
 
-- Chunking is word-based in [chunking_service.py](services/chunking_service.py), not tokenizer-based.
-- Running the backend from the wrong directory can create a different `data/` tree and make artifacts appear “missing”.
-- Graph routes may return either Cytoscape-style exports or legacy node-link JSON depending on what artifacts exist, so downstream consumers should be tolerant of both.
+Key implementation notes:
 
-## Dataset Export
-
-For a single research snapshot:
-
-```powershell
-cd Clarion-Backend
-python export_dataset.py
-```
-
-That writes:
-
-- [research_dataset_export.json](data/research_dataset_export.json)
-
-During normal analysis runs, readable per-document relation snapshots are also written under:
-
-- [data/datasets](data/datasets)
-
-## Local Development
-
-Windows PowerShell helpers are available in [../scripts](../scripts) if you want one-command startup for local work.
+- Chunking is **word-based**, not tokenizer-based ([`services/chunking_service.py`](services/chunking_service.py)).
+- Running the backend from the wrong directory will create a misaligned `data/` tree.
+- Graph routes return Cytoscape-style JSON. Downstream consumers should handle this format.
