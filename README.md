@@ -1,6 +1,7 @@
-# Clarion
+# Clarion : Intelligent Document Understanding, Knowledge Graph Generation and Dataset Construction System
 
-Clarion is a local-first document analysis workspace with a FastAPI backend and a static frontend for uploads, summaries, datasets, and knowledge graph visualization.
+
+Clarion is a local-first document analysis workspace with a FastAPI backend and a static frontend for uploads, summaries, datasets, and knowledge graph visualization and Dataset Construction.
 
 ## What The Current System Actually Does
 
