@@ -8,7 +8,8 @@ from core.llm.base import (
     ModelInfo,
     ProviderType,
     TokenUsage,
-    LLMProviderError
+    LLMProviderError,
+    LLMRuntimeState,
 )
 from core.llm.factory import LLMFactory
 from core.llm.openai_provider import OpenAIProvider
@@ -22,8 +23,9 @@ __all__ = [
     "ProviderType",
     "TokenUsage",
     "LLMProviderError",
+    "LLMRuntimeState",
     "LLMFactory",
     "OpenAIProvider",
     "KimiProvider",
-    "GLMProvider"
+    "GLMProvider",
 ]

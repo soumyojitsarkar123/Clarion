@@ -8,6 +8,14 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
+class LLMRuntimeState(str, Enum):
+    """Runtime availability state of LLM subsystem."""
+    LLM_AVAILABLE = "LLM_AVAILABLE"
+    LLM_DEGRADED = "LLM_DEGRADED"
+    LLM_UNAVAILABLE = "LLM_UNAVAILABLE"
+    FALLBACK_USED = "FALLBACK_USED"
+
+
 class ProviderType(str, Enum):
     """Supported LLM provider types."""
 

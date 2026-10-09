@@ -261,15 +261,21 @@ class GraphBuilder:
             edge_type = self._map_relation_type(relation.relation_type)
             
             # Add edge with attributes
+            is_validated = bool(
+                relation.calibrated_probability is not None and relation.calibrated_probability >= 0.5
+            )
             self.graph.add_edge(
                 from_node_id,
                 to_node_id,
                 id=edge_id,
                 relation_type=edge_type.value,
                 confidence=relation.confidence,
+                calibrated_probability=relation.calibrated_probability,
+                evidence_text=relation.evidence_text,
+                signal_scores=relation.signal_scores or {},
                 description=relation.description,
                 weight=self._calculate_edge_weight(relation),
-                validated=False  # Will be set during evaluation
+                validated=is_validated,
             )
             
             self.relation_edges[relation.id] = edge_id

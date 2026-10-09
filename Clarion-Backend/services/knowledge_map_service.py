@@ -22,6 +22,7 @@ from models.knowledge_map import (
 )
 from utils.config import settings
 from utils.sqlite import connect as sqlite_connect
+from core.evaluation.evidence_verifier import EvidenceVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,12 @@ _CONCEPT_STOPWORDS = {
     "answer", "subject", "code", "full", "semester", "stream", "paper",
     "unit", "module", "write", "explain", "define", "state", "show", "find",
     "document", "content", "topic", "topics", "text", "note", "notes",
+    "some", "these", "those", "book", "books", "editor", "editors", "edition",
+    "author", "authors", "chapter", "chapters", "figure", "figures", "table",
+    "tables", "volume", "series", "press", "publisher", "published",
+    "copyright", "index", "preface", "foreword", "appendix", "acknowledgment",
+    "acknowledgments", "contributor", "contributors", "reviewer", "reviewers",
+    "isbn",
 }
 
 _GENERIC_CONCEPT_NAMES = {
@@ -61,6 +68,36 @@ _GENERIC_CONCEPT_NAMES = {
     "possible",
     "new",
     "standard",
+    "some",
+    "these",
+    "those",
+    "book",
+    "books",
+    "editor",
+    "editors",
+    "author",
+    "authors",
+    "chapter",
+    "chapters",
+    "figure",
+    "figures",
+    "table",
+    "tables",
+    "volume",
+    "series",
+    "press",
+    "publisher",
+    "published",
+    "preface",
+    "foreword",
+    "index",
+    "appendix",
+    "contributor",
+    "contributors",
+    "reviewer",
+    "reviewers",
+    "acknowledgment",
+    "acknowledgments",
 }
 
 _ALLOWED_MULTIWORD_CONCEPTS = {
@@ -162,7 +199,7 @@ class LLMInterface:
                     )
                     self._available = self.model in model_names
                     if self._available:
-                        logger.info(f"Ollama service is available ({self.model})")
+                        logger.debug(f"Ollama service is available ({self.model})")
                     else:
                         logger.warning(
                             "Ollama is running but model '%s' is not installed. Installed models: %s",
@@ -637,6 +674,7 @@ class KnowledgeMapService:
 
     def __init__(self):
         self.llm = LLMInterface()
+        self.evidence_verifier = EvidenceVerifier()
         self._init_database()
 
     def _init_database(self) -> None:
@@ -673,15 +711,26 @@ class KnowledgeMapService:
         """
         logger.info(f"Building knowledge map for document {document_id}")
 
-        # Use fast heuristic-based extraction instead of LLM
-        # LLM calls often hang with qwen3.5:4b on complex prompts
-        concepts = self._extract_concepts_heuristic(chunks)
-        logger.info(f"Extracted {len(concepts)} concepts using heuristic analysis")
+        extraction_method = "heuristic"
+        concepts = []
+        try:
+            if self.llm._is_service_available():
+                concepts = self._extract_concepts(chunks)
+                if concepts:
+                    extraction_method = "llm"
+        except Exception as e:
+            logger.warning(f"LLM concept extraction failed: {e}; falling back to deterministic extraction")
+
+        if not concepts:
+            concepts = self._extract_concepts_heuristic(chunks)
+            extraction_method = "heuristic"
+
+        logger.info(f"Extracted {len(concepts)} concepts using {extraction_method}")
 
         relations = self._detect_relations_by_cooccurrence(concepts, chunks)
-        logger.info(f"Detected {len(relations)} relations using co-occurrence")
+        logger.info(f"Detected {len(relations)} candidate relations using co-occurrence")
 
-        # Build simple topic structure from concepts
+        # Build topic structure from concepts
         main_topics = self._extract_main_topics_heuristic(concepts, chunks)
         subtopics = []
 
@@ -695,7 +744,9 @@ class KnowledgeMapService:
                 "total_concepts": len(concepts),
                 "total_relations": len(relations),
                 "total_topics": len(main_topics),
-                "extraction_method": "heuristic",
+                "extraction_method": extraction_method,
+                "analysis_mode": "llm" if extraction_method == "llm" else "deterministic_fallback",
+                "fallback_used": extraction_method == "deterministic_fallback",
             },
         )
 
@@ -709,9 +760,7 @@ class KnowledgeMapService:
         concepts = []
         seen_names = set()
 
-        # OPTIMIZED: Process up to 10 evenly-spaced chunks for better coverage (was 3)
-        step = max(1, len(chunks) // 10)
-        chunks_to_process = chunks[::step][:10]
+        chunks_to_process = self._sample_representative_chunks(chunks, max_samples=10)
 
         for chunk in chunks_to_process:
             try:
@@ -829,16 +878,72 @@ class KnowledgeMapService:
         }
         return mapping.get(normalized, RelationType.EXPLANATION)
 
+    def _is_front_matter_chunk(self, chunk: Chunk) -> bool:
+        """Detect whether a chunk is part of front matter (copyright, preface, contributor roster)."""
+        title = (chunk.section_title or "").lower()
+        content = (chunk.content or "").lower()
+
+        front_matter_markers = (
+            "copyright", "all rights reserved", "isbn", "printed in", "published by",
+            "library of congress", "contributing authors", "editorial board", "advisory board",
+            "reviewers", "acknowledgments", "acknowledgements", "table of contents",
+            "preface", "foreword"
+        )
+        if any(marker in title for marker in front_matter_markers):
+            return True
+
+        if re.search(r"\b(?:copyright|isbn\s*[\d\-]+|all rights reserved|published by)\b", content):
+            return True
+
+        # Check for dense comma-separated name list / roster sentences in content
+        for sentence in chunk.content.splitlines():
+            sentence = sentence.strip()
+            if sentence.count(",") >= 4:
+                words = sentence.split()
+                if words:
+                    cap_tokens = sum(1 for w in words if w and w[0].isupper())
+                    if cap_tokens >= 6 and (cap_tokens / len(words)) > 0.5:
+                        return True
+
+        return False
+
+    def _sample_representative_chunks(
+        self, chunks: List[Chunk], max_samples: int = 24
+    ) -> List[Chunk]:
+        """
+        Sample representative chunks distributed across the document body,
+        down-weighting or bypassing front matter to preserve chapter/section diversity.
+        """
+        if not chunks:
+            return []
+
+        # Filter out front-matter chunks
+        body_chunks = [c for c in chunks if not self._is_front_matter_chunk(c)]
+        if not body_chunks:
+            body_chunks = chunks
+
+        if len(body_chunks) <= max_samples:
+            return body_chunks
+
+        # Stratified evenly-spaced stride across the entire document sequence
+        step = (len(body_chunks) - 1) / (max_samples - 1) if max_samples > 1 else 1.0
+        sampled_indices = sorted(list({int(round(i * step)) for i in range(max_samples)}))
+        return [body_chunks[idx] for idx in sampled_indices]
+
     def _extract_concepts_heuristic(
         self, chunks: List[Chunk], seen_names: Optional[set] = None
     ) -> List[Concept]:
-        """Deterministic fallback concept extractor using cleaned topic phrases."""
+        """Deterministic concept extractor using stratified document sampling and technical term ranking."""
         seen_names = seen_names or set()
         phrase_counter: Counter[str] = Counter()
         phrase_sources: Dict[str, List[str]] = defaultdict(list)
         phrase_sentences: Dict[str, str] = {}
+        chunk_map = {chunk.chunk_id: chunk for chunk in chunks}
 
-        for chunk in chunks[:16]:
+        # Use stratified document sampling across the body instead of front matter
+        sampled_chunks = self._sample_representative_chunks(chunks, max_samples=32)
+
+        for chunk in sampled_chunks:
             clean_text = self._prepare_text_for_concepts(chunk.content)
             if not clean_text:
                 continue
@@ -868,7 +973,7 @@ class KnowledgeMapService:
             ),
             reverse=True,
         )
-        for phrase, score in ranked_phrases[:30]:
+        for phrase, score in ranked_phrases[:35]:
             if score < 2:
                 continue
             display_name = self._display_concept_name(phrase)
@@ -885,6 +990,12 @@ class KnowledgeMapService:
             if not chunk_ids and not context:
                 continue
 
+            supporting_sections = list({
+                chunk_map[cid].section_title
+                for cid in phrase_sources.get(phrase, [])
+                if cid in chunk_map and chunk_map[cid].section_title
+            })
+
             seen_names.add(normalized_name)
             selected_names.append(display_name)
             concepts.append(
@@ -894,6 +1005,8 @@ class KnowledgeMapService:
                     definition=definition,
                     context=context,
                     chunk_ids=chunk_ids,
+                    frequency=phrase_counter.get(phrase, 1),
+                    supporting_sections=supporting_sections,
                 )
             )
             if len(concepts) >= 12:
@@ -904,11 +1017,12 @@ class KnowledgeMapService:
     def _detect_relations_by_cooccurrence(
         self, concepts: List[Concept], chunks: List[Chunk]
     ) -> List[Relation]:
-        """Fallback relation extraction from concept co-occurrence within chunks."""
+        """Candidate relation extraction from concept co-occurrence within sampled body chunks."""
         if len(concepts) < 2:
             return []
 
-        chunk_text = {chunk.chunk_id: chunk.content.lower() for chunk in chunks[:20]}
+        sampled_chunks = self._sample_representative_chunks(chunks, max_samples=40)
+        chunk_text = {chunk.chunk_id: chunk.content.lower() for chunk in sampled_chunks}
         concept_to_chunks: Dict[str, set] = {}
 
         for concept in concepts:
@@ -937,14 +1051,34 @@ class KnowledgeMapService:
                     continue
                 seen_pairs.add(pair_key)
                 confidence = min(0.45 + (0.08 * len(overlap)), 0.78)
+
+                # Ground candidate relation in textual evidence from overlapping chunks
+                overlap_chunks = [c for c in chunks if c.chunk_id in overlap]
+                ev_result = self.evidence_verifier.extract_evidence(
+                    concept_a=a,
+                    concept_b=b,
+                    relation_type="explanation",
+                    chunks=overlap_chunks,
+                )
+                primary_chunk_id = overlap_chunks[0].chunk_id if overlap_chunks else None
+                all_source_ids = [c.chunk_id for c in overlap_chunks]
+
                 relations.append(
                     Relation(
                         id=str(uuid.uuid4()),
                         from_concept=a,
                         to_concept=b,
                         relation_type=RelationType.EXPLANATION,
-                        description="Inferred from repeated co-occurrence within the same chunks.",
+                        description="Candidate semantic relation inferred from co-occurrence in document body.",
                         confidence=round(confidence, 3),
+                        evidence_text=ev_result.best_sentence if ev_result.best_sentence else None,
+                        signal_scores={
+                            "cooccurrence": round(confidence, 3),
+                            "lexical_support": ev_result.lexical_support_score,
+                        },
+                        is_candidate=True,
+                        source_chunk_id=primary_chunk_id,
+                        source_chunk_ids=all_source_ids,
                     )
                 )
 
@@ -953,12 +1087,14 @@ class KnowledgeMapService:
     def _extract_main_topics_heuristic(
         self, concepts: List[Concept], chunks: List[Chunk]
     ) -> List[MainTopic]:
-        """Build main topics from document section titles and concepts."""
+        """Build main topics from distributed document section titles and concepts."""
         topics: List[MainTopic] = []
         seen_titles = set()
 
-        # First, extract from section titles
-        for i, chunk in enumerate(chunks[:10]):
+        sampled_chunks = self._sample_representative_chunks(chunks, max_samples=25)
+
+        # First, extract from section titles across sampled chunks
+        for chunk in sampled_chunks:
             if chunk.section_title and chunk.section_title.strip():
                 title = self._normalize_topic_title(chunk.section_title)
                 if title and title.lower() not in seen_titles:
@@ -1001,13 +1137,29 @@ class KnowledgeMapService:
             lines.append(cleaned)
         return "\n".join(lines)
 
+    def _is_roster_sentence(self, sentence: str) -> bool:
+        """Detect whether a sentence is an editorial roster (e.g. contributor/editor names)."""
+        words = sentence.strip().split()
+        if len(words) < 3:
+            return False
+        commas = sentence.count(",")
+        if commas >= 3:
+            cap_count = sum(1 for w in words if w and w[0].isupper())
+            if cap_count / len(words) >= 0.5:
+                return True
+        return False
+
     def _extract_concept_candidates(self, text: str) -> List[str]:
-        """Extract unigram and phrase candidates from cleaned text."""
+        """Extract unigram and phrase candidates from cleaned text, skipping roster sentences."""
         candidates: List[str] = []
+        raw_sentences = [
+            s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", text)
+            if s.strip()
+        ]
         token_sequences = [
             re.findall(r"[A-Za-z][A-Za-z'-]{2,}", sentence.lower())
-            for sentence in re.split(r"(?<=[.!?])\s+|\n+", text)
-            if sentence.strip()
+            for sentence in raw_sentences
+            if not self._is_roster_sentence(sentence)
         ]
 
         for tokens in token_sequences:
@@ -1185,24 +1337,40 @@ class KnowledgeMapService:
         return self._display_concept_name(normalized)
 
     def _concept_rank_score(self, phrase: str, frequency: int, source_count: int) -> tuple[float, int, int]:
-        """Rank concepts by quality, preferring clean multi-word topics over generic frequent words."""
+        """Rank concepts by quality, strongly preferring clean multi-word technical concepts and cross-section support."""
         words = phrase.split()
         bonus = 0.0
         if len(words) >= 2:
-            bonus += 2.0
-        if any(word in {"sampling", "distribution", "hypothesis", "population", "parameter", "statistic"} for word in words):
-            bonus += 1.0
-        if len(words) == 1 and self._is_generic_unigram(words[0]):
-            bonus -= 2.5
-        return (frequency + bonus + (source_count * 0.2), source_count, len(words))
+            bonus += 3.5
+        elif len(words) == 1:
+            if self._is_generic_unigram(words[0]):
+                bonus -= 4.0
+            else:
+                bonus -= 1.5
+
+        domain_keywords = {
+            "sampling", "distribution", "hypothesis", "population", "parameter",
+            "statistic", "learning", "search", "agent", "planning", "network",
+            "reasoning", "probabilistic", "inference", "algorithm", "intelligence",
+            "heuristic", "optimization", "regression", "classification"
+        }
+        if any(word in domain_keywords for word in words):
+            bonus += 1.5
+
+        cross_section_boost = source_count * 0.5
+        total_score = frequency + bonus + cross_section_boost
+        return (total_score, source_count, len(words))
 
     def _is_generic_unigram(self, word: str) -> bool:
-        """Reject common academic filler words that are not useful standalone concepts."""
+        """Reject common academic filler words, generic unigrams, and standalone names."""
+        word = word.lower()
         return word in _GENERIC_CONCEPT_NAMES or word in {
             "question", "random", "possible", "following", "given", "find",
             "define", "explain", "state", "show", "meaning", "sampled",
             "size", "time", "value", "normal", "error", "type", "taken",
-            "drawn", "replacement", "without",
+            "drawn", "replacement", "without", "some", "these", "those",
+            "each", "part", "total", "point", "case", "way", "need",
+            "form", "item", "term", "good", "great", "john", "david", "peter",
         }
 
     def _is_instruction_phrase(self, lowered_text: str) -> bool:

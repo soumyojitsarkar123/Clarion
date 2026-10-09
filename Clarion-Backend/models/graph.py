@@ -66,6 +66,9 @@ class GraphEdge(BaseModel):
     
     # Confidence and validation
     confidence: float = Field(1.0, description="Confidence score 0-1", ge=0.0, le=1.0)
+    calibrated_probability: Optional[float] = Field(None, description="Calibrated validity probability P(valid|evidence)")
+    evidence_text: Optional[str] = Field(None, description="Grounded textual evidence snippet")
+    signal_scores: Optional[Dict[str, float]] = Field(default_factory=dict, description="Multi-signal validation scores")
     validated: bool = Field(False, description="Whether relation is validated")
     
     # Description

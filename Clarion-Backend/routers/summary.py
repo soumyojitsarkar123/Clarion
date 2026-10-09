@@ -40,6 +40,7 @@ async def get_summary(document_id: str):
         return {
             "document_id": summary.document_id,
             "title": summary.title,
+            "document_type": getattr(summary, "document_type", "unknown") or "unknown",
             "overall_summary": summary.overall_summary,
             "sections": [
                 {

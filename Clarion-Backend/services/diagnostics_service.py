@@ -15,7 +15,7 @@ import networkx as nx
 from networkx.readwrite import json_graph
 
 from services.embedding_service import EmbeddingService
-from services.knowledge_map_service import LLMInterface
+from services.knowledge_map_service import LLMInterface, get_llm_interface
 from services.relation_dataset_service import RelationDatasetService
 from utils.config import settings
 from utils.graph_store import load_graph_json
@@ -210,7 +210,7 @@ class DiagnosticsService:
 
     def check_llm_connectivity(self) -> Dict[str, Any]:
         try:
-            llm = LLMInterface()
+            llm = get_llm_interface()
             available = llm._is_service_available()
             return {
                 "status": "healthy" if available else "warning",

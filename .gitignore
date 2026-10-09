@@ -33,6 +33,7 @@ venv/
 ENV/
 env/
 .venv
+.venv_linux/
 
 # IDEs
 .vscode/
@@ -113,6 +114,12 @@ Clarion-Backend/supervisor_startup.py
 start_servers.*
 push.ps1
 Clarion-Backend/data/*.json
+
+# Local runtime state
+scripts/.run/
+.commandcode/
+.agents/
+data/graphs/
 
 # Misc
 nul

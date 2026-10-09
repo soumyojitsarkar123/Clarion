@@ -5,6 +5,7 @@ Extracts graph-structural features from knowledge graphs to enhance
 relation validity prediction.
 """
 
+import contextlib
 import logging
 import pickle
 from pathlib import Path
@@ -74,9 +75,41 @@ class GraphFeatureExtractor:
             self.graph = None
             return False
     
+    @contextlib.contextmanager
+    def _without_candidate_edges(self, node_a: Optional[str], node_b: Optional[str]):
+        """
+        Temporarily exclude any existing candidate relation edge(s) between node_a and node_b
+        to eliminate target leakage during feature computation.
+        
+        This guarantees:
+        1. Shortest path distance does not trivially return 1.0 due to the target edge itself.
+        2. Node degrees and centralities do not count the target relation under evaluation.
+        3. Structural connectivity measures alternative support in G \\ {(a, b), (b, a)}.
+        4. Extracted features are strictly invariant to whether the candidate relation
+           has already been inserted into the graph or not.
+        """
+        if self.graph is None or not node_a or not node_b:
+            yield
+            return
+
+        removed = []
+        if self.graph.has_edge(node_a, node_b):
+            removed.append((node_a, node_b, dict(self.graph[node_a][node_b])))
+            self.graph.remove_edge(node_a, node_b)
+        if node_a != node_b and self.graph.has_edge(node_b, node_a):
+            removed.append((node_b, node_a, dict(self.graph[node_b][node_a])))
+            self.graph.remove_edge(node_b, node_a)
+
+        try:
+            yield
+        finally:
+            for u, v, d in removed:
+                self.graph.add_edge(u, v, **d)
+
     def extract_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
         """
-        Extract graph features for a relation between two concepts.
+        Extract leak-free graph features for a relation between two concepts.
+        Features are strictly computed on G \\ {(concept_a, concept_b), (concept_b, concept_a)}.
         
         Args:
             concept_a: First concept name
@@ -87,27 +120,31 @@ class GraphFeatureExtractor:
         """
         if self.graph is None:
             return self._empty_features()
-        
-        features = {}
-        
-        # 1. Node centrality
-        features.update(self._get_centrality_features(concept_a, concept_b))
-        
-        # 2. Degree features
-        features.update(self._get_degree_features(concept_a, concept_b))
-        
-        # 3. Shortest path distance
-        features.update(self._get_path_features(concept_a, concept_b))
-        
-        # 4. Community features
-        features.update(self._get_community_features(concept_a, concept_b))
-        
-        # 5. Layer features
-        features.update(self._get_layer_features(concept_a, concept_b))
-        
-        # 6. Connectivity indicator
-        features.update(self._get_connectivity_features(concept_a, concept_b))
-        
+
+        node_a = self._find_node(concept_a)
+        node_b = self._find_node(concept_b)
+
+        with self._without_candidate_edges(node_a, node_b):
+            features = {}
+            
+            # 1. Node centrality (leak-free degree centrality)
+            features.update(self._get_centrality_features(concept_a, concept_b))
+            
+            # 2. Degree features (leak-free degrees)
+            features.update(self._get_degree_features(concept_a, concept_b))
+            
+            # 3. Shortest path distance in G \\ {(a, b), (b, a)}
+            features.update(self._get_path_features(concept_a, concept_b))
+            
+            # 4. Community features without target edge
+            features.update(self._get_community_features(concept_a, concept_b))
+            
+            # 5. Layer features from hierarchy skeleton
+            features.update(self._get_layer_features(concept_a, concept_b))
+            
+            # 6. Connectivity indicator in G \\ {(a, b), (b, a)}
+            features.update(self._get_connectivity_features(concept_a, concept_b))
+
         return features
     
     def _empty_features(self) -> Dict[str, float]:
@@ -116,41 +153,36 @@ class GraphFeatureExtractor:
             "centrality_a": 0.0,
             "centrality_b": 0.0,
             "centrality_diff": 0.0,
-            "degree_a": 0,
-            "degree_b": 0,
-            "degree_diff": 0,
+            "centrality_sum": 0.0,
+            "degree_a": 0.0,
+            "degree_b": 0.0,
+            "degree_diff": 0.0,
+            "degree_sum": 0.0,
             "shortest_path": -1.0,
             "same_community": 0.0,
             "community_distance": -1.0,
             "layer_diff": -1.0,
-            "layer_a": -1,
-            "layer_b": -1,
+            "layer_a": -1.0,
+            "layer_b": -1.0,
             "is_connected": 0.0,
-            "common_neighbors": 0,
-            "graph_nodes": 0,
-            "graph_edges": 0
+            "common_neighbors": 0.0,
+            "graph_nodes": 0.0,
+            "graph_edges": 0.0
         }
     
     def _get_centrality_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
-        """Extract centrality features."""
+        """Extract centrality features computed dynamically on unpolluted graph."""
         if self.graph is None:
             return {}
         
-        # Compute centrality if not cached
-        if self._centrality_cache is None:
-            try:
-                # Use degree centrality for speed
-                self._centrality_cache = nx.degree_centrality(self.graph)
-            except Exception as e:
-                logger.warning(f"Failed to compute centrality: {e}")
-                return {}
-        
-        # Find nodes matching concepts
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        centrality_a = self._centrality_cache.get(node_a, 0.0) if node_a else 0.0
-        centrality_b = self._centrality_cache.get(node_b, 0.0) if node_b else 0.0
+        n_nodes = self.graph.number_of_nodes()
+        norm = max(1.0, float(n_nodes - 1))
+        
+        centrality_a = (float(self.graph.degree(node_a)) / norm) if (node_a and node_a in self.graph) else 0.0
+        centrality_b = (float(self.graph.degree(node_b)) / norm) if (node_b and node_b in self.graph) else 0.0
         
         return {
             "centrality_a": centrality_a,
@@ -167,25 +199,25 @@ class GraphFeatureExtractor:
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        degree_a = self.graph.degree(node_a) if node_a and node_a in self.graph else 0
-        degree_b = self.graph.degree(node_b) if node_b and node_b in self.graph else 0
+        degree_a = float(self.graph.degree(node_a)) if (node_a and node_a in self.graph) else 0.0
+        degree_b = float(self.graph.degree(node_b)) if (node_b and node_b in self.graph) else 0.0
         
         return {
-            "degree_a": float(degree_a),
-            "degree_b": float(degree_b),
-            "degree_diff": float(abs(degree_a - degree_b)),
-            "degree_sum": float(degree_a + degree_b)
+            "degree_a": degree_a,
+            "degree_b": degree_b,
+            "degree_diff": abs(degree_a - degree_b),
+            "degree_sum": degree_a + degree_b
         }
     
     def _get_path_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
-        """Extract shortest path features."""
+        """Extract shortest path features in G \\ {(a, b), (b, a)}."""
         if self.graph is None:
             return {}
         
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        if not node_a or not node_b:
+        if not node_a or not node_b or node_a not in self.graph or node_b not in self.graph:
             return {"shortest_path": -1.0}
         
         try:
@@ -196,50 +228,44 @@ class GraphFeatureExtractor:
             pass
         
         try:
-            # Try undirected path (ignore direction)
-            undirected = self.graph.to_undirected()
+            # Try undirected path (ignore direction for reachability)
+            undirected = self.graph.to_undirected(as_view=True)
             path_len = nx.shortest_path_length(undirected, node_a, node_b)
             return {"shortest_path": float(path_len)}
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             return {"shortest_path": -1.0}
     
     def _get_community_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
-        """Extract community features."""
+        """Extract community features without the candidate edge."""
         if self.graph is None:
             return {}
-        
-        # Compute communities if not cached
-        if self._communities_cache is None:
-            try:
-                undirected = self.graph.to_undirected()
-                if undirected.number_of_nodes() > 0:
-                    communities = nx.community.louvain_communities(undirected)
-                    self._communities_cache = {}
-                    for i, comm in enumerate(communities):
-                        for node in comm:
-                            self._communities_cache[node] = i
-            except Exception as e:
-                logger.warning(f"Failed to compute communities: {e}")
-                return {}
-        
-        if not self._communities_cache:
-            return {"same_community": 0.0, "community_distance": -1.0}
         
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        comm_a = self._communities_cache.get(node_a, -1)
-        comm_b = self._communities_cache.get(node_b, -1)
+        if not node_a or not node_b or node_a not in self.graph or node_b not in self.graph:
+            return {"same_community": 0.0, "community_distance": -1.0}
         
-        same_community = 1.0 if comm_a == comm_b and comm_a >= 0 else 0.0
+        try:
+            undirected = self.graph.to_undirected(as_view=True)
+            if undirected.number_of_nodes() >= 3 and undirected.number_of_edges() > 0:
+                communities = nx.community.louvain_communities(undirected, seed=42)
+                node_to_comm = {}
+                for i, comm in enumerate(communities):
+                    for node in comm:
+                        node_to_comm[node] = i
+                comm_a = node_to_comm.get(node_a, -1)
+                comm_b = node_to_comm.get(node_b, -1)
+                same_community = 1.0 if comm_a == comm_b and comm_a >= 0 else 0.0
+                community_distance = abs(comm_a - comm_b) if comm_a >= 0 and comm_b >= 0 else -1.0
+                return {
+                    "same_community": same_community,
+                    "community_distance": float(community_distance) if community_distance >= 0 else -1.0
+                }
+        except Exception as e:
+            logger.warning(f"Failed to compute leak-free communities: {e}")
         
-        # Community distance (number of communities apart)
-        community_distance = abs(comm_a - comm_b) if comm_a >= 0 and comm_b >= 0 else -1.0
-        
-        return {
-            "same_community": same_community,
-            "community_distance": float(community_distance) if community_distance >= 0 else -1.0
-        }
+        return {"same_community": 0.0, "community_distance": -1.0}
     
     def _get_layer_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
         """Extract layer features from hierarchy."""
@@ -253,8 +279,8 @@ class GraphFeatureExtractor:
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        layer_a = self._layers_cache.get(node_a, -1)
-        layer_b = self._layers_cache.get(node_b, -1)
+        layer_a = self._layers_cache.get(node_a, -1) if node_a else -1
+        layer_b = self._layers_cache.get(node_b, -1) if node_b else -1
         
         layer_diff = abs(layer_a - layer_b) if layer_a >= 0 and layer_b >= 0 else -1.0
         
@@ -265,7 +291,7 @@ class GraphFeatureExtractor:
         }
     
     def _compute_layers(self) -> Dict[str, int]:
-        """Compute conceptual layers based on shortest path from root."""
+        """Compute conceptual layers based on hierarchy tree from root."""
         if self.graph is None:
             return {}
         
@@ -283,7 +309,7 @@ class GraphFeatureExtractor:
             
             root = root_nodes[0]
             
-            # BFS to assign layers
+            # BFS to assign layers strictly following document hierarchy structure
             visited = set()
             queue = [(root, 0)]
             
@@ -295,9 +321,12 @@ class GraphFeatureExtractor:
                 visited.add(node)
                 layers[node] = layer
                 
-                for successor in self.graph.successors(node):
-                    if successor not in visited:
-                        queue.append((successor, layer + 1))
+                # Hierarchy branches downward from document -> topic -> subtopic -> concept
+                # Do not traverse semantic relation edges between concepts
+                if self.graph.nodes[node].get("node_type") != "concept":
+                    for successor in self.graph.successors(node):
+                        if successor not in visited:
+                            queue.append((successor, layer + 1))
                         
         except Exception as e:
             logger.warning(f"Failed to compute layers: {e}")
@@ -305,35 +334,36 @@ class GraphFeatureExtractor:
         return layers
     
     def _get_connectivity_features(self, concept_a: str, concept_b: str) -> Dict[str, float]:
-        """Extract connectivity features."""
+        """Extract connectivity features in G \\ {(a, b), (b, a)}."""
         if self.graph is None:
             return {}
         
         node_a = self._find_node(concept_a)
         node_b = self._find_node(concept_b)
         
-        # Check if connected (any path exists)
-        if node_a and node_b:
-            try:
-                undirected = self.graph.to_undirected()
-                is_connected = nx.has_path(undirected, node_a, node_b)
-            except:
-                is_connected = False
-        else:
+        if not node_a or not node_b or node_a not in self.graph or node_b not in self.graph:
+            return {
+                "is_connected": 0.0,
+                "common_neighbors": 0.0,
+                "graph_nodes": float(self.graph.number_of_nodes()) if self.graph else 0.0,
+                "graph_edges": float(self.graph.number_of_edges()) if self.graph else 0.0
+            }
+        
+        try:
+            undirected = self.graph.to_undirected(as_view=True)
+            is_connected = nx.has_path(undirected, node_a, node_b)
+        except Exception:
             is_connected = False
         
-        # Count common neighbors
-        common_neighbors = 0
-        if node_a and node_b and node_a in self.graph and node_b in self.graph:
-            neighbors_a = set(self.graph.predecessors(node_a)) | set(self.graph.successors(node_a))
-            neighbors_b = set(self.graph.predecessors(node_b)) | set(self.graph.successors(node_b))
-            common_neighbors = len(neighbors_a & neighbors_b)
+        neighbors_a = set(self.graph.predecessors(node_a)) | set(self.graph.successors(node_a))
+        neighbors_b = set(self.graph.predecessors(node_b)) | set(self.graph.successors(node_b))
+        common_neighbors = len(neighbors_a & neighbors_b)
         
         return {
             "is_connected": 1.0 if is_connected else 0.0,
             "common_neighbors": float(common_neighbors),
-            "graph_nodes": float(self.graph.number_of_nodes()) if self.graph else 0,
-            "graph_edges": float(self.graph.number_of_edges()) if self.graph else 0
+            "graph_nodes": float(self.graph.number_of_nodes()),
+            "graph_edges": float(self.graph.number_of_edges())
         }
     
     def _find_node(self, concept_name: str) -> Optional[str]:

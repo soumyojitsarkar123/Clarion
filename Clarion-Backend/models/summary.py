@@ -21,6 +21,7 @@ class StructuredSummary(BaseModel):
     """Structured hierarchical summary of a document."""
     document_id: str = Field(..., description="Document identifier")
     title: str = Field(..., description="Document title")
+    document_type: str = Field(default="unknown", description="Categorized document type")
     overall_summary: str = Field(..., description="Overall document summary")
     sections: List[SummarySection] = Field(default_factory=list, description="Hierarchical sections")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")

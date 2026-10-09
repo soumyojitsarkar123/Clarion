@@ -263,7 +263,11 @@ class ProcessingPipeline:
                 )
                 try:
                     vector_store = await self._stage_embedding(
-                        document_id, chunks, use_existing=skip_existing
+                        document_id,
+                        chunks,
+                        use_existing=skip_existing,
+                        auditor=auditor,
+                        progress_callback=update_progress,
                     )
                 except Exception as stage_error:
                     results["stages_failed"].append("embedding")
@@ -476,13 +480,36 @@ class ProcessingPipeline:
                 except Exception as sum_err:
                     logger.warning(f"Summarization failed: {sum_err}")
 
+            # Check whether deterministic fallback was used in mapping or summary
+            km_meta = getattr(knowledge_map, "metadata", {}) or {}
+            km_fallback = (
+                km_meta.get("extraction_method") == "heuristic"
+                or km_meta.get("fallback_used") is True
+                or km_meta.get("analysis_mode") == "deterministic_fallback"
+            )
+            sum_fallback = False
+            if summary_obj and summary_obj.overall_summary:
+                sum_fallback = "Deterministic fallback analysis" in summary_obj.overall_summary
+
+            is_fallback = bool(km_fallback or sum_fallback)
+            analysis_mode = "deterministic_fallback" if is_fallback else "llm"
+            pipeline_status = "degraded" if is_fallback else "completed"
+
             # Mark document as analyzed
             self.document_service.update_document_status(document_id, DocumentStatus.ANALYZED)
 
             results["completed_at"] = datetime.now().isoformat()
             results["success"] = True
+            results["status"] = pipeline_status
+            results["analysis_mode"] = analysis_mode
+            results["active_model"] = settings.ollama_model
             results["audit"] = auditor.report()
-            self.pipeline_tracker.complete_pipeline(document_id)
+            self.pipeline_tracker.complete_pipeline(
+                document_id,
+                is_degraded=is_fallback,
+                analysis_mode=analysis_mode,
+                active_model=settings.ollama_model,
+            )
             self.analysis_report_service.save_report(
                 document_id=document_id,
                 report=self._build_analysis_report(
@@ -503,7 +530,11 @@ class ProcessingPipeline:
                 event="pipeline_complete",
                 message="Pipeline execution completed",
                 document_id=document_id,
-                metadata={"stages_completed": results["stages_completed"]},
+                metadata={
+                    "stages_completed": results["stages_completed"],
+                    "status": pipeline_status,
+                    "analysis_mode": analysis_mode,
+                },
             )
 
         except Exception as e:
@@ -921,7 +952,14 @@ class ProcessingPipeline:
             logger.error(f"Chunking failed: {e}")
             raise PipelineStageError(f"Chunking failed: {e}") from e
     
-    async def _stage_embedding(self, document_id: str, chunks, use_existing: bool = True):
+    async def _stage_embedding(
+        self,
+        document_id: str,
+        chunks,
+        use_existing: bool = True,
+        auditor: Optional[PipelineAuditor] = None,
+        progress_callback: Optional[Callable] = None,
+    ):
         """Stage 3: Generate embeddings and build FAISS index."""
         try:
             if use_existing:
@@ -931,7 +969,30 @@ class ProcessingPipeline:
             else:
                 self.embedding_service.delete_embeddings(document_id)
             
-            embeddings = self.embedding_service.generate_embeddings(chunks)
+            async def on_batch_progress(processed: int, total: int):
+                stage_pct = int(min(100, max(0, (processed / max(1, total)) * 100)))
+                overall_pct = int(35 + (processed / max(1, total)) * 15)
+                if auditor:
+                    auditor.update_stage_progress("embedding", stage_pct, overall_progress=overall_pct)
+                if progress_callback:
+                    await progress_callback(JobStatus.EMBEDDING.value, overall_pct)
+                log_structured(
+                    logger,
+                    level=logging.INFO,
+                    stage="embedding",
+                    event="embedding_batch",
+                    message=f"Generated embeddings for {processed}/{total} chunks ({stage_pct}%)",
+                    document_id=document_id,
+                    metadata={"processed": processed, "total": total, "percent": stage_pct},
+                )
+
+            if hasattr(self.embedding_service, "generate_embeddings_async"):
+                embeddings = await self.embedding_service.generate_embeddings_async(
+                    chunks, batch_callback=on_batch_progress
+                )
+            else:
+                embeddings = self.embedding_service.generate_embeddings(chunks)
+
             vector_store = self.embedding_service.create_vector_index(
                 document_id, chunks, embeddings
             )

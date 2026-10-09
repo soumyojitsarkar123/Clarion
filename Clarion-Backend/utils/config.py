@@ -3,7 +3,10 @@ Application configuration using Pydantic settings.
 """
 
 import os
-import torch
+try:
+    import torch
+except ImportError:  # pragma: no cover
+    torch = None
 from pathlib import Path
 from typing import Optional, Literal
 from pydantic_settings import BaseSettings
@@ -125,6 +128,13 @@ def initialize_compute_settings() -> str:
         settings.embedding_device_actual = get_best_device()
     else:
         settings.embedding_device_actual = settings.embedding_device
+
+    if settings.embedding_device_actual == "cpu":
+        try:
+            threads = min(8, max(1, os.cpu_count() or 4))
+            torch.set_num_threads(threads)
+        except Exception:
+            pass
 
     return settings.embedding_device_actual
 

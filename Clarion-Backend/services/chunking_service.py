@@ -5,6 +5,7 @@ Chunking Service - handles semantic document segmentation.
 import uuid
 import re
 import sqlite3
+from collections import Counter
 from typing import List, Optional, Tuple
 import logging
 
@@ -59,62 +60,88 @@ class ChunkingService:
         Returns:
             List of (heading_text, position) tuples
         """
-        heading_patterns = [
-            r'^(#{1,6})\s+(.+)$',
-            r'^(\d+\.)+\s+(.+)$',
-            r'^([A-Z][^.:]+):?$',
-            r'^(?:CHAPTER|SECTION|PART)\s+\d+[:\s]+(.+)$',
-        ]
+        lines = text.split('\n')
+        line_counts = Counter(l.strip() for l in lines if l.strip())
         
         headings = []
-        lines = text.split('\n')
-        
-        for i, line in enumerate(lines):
-            line = line.strip()
+        for i, raw_line in enumerate(lines):
+            line = raw_line.strip()
             if not line:
                 continue
             
-            for pattern in heading_patterns:
-                match = re.match(pattern, line, re.MULTILINE | re.IGNORECASE)
-                if match and match.lastindex:
-                    heading_text = match.group(2) if match.lastindex >= 2 else match.group(1)
-                    headings.append((heading_text.strip(), i))
-                    break
+            if self._is_heading_line(line, line_counts=line_counts):
+                clean_title = line.lstrip('#').strip()
+                clean_title = re.sub(r'^\d+(\.\d+)*\.?\s+', '', clean_title)
+                headings.append((clean_title, i))
         
         return headings
     
-    def _is_heading_line(self, line: str) -> bool:
-        """Check if a line appears to be a heading."""
+    def _is_heading_line(self, line: str, line_counts: Optional[Counter] = None) -> bool:
+        """Check if a line appears to be a heading, rejecting running headers and list items."""
         line = line.strip()
+        if not line:
+            return False
         
-        if line.startswith('#'):
-            return True
+        # Exclude pure page numbers / page labels (e.g. "12", "Page 12", "Page 12 of 300", "- 12 -")
+        if re.match(r'^(?:[-–—\s]*)?(?:page\s+)?\d+(?:\s*(?:of|/)\s*\d+)?(?:[-–—\s]*)?$', line, re.IGNORECASE):
+            return False
+
+        # Exclude copyright/editorial boilerplate from creating headings
+        if re.match(r'^(?:copyright|all rights reserved|isbn|printed in|published by)\b', line, re.IGNORECASE):
+            return False
+
+        # Running headers: lines that repeat frequently across pages are headers/footers, not unique section headings
+        if line_counts and line_counts.get(line, 0) >= 4:
+            return False
+
+        # Markdown headings (# Heading)
+        if re.match(r'^#{1,6}\s+\S', line):
+            return len(line.split()) <= 20
         
-        if re.match(r'^\d+\.\s+[A-Z]', line):
-            return True
+        # Numbered headings (1. Heading, 1.2 Heading, 1.2.3 Heading)
+        if re.match(r'^\d+(\.\d+)*\.?\s+[A-Z]', line):
+            words = line.split()
+            # If line ends with period/comma/semicolon/question mark/exclamation, it's a list item or sentence, not a heading
+            if line[-1] in ('.', ',', ';', '?', '!'):
+                return False
+            if len(words) <= 12 and len(line) >= 3:
+                return True
         
-        if re.match(r'^[A-Z][^.:]{5,50}:?$', line) and len(line.split()) <= 6:
-            return True
+        # Explicit section labels (Chapter 1:, Section 2, Part I, Appendix A)
+        if re.match(r'^(?:CHAPTER|SECTION|PART|APPENDIX)\s+[0-9A-Za-zIVXLCDM]+[:\s]+.+', line, re.IGNORECASE):
+            words = line.split()
+            if line[-1] in (',', ';'):
+                return False
+            if len(words) <= 15:
+                return True
         
         return False
     
-    def _split_into_sections(self, text: str) -> List[Tuple[Optional[str], str]]:
+    def _split_into_sections(
+        self,
+        text: str,
+        line_counts: Optional[Counter] = None
+    ) -> List[Tuple[Optional[str], str]]:
         """
         Split text into sections based on detected headings.
         
         Args:
             text: Input text
+            line_counts: Optional line frequency counter for running header suppression
         
         Returns:
             List of (section_title, section_content) tuples
         """
         lines = text.split('\n')
+        if line_counts is None and len(lines) > 20:
+            line_counts = Counter(l.strip() for l in lines if l.strip())
+
         sections = []
         current_title = None
         current_content = []
         
         for line in lines:
-            if self._is_heading_line(line):
+            if self._is_heading_line(line, line_counts=line_counts):
                 if current_content:
                     content = '\n'.join(current_content).strip()
                     if content:
@@ -122,7 +149,7 @@ class ChunkingService:
                     current_content = []
                 
                 clean_title = line.lstrip('#').strip()
-                clean_title = re.sub(r'^\d+\.\s+', '', clean_title)
+                clean_title = re.sub(r'^\d+(\.\d+)*\.?\s+', '', clean_title)
                 current_title = clean_title
             else:
                 current_content.append(line)
@@ -170,14 +197,15 @@ class ChunkingService:
             chunks.append(chunk)
             return chunks
         
-        for i in range(0, len(words), self.chunk_size - self.chunk_overlap):
+        step = max(1, self.chunk_size - self.chunk_overlap)
+        for i in range(0, len(words), step):
             word_slice = words[i:i + self.chunk_size]
             chunk_text = ' '.join(word_slice)
-            
-            if len(chunk_text.strip()) < self.min_chunk_size:
+
+            if len(word_slice) < self.min_chunk_size:
                 if chunks:
                     chunks[-1].content += ' ' + chunk_text
-                    chunks[-1].word_count += len(word_slice)
+                    chunks[-1].word_count = len(chunks[-1].content.split())
                 continue
             
             chunk_id = str(uuid.uuid4())
@@ -192,7 +220,57 @@ class ChunkingService:
             chunks.append(chunk)
         
         return chunks
-    
+
+    def _merge_undersized_chunks(
+        self,
+        raw_chunks: List[Chunk],
+    ) -> List[Chunk]:
+        """
+        Merge undersized chunks (< min_chunk_size) into neighbors to prevent micro-chunks.
+        Guarantees that no chunk in a multi-chunk document is left with word_count < min_chunk_size.
+        """
+        if not raw_chunks:
+            return []
+
+        total_words = sum(chunk.word_count for chunk in raw_chunks)
+        if total_words <= self.min_chunk_size:
+            first = raw_chunks[0]
+            if len(raw_chunks) > 1:
+                first.content = "\n\n".join(c.content for c in raw_chunks)
+                first.word_count = len(first.content.split())
+            return [first]
+
+        max_merged_size = int(self.chunk_size * 1.25)
+        merged: List[Chunk] = []
+
+        for chunk in raw_chunks:
+            if not merged:
+                merged.append(chunk)
+                continue
+
+            prev = merged[-1]
+            if prev.word_count < self.min_chunk_size:
+                prev.content = (prev.content.rstrip() + '\n\n' + chunk.content.lstrip()).strip()
+                prev.word_count = len(prev.content.split())
+                if not prev.section_title and chunk.section_title:
+                    prev.section_title = chunk.section_title
+            elif chunk.word_count < self.min_chunk_size:
+                if (prev.word_count + chunk.word_count) <= max_merged_size:
+                    prev.content = (prev.content.rstrip() + '\n\n' + chunk.content.lstrip()).strip()
+                    prev.word_count = len(prev.content.split())
+                else:
+                    merged.append(chunk)
+            else:
+                merged.append(chunk)
+
+        # Backwards merge for trailing micro-chunk
+        while len(merged) > 1 and merged[-1].word_count < self.min_chunk_size:
+            last = merged.pop()
+            merged[-1].content = (merged[-1].content.rstrip() + '\n\n' + last.content.lstrip()).strip()
+            merged[-1].word_count = len(merged[-1].content.split())
+
+        return merged
+
     def chunk_document(
         self,
         document_id: str,
@@ -210,9 +288,11 @@ class ChunkingService:
         """
         logger.info(f"Chunking document {document_id}")
         
-        sections = self._split_into_sections(text)
+        lines = text.split('\n')
+        line_counts = Counter(l.strip() for l in lines if l.strip()) if len(lines) > 20 else None
+        sections = self._split_into_sections(text, line_counts=line_counts)
         
-        all_chunks = []
+        raw_chunks: List[Chunk] = []
         position_index = 0
         
         for section_title, section_text in sections:
@@ -221,12 +301,17 @@ class ChunkingService:
                 section_title,
                 position_index
             )
-            
-            for chunk in section_chunks:
-                chunk.document_id = document_id
-            
-            all_chunks.extend(section_chunks)
+            raw_chunks.extend(section_chunks)
             position_index += len(section_text.split())
+        
+        all_chunks = self._merge_undersized_chunks(raw_chunks)
+        
+        # Assign document_id and re-index positions
+        current_pos = 0
+        for chunk in all_chunks:
+            chunk.document_id = document_id
+            chunk.position_index = current_pos
+            current_pos += chunk.word_count
         
         self._save_chunks(all_chunks)
         

@@ -65,6 +65,8 @@ async def get_knowledge_map(document_id: str):
                 {
                     "id": concept.id,
                     "name": concept.name,
+                    "frequency": getattr(concept, "frequency", 1),
+                    "supporting_sections": getattr(concept, "supporting_sections", []),
                     "definition": concept.definition,
                     "context": concept.context,
                     "chunk_ids": concept.chunk_ids
@@ -77,6 +79,8 @@ async def get_knowledge_map(document_id: str):
                     "from_concept": rel.from_concept,
                     "to_concept": rel.to_concept,
                     "relation_type": rel.relation_type.value,
+                    "is_candidate": getattr(rel, "is_candidate", True),
+                    "source_chunk_id": getattr(rel, "source_chunk_id", None) or (rel.source_chunk_ids[0] if getattr(rel, "source_chunk_ids", None) else (rel.chunk_ids[0] if getattr(rel, "chunk_ids", None) else None)),
                     "description": rel.description,
                     "confidence": rel.confidence
                 }

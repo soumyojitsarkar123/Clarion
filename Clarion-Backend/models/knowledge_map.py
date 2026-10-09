@@ -26,6 +26,8 @@ class Concept(BaseModel):
     definition: Optional[str] = Field(None, description="Concept definition if found")
     context: Optional[str] = Field(None, description="Surrounding context")
     chunk_ids: List[str] = Field(default_factory=list, description="Source chunk IDs")
+    frequency: int = Field(default=1, description="Concept occurrence frequency")
+    supporting_sections: List[str] = Field(default_factory=list, description="Titles of supporting sections")
 
 
 class Relation(BaseModel):
@@ -36,6 +38,13 @@ class Relation(BaseModel):
     relation_type: RelationType = Field(..., description="Type of relationship")
     description: Optional[str] = Field(None, description="Relation description")
     confidence: float = Field(default=1.0, description="Confidence score 0-1")
+    calibrated_probability: Optional[float] = Field(None, description="Calibrated validity probability P(valid|evidence)")
+    evidence_text: Optional[str] = Field(None, description="Extracted sentence-level grounded evidence snippet")
+    signal_scores: Optional[Dict[str, float]] = Field(default=None, description="Decomposed multi-signal validation scores")
+    is_candidate: bool = Field(default=True, description="Flag indicating this is an automatically extracted candidate relation")
+    source_chunk_id: Optional[str] = Field(None, description="Primary source chunk ID grounding this relation")
+    source_chunk_ids: List[str] = Field(default_factory=list, description="All source chunk IDs grounding this relation")
+
 
 
 class MainTopic(BaseModel):

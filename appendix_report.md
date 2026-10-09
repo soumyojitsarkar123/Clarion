@@ -91,7 +91,10 @@ A unified interface allows the system to switch between local execution (Ollama)
 class LLMInterface:
     def __init__(self):
         self.provider = settings.llm_provider
-        self.model = settings.llm_model_name
+        if self.provider == "ollama":
+            self.model = settings.ollama_model
+            self.api_base = settings.ollama_api_base
+            self.api_key = "ollama"
         self._client = None
 
     def _get_client(self):
@@ -148,11 +151,15 @@ In scenarios where LLM services are offline, the system employs a deterministic 
 **Table 7 - Heuristic Extraction Fallback**
 ```python
 def _extract_concepts_heuristic(self, chunks: List[Chunk]) -> List[Concept]:
-    # Extract noun phrases and frequent technical terms
-    text = " ".join([c.content for c in chunks[:5]])
-    words = re.findall(r'\b[A-Z][a-z]{3,}\b', text) # Simple Proper Noun Heuristic
-    counter = Counter(words)
-    return [Concept(name=w, definition="Extract heuristically") for w, _ in counter.most_common(10)]
+    # Count normalized unigram/bigram/trigram phrase candidates,
+    # rejecting stopword-heavy and instruction-like phrases.
+    phrase_counter = Counter()
+    for chunk in chunks:
+        clean_text = self._prepare_text_for_concepts(chunk.content)
+        for phrase in self._extract_concept_candidates(clean_text):
+            phrase_counter[phrase] += 1
+    return [Concept(name=self._display_concept_name(p), chunk_ids=srcs)
+            for p, _ in phrase_counter.most_common(12)]
 ```
 
 ---
@@ -166,15 +173,24 @@ Vector index implementation for high-speed retrieval of relevant document contex
 def retrieve(self, document_id: str, query: str, top_k: int = 5) -> List[RetrievalResult]:
     vector_store = self.embedding_service.get_vector_store(document_id)
     query_embedding = self.embedding_service.embed_query(query)
-    
-    # Perform similarity search in FAISS index
-    search_results = vector_store.search(query_embedding, top_k)
-    
+
+    # Search the FAISS index for twice the target count, then filter.
+    search_results = vector_store.search(query_embedding, top_k * 2)
+
     results = []
     for chunk_id, distance in search_results:
         score = 1.0 / (1.0 + distance)
-        results.append(RetrievalResult(chunk_id=chunk_id, score=score))
-    return results
+        if score < self.similarity_threshold:
+            continue
+        chunk = self.chunking_service.get_chunk(chunk_id)
+        results.append(RetrievalResult(
+            chunk_id=chunk.chunk_id,
+            content=chunk.content,
+            score=score,
+            section_title=chunk.section_title,
+            position_index=chunk.position_index,
+        ))
+    return results[:top_k]
 ```
 
 #### A1.6.2. Retrieval Augmented Context Building
@@ -182,11 +198,14 @@ Formatting retrieved knowledge into a coherent prompt context for the LLM.
 
 **Table 9 - Context Reconstruction**
 ```python
-def retrieve_with_context(self, document_id: str, query: str) -> Tuple[List[RetrievalResult], str]:
-    results = self.retrieve(document_id, query)
+def retrieve_with_context(self, document_id: str, query: str, top_k: int = 5) -> Tuple[List[RetrievalResult], str]:
+    results = self.retrieve(document_id, query, top_k)
     context_parts = []
     for i, result in enumerate(results, 1):
-        context_parts.append(f"[Source {i}]: {result.content}")
-    
+        header = f"[Chunk {i}]"
+        if result.section_title:
+            header += f" ({result.section_title})"
+        context_parts.append(f"{header}\n{result.content}")
+
     return results, "\n\n".join(context_parts)
 ```

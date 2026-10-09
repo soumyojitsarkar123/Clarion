@@ -7,132 +7,403 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Clarion Observability Console</title>
+    <title>Clarion — Document Intelligence & Knowledge Mapping</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 </head>
 
 <body>
     <div class="app-shell">
+        <!-- Top Application Header & Live Status Ribbon -->
         <header class="app-header">
-            <div>
-                <h1>Clarion</h1>
-                <p>Document Analysis and Knowledge Mapping</p>
+            <div class="header-brand">
+                <div class="brand-title-row">
+                    <span class="brand-logo">Clarion</span>
+                    <span class="brand-badge">RESEARCH PREVIEW</span>
+                </div>
+                <p class="brand-tagline">Structure-Aware Document Intelligence & Relational Synthesis</p>
             </div>
-            <div class="status-row">
-                <span class="status-pill" id="llm-pill">LLM: checking</span>
-                <span class="status-pill" id="health-pill">System: unknown</span>
+            <div class="status-ribbon">
+                <div class="status-chip" id="doc-chip" title="Selected document">
+                    <span class="chip-label">DOC</span>
+                    <span class="chip-value" id="status-doc-name">None Selected</span>
+                </div>
+                <div class="status-chip" id="mode-chip" title="Pipeline analysis mode">
+                    <span class="chip-label">MODE</span>
+                    <span class="chip-value" id="status-mode">Ready</span>
+                </div>
+                <div class="status-chip" id="model-chip" title="Active model configuration">
+                    <span class="chip-label">MODEL</span>
+                    <span class="chip-value" id="status-model">qwen3.5:4b</span>
+                </div>
+                <div class="status-chip" id="timing-chip" title="Total processing duration">
+                    <span class="chip-label">TIME</span>
+                    <span class="chip-value" id="status-duration">--</span>
+                </div>
+                <div class="status-chip" id="system-chip" title="Service health state">
+                    <span class="status-indicator-dot" id="system-dot"></span>
+                    <span class="chip-value" id="health-pill">System: checking</span>
+                </div>
+                <span class="status-pill hidden" id="llm-pill">LLM: checking</span>
             </div>
         </header>
 
+        <!-- Main Layout: Sidebar & Intelligence Workspace -->
         <main class="layout">
+            <!-- Sidebar: Document Ingestion, Library & Management -->
             <aside class="sidebar">
-                <section class="panel">
-                    <h2>Upload</h2>
+                <section class="panel panel-sidebar">
+                    <div class="panel-header">
+                        <h2>Document Ingestion</h2>
+                    </div>
                     <form id="upload-form">
-                        <input type="file" id="file-input" accept=".pdf,.docx" />
-                        <button type="submit" class="btn btn-primary">Upload Document</button>
+                        <div class="upload-dropzone">
+                            <input type="file" id="file-input" accept=".pdf,.docx" />
+                            <label for="file-input" class="upload-label">
+                                <span class="upload-icon">📄</span>
+                                <span class="upload-text">Choose PDF or DOCX</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Upload & Ingest</button>
                     </form>
                     <div id="upload-status" class="status-box"></div>
                 </section>
 
-                <section class="panel">
-                    <div class="panel-title-row">
-                        <h2>Documents</h2>
-                        <button id="refresh-btn" class="btn">Refresh</button>
+                <section class="panel panel-sidebar">
+                    <div class="panel-header">
+                        <h2>Document Library</h2>
+                        <button id="refresh-btn" class="btn btn-sm">Refresh</button>
                     </div>
                     <div id="documents-list" class="documents-list"></div>
                 </section>
 
-                <section class="panel">
-                    <h2>Selected Document</h2>
+                <section class="panel panel-sidebar">
+                    <div class="panel-header">
+                        <h2>Selected Document</h2>
+                    </div>
                     <div id="doc-info" class="doc-info">No document selected</div>
-                    <button id="analyze-btn" class="btn btn-primary" disabled>Start Analysis</button>
+                    <div class="action-buttons">
+                        <button id="analyze-btn" class="btn btn-primary btn-block" disabled>Start Full Analysis</button>
+                    </div>
                     <div id="analysis-status" class="status-box"></div>
                 </section>
 
-                <section class="panel">
-                    <h2>Dataset Status</h2>
+                <section class="panel panel-sidebar">
+                    <div class="panel-header">
+                        <h2>Dataset Export</h2>
+                    </div>
                     <div id="dataset-stats" class="dataset-status">Select a document to view dataset details.</div>
                 </section>
             </aside>
 
+            <!-- Workspace: Grounded Intelligence Output -->
             <section class="workspace">
-                <section class="panel">
-                    <div class="panel-title-row">
-                        <h2>Pipeline State</h2>
-                        <span id="pipeline-summary" class="muted">Waiting for execution</span>
+
+                <!-- 1. DOCUMENT OVERVIEW METRICS GRID -->
+                <section class="panel overview-panel">
+                    <div class="panel-header">
+                        <h2>Document Overview</h2>
+                        <span id="overview-doc-title" class="section-subtitle">No document analyzed</span>
                     </div>
-                    <div id="pipeline-stages" class="pipeline-stages"></div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Words</span>
+                            <span class="metric-value" id="stat-words">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Pages</span>
+                            <span class="metric-value" id="stat-pages">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Sections</span>
+                            <span class="metric-value" id="stat-sections">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Chunks</span>
+                            <span class="metric-value" id="stat-chunks">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Concepts</span>
+                            <span class="metric-value" id="stat-concepts">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Candidate Relations</span>
+                            <span class="metric-value" id="stat-relations">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Graph Nodes</span>
+                            <span class="metric-value" id="stat-nodes">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Graph Edges</span>
+                            <span class="metric-value" id="stat-edges">0</span>
+                        </div>
+                    </div>
                 </section>
 
-                <section class="panel">
-                    <div class="panel-title-row">
-                        <h2>Analysis Report</h2>
-                        <button id="refresh-report-btn" class="btn">Refresh</button>
+                <!-- 2. KEY INSIGHTS & EXECUTIVE SUMMARY -->
+                <section class="panel insights-panel">
+                    <div class="panel-header">
+                        <div class="title-with-badge">
+                            <h2>Key Document Insights</h2>
+                            <span class="classification-badge" id="doc-type-badge">Type: Unknown</span>
+                            <span class="mode-badge" id="insights-mode-badge">Analysis: Pending</span>
+                        </div>
                     </div>
-                    <div id="analysis-report" class="analysis-report">
-                        Select a document to view report details.
+                    <div class="summary-body">
+                        <div class="overall-summary-box" id="overall-summary-box">
+                            Select and analyze a document to view synthesized findings.
+                        </div>
+                        <div class="insights-bullets-container">
+                            <h3>Key Findings & Structural Themes</h3>
+                            <ul class="insights-list" id="key-insights-list">
+                                <li class="muted">No findings extracted yet.</li>
+                            </ul>
+                        </div>
                     </div>
                 </section>
 
-                <section class="panel">
-                    <div class="panel-title-row">
-                        <h2>Live Logs</h2>
-                        <button id="clear-logs-btn" class="btn">Clear</button>
-                    </div>
-                    <pre id="logs-console" class="logs-console"></pre>
-                </section>
-
+                <!-- 3. KNOWLEDGE MAP (CYTOSCAPE GRAPH) -->
                 <section class="panel graph-panel">
-                    <div class="panel-title-row">
-                        <h2>Knowledge Graph</h2>
-                        <div class="button-row">
-                            <select id="relation-filter" class="btn" style="min-width: 140px;">
-                                <option value="hierarchy">Structure Only</option>
+                    <div class="panel-header">
+                        <div class="title-with-badge">
+                            <h2>Knowledge Map</h2>
+                            <span id="graph-info" class="muted">0 nodes / 0 edges</span>
+                        </div>
+                        <div class="graph-toolbar">
+                            <div class="search-input-wrap">
+                                <input type="text" id="graph-search" placeholder="Search concepts..." class="input-sm" />
+                            </div>
+                            <select id="relation-filter" class="select-sm">
                                 <option value="all">All Relations</option>
                                 <option value="semantic">Semantic Only</option>
+                                <option value="hierarchy">Structure Only</option>
                             </select>
-                            <button id="zoom-in" class="btn">+</button>
-                            <button id="zoom-out" class="btn">-</button>
-                            <button id="fit-graph" class="btn">Fit</button>
+                            <div class="btn-group">
+                                <button id="zoom-in" class="btn btn-sm" title="Zoom in">+</button>
+                                <button id="zoom-out" class="btn btn-sm" title="Zoom out">−</button>
+                                <button id="fit-graph" class="btn btn-sm" title="Fit to screen">Fit</button>
+                            </div>
                         </div>
                     </div>
                     <div id="graph-container"></div>
-                    <div id="graph-info" class="muted">No graph loaded</div>
                     <div id="graph-tooltip" class="graph-tooltip" style="display: none;"></div>
+
+                    <!-- Selected Node Details Drawer / Inspector -->
+                    <div id="node-inspector" class="node-inspector">
+                        <div class="inspector-header">
+                            <h4 id="inspector-title">Concept Inspector</h4>
+                            <span class="badge" id="inspector-badge">Click a node to inspect</span>
+                        </div>
+                        <div id="inspector-body" class="inspector-body">
+                            <p class="muted">Select any concept node in the knowledge map above to view its grounded textual definition, occurrence frequency, supporting chunks, and candidate relations.</p>
+                        </div>
+                    </div>
                 </section>
 
+                <!-- 4. TOP CONCEPTS TABLE -->
                 <section class="panel data-panel">
-                    <div class="panel-title-row">
-                        <h2>Extracted Concepts</h2>
-                        <span id="concepts-count" class="muted">0 concepts</span>
+                    <div class="panel-header">
+                        <h2>Top Extracted Concepts</h2>
+                        <span id="concepts-count" class="badge">0 concepts</span>
                     </div>
                     <div class="table-container">
                         <table class="data-table" id="concepts-table">
                             <thead>
                                 <tr>
-                                    <th>Concept</th>
-                                    <th>Definition</th>
+                                    <th style="width: 22%;">Concept</th>
+                                    <th style="width: 12%;">Frequency</th>
+                                    <th style="width: 26%;">Supporting Sections</th>
+                                    <th style="width: 40%;">Definition & Grounded Context</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="2" class="muted" style="text-align: center;">No concepts loaded</td>
+                                    <td colspan="4" class="muted text-center">No concepts loaded</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </section>
+
+                <!-- 5. CANDIDATE RELATIONS TABLE -->
+                <section class="panel data-panel">
+                    <div class="panel-header">
+                        <div class="title-with-badge">
+                            <h2>Candidate Semantic Relations</h2>
+                            <span class="subtext-pill">Candidate Hypotheses</span>
+                        </div>
+                        <span id="relations-count" class="badge">0 relations</span>
+                    </div>
+                    <div class="panel-notice">
+                        <strong>Relational Grounding Notice:</strong> Automatically extracted relationships represent candidate semantic hypotheses derived from text co-occurrence and structural syntax. They remain candidate relations until established by human annotation.
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="relations-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 22%;">Source Concept</th>
+                                    <th style="width: 16%;">Relation Type</th>
+                                    <th style="width: 22%;">Target Concept</th>
+                                    <th style="width: 10%;">Confidence</th>
+                                    <th style="width: 30%;">Textual Evidence / Grounding</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="muted text-center">No candidate relations loaded</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 6. DOCUMENT STRUCTURE (HIERARCHY TREE) -->
+                <section class="panel structure-panel">
+                    <div class="panel-header">
+                        <h2>Document Structure & Hierarchy</h2>
+                        <span id="structure-count" class="badge">0 sections</span>
+                    </div>
+                    <div id="structure-container" class="structure-tree">
+                        <div class="muted">No structural hierarchy generated yet.</div>
+                    </div>
+                </section>
+
+                <!-- 7. ASK THE DOCUMENT (GROUNDED RAG QUERY INTERFACE) -->
+                <section class="panel rag-panel">
+                    <div class="panel-header">
+                        <div class="title-with-badge">
+                            <h2>Ask the Document</h2>
+                            <span class="subtext-pill">Grounded RAG</span>
+                        </div>
+                        <span class="muted">Vector Search + Contextual Synthesis</span>
+                    </div>
+                    <div class="rag-container">
+                        <div class="rag-input-row">
+                            <input type="text" id="rag-query-input" placeholder="Ask a question about this document..." class="rag-input" />
+                            <button id="rag-query-btn" class="btn btn-primary" disabled>Ask</button>
+                        </div>
+                        <div class="rag-quick-prompts" id="rag-quick-prompts">
+                            <span class="prompt-label">Quick Prompts:</span>
+                            <button class="prompt-chip" data-query="What is the primary subject matter of this document?">Primary Subject</button>
+                            <button class="prompt-chip" data-query="What are the key methodologies or algorithms discussed?">Key Methods</button>
+                            <button class="prompt-chip" data-query="Summarize the core conclusions and findings.">Core Findings</button>
+                        </div>
+                        <div id="rag-output-box" class="rag-output-box" style="display: none;">
+                            <div class="rag-answer-header">
+                                <h4>Grounded Response</h4>
+                                <span class="badge" id="rag-mode-badge">RAG Response</span>
+                            </div>
+                            <div id="rag-answer-text" class="rag-answer-text"></div>
+                            <div class="rag-sources-header">
+                                <h5>Supporting Evidence Chunks</h5>
+                            </div>
+                            <div id="rag-sources-list" class="rag-sources-list"></div>
+                        </div>
+                        <div id="rag-status" class="status-box"></div>
+                    </div>
+                </section>
+
+                <!-- 8. TECHNICAL DETAILS & PROCESSING TIMELINE (COLLAPSIBLE) -->
+                <details class="panel tech-details-panel" id="tech-details-accordion">
+                    <summary class="panel-header clickable-summary">
+                        <h2>Technical Details & Processing Timeline</h2>
+                        <span class="badge" id="pipeline-summary">Waiting for execution</span>
+                    </summary>
+                    <div class="tech-details-body">
+                        <!-- Pipeline Stages Timeline Table -->
+                        <div class="tech-section">
+                            <h3>Stage Execution Timeline</h3>
+                            <div class="timeline-table-container">
+                                <table class="data-table" id="timeline-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Pipeline Stage</th>
+                                            <th>Status</th>
+                                            <th>Duration (s)</th>
+                                            <th>Input Size</th>
+                                            <th>Output Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="timeline-table-body">
+                                        <tr>
+                                            <td colspan="5" class="muted text-center">Pipeline has not executed</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Pipeline Stages Progress Rows (Visual Indicator) -->
+                        <div class="tech-section">
+                            <h3>Execution Progression</h3>
+                            <div id="pipeline-stages" class="pipeline-stages"></div>
+                        </div>
+
+                        <!-- Hardware & Telemetry Grid -->
+                        <div class="tech-section">
+                            <h3>Hardware & Service Telemetry</h3>
+                            <div class="telemetry-grid" id="telemetry-grid">
+                                <div class="telemetry-item">
+                                    <span class="telem-label">Embedding Model</span>
+                                    <span class="telem-value" id="telem-emb-model">BAAI/bge-large-en-v1.5</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telem-label">Embedding Compute Device</span>
+                                    <span class="telem-value" id="telem-emb-device">Auto (CPU / CUDA)</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telem-label">LLM Provider</span>
+                                    <span class="telem-value" id="telem-llm-provider">Ollama</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telem-label">LLM Model</span>
+                                    <span class="telem-value" id="telem-llm-model">qwen3.5:4b</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telem-label">Analysis Mode</span>
+                                    <span class="telem-value" id="telem-analysis-mode">--</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telem-label">Deterministic Fallback Reason</span>
+                                    <span class="telem-value" id="telem-fallback-reason">None</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Full Audit Report Details (JSON View / Summary) -->
+                        <div class="tech-section">
+                            <div class="panel-header" style="margin-bottom: 6px;">
+                                <h3>Analysis Report Summary</h3>
+                                <button id="refresh-report-btn" class="btn btn-sm">Refresh Report</button>
+                            </div>
+                            <div id="analysis-report" class="analysis-report">
+                                Select a document to view report details.
+                            </div>
+                        </div>
+
+                        <!-- Secondary Collapsible Live Logs Console -->
+                        <div class="tech-section">
+                            <div class="panel-header" style="margin-bottom: 6px;">
+                                <h3>Engine Execution Logs</h3>
+                                <button id="clear-logs-btn" class="btn btn-sm">Clear Logs</button>
+                            </div>
+                            <pre id="logs-console" class="logs-console"></pre>
+                        </div>
+                    </div>
+                </details>
+
             </section>
         </main>
     </div>
-    <script src="app.js?v=11"></script>
+
+    <!-- Application Script -->
+    <script src="app.js?v=12"></script>
 </body>
 
 </html>

@@ -1,0 +1,51 @@
+{
+  "registry_version": "1.0.0",
+  "updated_at": "2026-10-04T10:59:48Z",
+  "description": "Registry of all benchmark artifacts in data/benchmarks/. Only artifacts marked canonical=true are authoritative. All others are historical/stale.",
+  "canonical_benchmark": {
+    "file": "bench_7138429ad4e2.json",
+    "canonical": true,
+    "status": "CANONICAL",
+    "benchmark_type": "SYNTHETIC_REGRESSION",
+    "seeds": [42, 43, 44, 45, 46],
+    "num_runs": 5,
+    "dataset": "data/ground_truth/synthetic_benchmark_fixture.json",
+    "created_at": "2026-10-04T10:59:41Z",
+    "ci_method": "percentile_bootstrap_2000",
+    "note": "5-seed synthetic regression benchmark with corrected percentile bootstrap CI (replaces invalid Wald CI). NOT a research result. Verifies algorithmic correctness only.",
+    "verified_ci_validity": "All CI bounds verified to lie within [min(values), max(values)]. F1 CI example: [0.760, 0.800] — valid. Previous Wald CI [0.011, 1.056] was invalid."
+  },
+  "historical_artifacts": [
+    {
+      "file": "bench_08cb7efa7e08.json",
+      "canonical": false,
+      "status": "STALE_HISTORICAL_NON_CANONICAL",
+      "benchmark_type": "SYNTHETIC_REGRESSION",
+      "seeds": [42, 43, 44, 45, 46],
+      "num_runs": 5,
+      "created_at": "2026-10-04T09:01:49Z",
+      "reason_stale": [
+        "CI computed with invalid Wald normal approximation (ci_method field absent/null)",
+        "Superseded by bench_7138429ad4e2.json which uses percentile bootstrap CI",
+        "benchmark_type field was null (now correctly set to SYNTHETIC_REGRESSION)"
+      ],
+      "note": "DO NOT DELETE — retained for historical audit trail. DO NOT use for any research claim."
+    },
+    {
+      "file": "bench_e5d6d79f572f.json",
+      "canonical": false,
+      "status": "STALE_HISTORICAL_NON_CANONICAL",
+      "benchmark_type": "SYNTHETIC_REGRESSION",
+      "seeds": [42, 43, 44],
+      "num_runs": 3,
+      "created_at": "2026-10-04T09:46:09Z",
+      "reason_stale": [
+        "Only 3 runs (canonical requires 5 seeds [42,43,44,45,46])",
+        "CI was computed with invalid Wald normal approximation — produced F1 CI [0.011, 1.056] which exceeds [0,1]",
+        "CI bug fixed in harness.py (replaced with percentile bootstrap B=2000)"
+      ],
+      "note": "DO NOT DELETE — retained for historical audit trail. DO NOT use for any research claim."
+    }
+  ],
+  "scientific_integrity_notice": "All SYNTHETIC_REGRESSION benchmarks verify algorithmic correctness ONLY. They are regression tests, not research findings. The benchmark harness emits a prominent warning when running in SYNTHETIC_REGRESSION mode. Research results require human-annotated gold labels in a REAL_HUMAN_GOLD benchmark file."
+}

@@ -19,14 +19,14 @@ git clone https://github.com/YOUR-USERNAME/Clarion.git
 cd Clarion
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv Clarion-Backend/.venv
+Clarion-Backend\.venv\Scripts\activate  # Windows
+source Clarion-Backend/.venv/bin/activate  # Linux/macOS
 
 # Install dependencies with dev tools
-pip install -r requirements.txt
-pip install pytest black flake8 mypy
+pip install -r Clarion-Backend/requirements-dev.txt
 
-# Create .env file
+# Create .env file (optional; defaults are built in)
 cp Clarion-Backend/.env.example Clarion-Backend/.env
 ```
 
@@ -191,40 +191,28 @@ const pollInterval = setInterval(() => {
 
 ```bash
 # Run all tests
-pytest Clarion-Backend/tests/ -v
+cd Clarion-Backend
+python -m pytest tests/ -v
 
-# Run specific test file
-pytest Clarion-Backend/tests/test_services.py -v
+# Run a specific test file
+python -m pytest tests/test_chunking_service.py -v
 
-# Run with coverage
-pytest Clarion-Backend/tests/ --cov=Clarion-Backend/
-
-# Run only tests matching pattern
-pytest -k "embedding" -v
+# Run only tests matching a pattern
+python -m pytest -k "embedding" -v
 ```
 
 ### Writing Tests
 
 ```python
-# tests/test_document_service.py
+# tests/test_chunking_service.py
 import pytest
-from services.document_service import DocumentService
+from services.chunking_service import ChunkingService
 
-@pytest.fixture
-def service():
-    """Fixture to provide service instance."""
-    return DocumentService()
-
-def test_extract_text_from_pdf(service):
-    """Test PDF text extraction."""
-    result = service.extract_text('path/to/test.pdf')
-    assert result is not None
-    assert len(result) > 0
-
-def test_invalid_file_raises_error(service):
-    """Test error handling for invalid files."""
-    with pytest.raises(InvalidFileError):
-        service.extract_text('path/to/invalid.txt')
+def test_chunk_document(service_fixture):
+    """Test that chunking produces non-empty chunks."""
+    service = ChunkingService()
+    chunks = service.chunk_document("doc-1", "This is a short document body.")
+    assert chunks
 ```
 
 ## 🐛 Bug Reports
@@ -351,22 +339,20 @@ Looking to make your first contribution? Look for issues labeled:
 
 ```bash
 # Install development dependencies
-pip install pytest black flake8 mypy isort
+pip install -r Clarion-Backend/requirements-dev.txt
 
-# Format code
-black Clarion-Backend/ frontend/
+# Format code (if Black is installed)
+black Clarion-Backend/
 
-# Sort imports
-isort Clarion-Backend/
-
-# Lint code
+# Lint code (if Flake8 is installed)
 flake8 Clarion-Backend/
 
-# Type check
+# Type check (if mypy is installed)
 mypy Clarion-Backend/ --ignore-missing-imports
 
 # Run tests
-pytest Clarion-Backend/tests/ -v --cov
+cd Clarion-Backend
+python -m pytest -v
 ```
 
 ## 🎯 Priority Areas for Contribution

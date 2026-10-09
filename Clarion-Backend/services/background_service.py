@@ -466,8 +466,33 @@ class BackgroundService:
         self._repository = JobRepository(db_path)
         self._active_tasks: Dict[str, asyncio.Task] = {}
         self._dataset_tasks: Dict[str, asyncio.Task] = {}
+        self._reset_orphaned_jobs()
 
-        # logger.info(f"Background service initialized (max_concurrent={max_concurrent})")
+    def _reset_orphaned_jobs(self) -> None:
+        """Mark orphaned in-progress jobs from previous server runs as failed."""
+        try:
+            active_jobs = self._repository.list_active()
+            for job in active_jobs:
+                job.status = JobStatus.FAILED
+                job.error_message = "Server restarted while job was in progress"
+                job.completed_at = datetime.now()
+                self._repository.update(job)
+                try:
+                    from services.document_service import DocumentService
+                    from models.document import DocumentStatus
+                    doc_service = DocumentService()
+                    doc = doc_service.get_document(job.document_id)
+                    if doc and doc.status == DocumentStatus.PROCESSING:
+                        doc_service.update_document_status(
+                            job.document_id,
+                            DocumentStatus.FAILED,
+                            error_message="Server restarted while job was in progress",
+                        )
+                except Exception:
+                    pass
+                logger.info(f"Marked orphaned job {job.job_id} for document {job.document_id} as failed.")
+        except Exception as e:
+            logger.warning(f"Error resetting orphaned jobs: {e}")
 
     async def submit_job(
         self,
@@ -489,17 +514,22 @@ class BackgroundService:
             job_id for tracking
         """
         existing_job = self._repository.get_latest_by_document(document_id)
-        if existing_job and existing_job.status in [
-            JobStatus.PENDING,
-            JobStatus.PROCESSING,
-            JobStatus.INGESTING,
-            JobStatus.CHUNKING,
-            JobStatus.EMBEDDING,
-            JobStatus.MAPPING,
-            JobStatus.GRAPH_BUILDING,
-            JobStatus.EVALUATING,
-            JobStatus.HIERARCHY,
-        ]:
+        if (
+            existing_job
+            and existing_job.job_id in self._active_tasks
+            and existing_job.status
+            in [
+                JobStatus.PENDING,
+                JobStatus.PROCESSING,
+                JobStatus.INGESTING,
+                JobStatus.CHUNKING,
+                JobStatus.EMBEDDING,
+                JobStatus.MAPPING,
+                JobStatus.GRAPH_BUILDING,
+                JobStatus.EVALUATING,
+                JobStatus.HIERARCHY,
+            ]
+        ):
             logger.info(
                 f"Document {document_id} already has active job: {existing_job.job_id}"
             )
@@ -549,17 +579,22 @@ class BackgroundService:
             job_id for tracking
         """
         existing_job = self._repository.get_latest_by_document(document_id)
-        if existing_job and existing_job.status in [
-            JobStatus.PENDING,
-            JobStatus.PROCESSING,
-            JobStatus.INGESTING,
-            JobStatus.CHUNKING,
-            JobStatus.EMBEDDING,
-            JobStatus.MAPPING,
-            JobStatus.GRAPH_BUILDING,
-            JobStatus.EVALUATING,
-            JobStatus.HIERARCHY,
-        ]:
+        if (
+            existing_job
+            and existing_job.job_id in self._active_tasks
+            and existing_job.status
+            in [
+                JobStatus.PENDING,
+                JobStatus.PROCESSING,
+                JobStatus.INGESTING,
+                JobStatus.CHUNKING,
+                JobStatus.EMBEDDING,
+                JobStatus.MAPPING,
+                JobStatus.GRAPH_BUILDING,
+                JobStatus.EVALUATING,
+                JobStatus.HIERARCHY,
+            ]
+        ):
             return existing_job.job_id
 
         job = ProcessingJob(

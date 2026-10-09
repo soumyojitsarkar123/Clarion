@@ -1,7 +1,7 @@
 """
-Dataset Factory Service - Autonomous high-quality training dataset generation.
+Dataset Factory Service - Autonomous training dataset generation.
 
-Generates unlimited training datasets from processed documents using:
+Generates training datasets from processed documents using:
 - LLM-assisted quality scoring
 - Embedding-based deduplication
 - Multi-format export (JSONL, Parquet, CSV)
@@ -1193,10 +1193,13 @@ Selected chunks:
                 f"Exported {len(concept_data)} concept samples to {concept_file}"
             )
 
-        # Export combined dataset (Parquet if available)
+        # Export combined dataset (Parquet and CSV export independently).
         try:
             import pandas as pd
+        except ImportError:
+            pd = None
 
+        if pd is not None:
             all_samples = []
             for sample in samples:
                 all_samples.append(
@@ -1215,16 +1218,22 @@ Selected chunks:
             if all_samples:
                 df = pd.DataFrame(all_samples)
 
-                # Parquet export
-                parquet_file = self.dataset_dir / f"{base_filename}_all.parquet"
-                df.to_parquet(parquet_file, index=False)
-                logger.info(f"Exported {len(all_samples)} samples to {parquet_file}")
+                # CSV export (no extra runtime dependencies).
+                try:
+                    csv_file = self.dataset_dir / f"{base_filename}_all.csv"
+                    df.to_csv(csv_file, index=False, encoding="utf-8")
+                    logger.info(f"Exported {len(all_samples)} samples to {csv_file}")
+                except Exception as error:
+                    logger.warning("CSV export failed: %s", error)
 
-                # CSV export
-                csv_file = self.dataset_dir / f"{base_filename}_all.csv"
-                df.to_csv(csv_file, index=False, encoding="utf-8")
-                logger.info(f"Exported {len(all_samples)} samples to {csv_file}")
-        except ImportError:
+                # Parquet export (requires an engine such as pyarrow).
+                try:
+                    parquet_file = self.dataset_dir / f"{base_filename}_all.parquet"
+                    df.to_parquet(parquet_file, index=False)
+                    logger.info(f"Exported {len(all_samples)} samples to {parquet_file}")
+                except Exception as error:
+                    logger.warning("Parquet export failed: %s", error)
+        else:
             logger.info("Pandas not available, skipping Parquet/CSV export")
 
         # Mark samples as exported

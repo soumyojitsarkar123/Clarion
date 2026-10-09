@@ -58,6 +58,8 @@ async def upload_document(file: UploadFile = File(...)):
     except ValueError as e:
         logger.error(f"Upload error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected upload error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

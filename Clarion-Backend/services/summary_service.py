@@ -102,19 +102,24 @@ class SummaryService:
         logger.info(f"Generating structured summary for document {document_id}")
         self._prefer_deterministic = False
         
+        document_type = self.classify_document(chunks=chunks, title=title)
         sections = self._generate_sections(chunks)
-        llm_summary_result = self._generate_overall_summary(title=title, chunks=chunks, sections=sections)
+        llm_summary_result = self._generate_overall_summary(
+            title=title, chunks=chunks, sections=sections, document_type=document_type
+        )
         overall_summary = llm_summary_result["text"]
         llm_summary_accepted = bool(llm_summary_result["llm_used"])
         
         summary = StructuredSummary(
             document_id=document_id,
             title=title,
+            document_type=document_type,
             overall_summary=overall_summary,
             sections=sections,
             metadata={
                 "chunk_count": len(chunks),
                 "section_count": len(sections),
+                "document_type": document_type,
                 "llm_summary_accepted": llm_summary_accepted,
                 "llm_last_error": self.llm.last_error,
             }
@@ -122,7 +127,7 @@ class SummaryService:
         
         self._save_summary(summary)
         
-        logger.info(f"Summary generated with {len(sections)} sections")
+        logger.info(f"Summary generated with {len(sections)} sections, classified as {document_type}")
         return summary
     
     def _generate_sections(self, chunks: List[Chunk]) -> List[SummarySection]:
@@ -158,10 +163,13 @@ class SummaryService:
         title: str,
         chunks: List[Chunk],
         sections: Sequence[SummarySection],
+        document_type: str = "unknown",
     ) -> Dict[str, Any]:
         """Generate a concise overall summary, falling back to deterministic extraction."""
         return {
-            "text": self._build_fallback_overall_summary(title=title, chunks=chunks, sections=sections),
+            "text": self._build_fallback_overall_summary(
+                title=title, chunks=chunks, sections=sections, document_type=document_type
+            ),
             "llm_used": False,
         }
 
@@ -210,48 +218,126 @@ class SummaryService:
         combined_text = "\n".join([chunk.content for chunk in group if chunk.content])
         return self._derive_topic_label(combined_text, fallback=f"Section {index + 1}")
 
+    def _is_front_matter_chunk(self, chunk: Chunk) -> bool:
+        """Detect whether a chunk is part of front matter (copyright, preface, contributor roster)."""
+        title = (chunk.section_title or "").lower()
+        content = (chunk.content or "").lower()
+
+        front_matter_markers = (
+            "copyright", "all rights reserved", "isbn", "printed in", "published by",
+            "library of congress", "contributing authors", "editorial board", "advisory board",
+            "reviewers", "acknowledgments", "acknowledgements", "table of contents",
+            "preface", "foreword"
+        )
+        if any(marker in title for marker in front_matter_markers):
+            return True
+
+        if re.search(r"\b(?:copyright|isbn\s*[\d\-]+|all rights reserved|published by)\b", content):
+            return True
+
+        for sentence in chunk.content.splitlines():
+            sentence = sentence.strip()
+            if sentence.count(",") >= 4:
+                words = sentence.split()
+                if words:
+                    cap_tokens = sum(1 for w in words if w and w[0].isupper())
+                    if cap_tokens >= 6 and (cap_tokens / len(words)) > 0.5:
+                        return True
+
+        return False
+
+    def _sample_representative_chunks(
+        self, chunks: List[Chunk], max_samples: int = 25
+    ) -> List[Chunk]:
+        """Sample representative body chunks across the document."""
+        if not chunks:
+            return []
+        body_chunks = [c for c in chunks if not self._is_front_matter_chunk(c)]
+        if not body_chunks:
+            body_chunks = chunks
+        if len(body_chunks) <= max_samples:
+            return body_chunks
+        step = (len(body_chunks) - 1) / (max_samples - 1) if max_samples > 1 else 1.0
+        sampled_indices = sorted(list({int(round(i * step)) for i in range(max_samples)}))
+        return [body_chunks[idx] for idx in sampled_indices]
+
     def _build_fallback_overall_summary(
         self,
         title: str,
         chunks: List[Chunk],
         sections: Sequence[SummarySection],
+        document_type: str = "unknown",
     ) -> str:
-        """Build a deterministic overall summary from the cleanest extracted document text."""
-        combined_text = "\n".join([chunk.content for chunk in chunks if chunk.content])
+        """Build a deterministic overall summary grounded in the cleanest extracted body text."""
         profile = self._build_document_profile(title=title, chunks=chunks, sections=sections)
         topics = profile["topics"]
         sample_sentences = profile["sample_sentences"]
-        document_kind = profile["document_kind"]
+        doc_kind = document_type if document_type != "unknown" else profile["document_kind"]
 
         summary_parts: List[str] = []
-        if document_kind == "assessment":
+        if doc_kind == "assessment":
             if topics:
                 summary_parts.append(
-                    f"This document is an assessment-style document focused on {self._join_phrases(topics[:4]).lower()}."
+                    f"Deterministic fallback analysis: This document is an assessment-style document focused on {self._join_phrases(topics[:4]).lower()}."
                 )
             else:
                 summary_parts.append(
-                    "This document is an assessment-style document built around the uploaded subject matter."
+                    "Deterministic fallback analysis: This document is an assessment-style document built around the uploaded subject matter."
                 )
-        elif topics:
-            summary_parts.append(
-                f"This document focuses on {self._join_phrases(topics[:4]).lower()}."
-            )
-        else:
-            cleaned_title = self._clean_title(title) or "the uploaded material"
-            summary_parts.append(
-                f"This document presents material related to {cleaned_title.lower()}."
-            )
-
-        if document_kind == "assessment":
             action_topics = self._join_phrases(topics[:3]).lower() if topics else "the main concepts"
             summary_parts.append(
                 f"It presents question-driven material that asks the reader to interpret, compare, and apply {action_topics}."
             )
-        elif topics:
+        elif doc_kind == "textbook":
             summary_parts.append(
-                f"The main themes include {self._join_phrases(topics[:5]).lower()}."
+                f"Deterministic fallback analysis: This document is a comprehensive textbook focused on {self._join_phrases(topics[:4]).lower() if topics else 'the subject matter'}."
             )
+            if topics:
+                summary_parts.append(
+                    f"The main themes developed across the chapters include {self._join_phrases(topics[:5]).lower()}."
+                )
+        elif doc_kind == "academic_paper":
+            summary_parts.append(
+                f"Deterministic fallback analysis: This document is an academic paper focused on {self._join_phrases(topics[:4]).lower() if topics else 'the research topic'}."
+            )
+            if topics:
+                summary_parts.append(
+                    f"Key research themes include {self._join_phrases(topics[:5]).lower()}."
+                )
+        elif doc_kind == "technical_documentation":
+            summary_parts.append(
+                f"Deterministic fallback analysis: This document provides technical documentation focused on {self._join_phrases(topics[:4]).lower() if topics else 'the technical system'}."
+            )
+            if topics:
+                summary_parts.append(
+                    f"Covers implementation, configuration, and interfaces for {self._join_phrases(topics[:5]).lower()}."
+                )
+        elif doc_kind == "report":
+            summary_parts.append(
+                f"Deterministic fallback analysis: This document is a report focused on {self._join_phrases(topics[:4]).lower() if topics else 'the documented findings'}."
+            )
+            if topics:
+                summary_parts.append(
+                    f"Major findings and topics covered include {self._join_phrases(topics[:5]).lower()}."
+                )
+        elif doc_kind == "notes":
+            summary_parts.append(
+                f"Deterministic fallback analysis: This document contains reference notes focused on {self._join_phrases(topics[:4]).lower() if topics else 'the recorded topics'}."
+            )
+        else:
+            cleaned_title = self._clean_title(title) or "the uploaded material"
+            if topics:
+                summary_parts.append(
+                    f"Deterministic fallback analysis: This document focuses on {self._join_phrases(topics[:4]).lower()}."
+                )
+            else:
+                summary_parts.append(
+                    f"Deterministic fallback analysis: This document presents material related to {cleaned_title.lower()}."
+                )
+            if topics:
+                summary_parts.append(
+                    f"The main themes include {self._join_phrases(topics[:5]).lower()}."
+                )
 
         if sample_sentences:
             supporting = self._rewrite_sentence_for_summary(sample_sentences[0], topics)
@@ -260,7 +346,7 @@ class SummaryService:
 
         if not summary_parts:
             summary_parts.append(
-                "This document contains extracted text, but a high-quality summary could not be formed from the current content."
+                "Deterministic fallback analysis: This document contains extracted text, but a high-quality summary could not be formed from the current content."
             )
 
         summary_text = " ".join(
@@ -310,9 +396,10 @@ class SummaryService:
         chunks: List[Chunk],
         sections: Sequence[SummarySection],
     ) -> Dict[str, Any]:
-        """Collect clean document-level signals for deterministic summaries."""
+        """Collect clean document-level signals for deterministic summaries using sampled body chunks."""
+        sampled_chunks = self._sample_representative_chunks(chunks, max_samples=25)
         clean_chunk_texts: List[str] = []
-        for chunk in chunks:
+        for chunk in sampled_chunks:
             prepared = self._prepare_text_for_analysis(chunk.content)
             if prepared:
                 clean_chunk_texts.append(prepared)
@@ -350,7 +437,7 @@ class SummaryService:
                 break
 
         lowered = combined_text.lower()
-        document_kind = "assessment" if self._looks_like_assessment(lowered) else "reference"
+        document_kind = self.classify_document(text=lowered, chunks=chunks, title=title)
         title_hint = self._clean_title(title)
 
         return {
@@ -405,13 +492,36 @@ class SummaryService:
             sentences.append(sentence)
         return sentences
 
+    def _is_roster_sentence(self, sentence: str) -> bool:
+        """Detect sentences that are editorial contributor rosters rather than technical content."""
+        words = sentence.strip().split()
+        if len(words) < 3:
+            return False
+        commas = sentence.count(",")
+        if commas >= 3:
+            cap_count = sum(1 for w in words if w and w[0].isupper())
+            if cap_count / len(words) >= 0.45:
+                return True
+        return False
+
+    def _looks_like_acknowledgment(self, lowered: str) -> bool:
+        """Detect acknowledgments or editorial boilerplate sentences."""
+        markers = (
+            "thank the following", "grateful to", "acknowledges the", "contributions of",
+            "editorial board", "reviewers:", "credits:", "printed in", "all rights reserved",
+            "isbn", "published by", "preface to the", "edition was published"
+        )
+        return any(m in lowered for m in markers)
+
     def _select_informative_sentences(self, sentences: Sequence[str], limit: int) -> List[str]:
-        """Select diverse, high-signal sentences while avoiding noisy duplicates."""
+        """Select diverse, high-signal sentences while avoiding noisy duplicates and contributor rosters."""
         if not sentences:
             return []
 
         scored: List[tuple[float, str]] = []
         for sentence in sentences:
+            if self._is_roster_sentence(sentence) or self._looks_like_acknowledgment(sentence.lower()):
+                continue
             words = re.findall(r"[A-Za-z][A-Za-z'-]+", sentence.lower())
             unique_words = {word for word in words if word not in _STOPWORDS}
             if not unique_words:
@@ -618,20 +728,159 @@ class SummaryService:
             return False
         return True
 
-    def _looks_like_assessment(self, lowered_text: str) -> bool:
-        """Identify question-paper style documents from extracted text markers."""
-        markers = [
-            "attempt",
-            "each question",
+    def classify_document(
+        self,
+        text: Optional[str] = None,
+        chunks: Optional[List[Chunk]] = None,
+        title: Optional[str] = None,
+    ) -> str:
+        """
+        Classify document using multiple structural, lexical, and density signals.
+        Returns one of: 'textbook', 'academic_paper', 'report', 'assessment',
+        'technical_documentation', 'notes', or 'unknown'.
+        """
+        # Aggregate text from chunks or text argument
+        combined = ""
+        if text:
+            combined = text
+        elif chunks:
+            # Sample up to 30 chunks to avoid excessive memory for large books
+            sample_chunks = chunks[:15] + chunks[-15:] if len(chunks) > 30 else chunks
+            combined = "\n".join(c.content for c in sample_chunks)
+
+        lowered = combined.lower()
+        title_lower = (title or "").lower()
+        total_words = len(lowered.split())
+        num_chunks = len(chunks) if chunks else 0
+
+        # Title-based fast indicators
+        if any(marker in title_lower for marker in ["exam", "question paper", "quiz", "test paper", "assessment"]):
+            return "assessment"
+        if any(marker in title_lower for marker in ["lecture notes", "study notes", "meeting notes", "notes on"]):
+            return "notes"
+        if any(marker in title_lower for marker in ["api reference", "documentation", "user guide", "developer guide"]):
+            return "technical_documentation"
+
+        scores: Dict[str, float] = {
+            "assessment": 0.0,
+            "academic_paper": 0.0,
+            "technical_documentation": 0.0,
+            "report": 0.0,
+            "textbook": 0.0,
+            "notes": 0.0,
+        }
+
+        # 1. Assessment signals
+        exam_instruction_markers = [
+            "instructions to candidates",
+            "time allowed:",
+            "time allowed :",
+            "maximum marks",
+            "full marks",
             "answer any",
+            "attempt any",
             "question carries",
-            "marks",
-            "null hypothesis",
-            "choose the correct",
-            "short answer",
+            "roll no",
+            "total marks",
+            "write short notes on any",
+            "choose the correct answer",
+            "marks for each question",
         ]
-        question_mark_count = lowered_text.count("?")
-        return question_mark_count >= 3 or any(marker in lowered_text for marker in markers)
+        exam_matches = sum(1 for m in exam_instruction_markers if m in lowered)
+        question_count = lowered.count("?")
+        q_density_per_k = (question_count / (total_words / 1000.0)) if total_words > 50 else 0.0
+
+        if exam_matches >= 2:
+            scores["assessment"] += 8.0 + (exam_matches * 2.0)
+        elif exam_matches == 1:
+            scores["assessment"] += 4.0
+
+        if q_density_per_k >= 6.0:
+            scores["assessment"] += 5.0
+        elif q_density_per_k >= 3.0:
+            scores["assessment"] += 2.5
+
+        # If document is short/medium and has multiple questions and exam keywords
+        if total_words < 5000 and question_count >= 5 and exam_matches >= 1:
+            scores["assessment"] += 4.0
+
+        # 2. Textbook signals
+        chapter_matches = len(re.findall(r"\bchapter\s+\d+\b", lowered))
+        textbook_markers = [
+            "table of contents",
+            "preface",
+            "exercises",
+            "problems",
+            "glossary",
+            "appendix",
+            "index",
+            "edition",
+            "textbook",
+            "instructor's manual",
+        ]
+        tb_marker_count = sum(1 for m in textbook_markers if m in lowered)
+        if chapter_matches >= 2:
+            scores["textbook"] += 4.0 + min(chapter_matches, 6) * 1.5
+        if tb_marker_count >= 2:
+            scores["textbook"] += tb_marker_count * 1.5
+        if num_chunks > 20 or total_words > 15000:
+            scores["textbook"] += 3.0
+            # A large textbook with exercises should not be classified as assessment
+            scores["assessment"] -= 4.0
+
+        # 3. Academic paper signals
+        paper_sections = ["abstract", "introduction", "methodology", "methods", "experiments", "results", "related work", "conclusion", "references"]
+        paper_section_count = sum(1 for sec in paper_sections if re.search(rf"\b{sec}\b", lowered))
+        paper_academic_markers = ["et al.", "proceedings of", "ieee", "acm", "arxiv", "doi:", "university", "department of", "conference on"]
+        paper_marker_count = sum(1 for m in paper_academic_markers if m in lowered)
+        has_citations = bool(re.search(r"\[\d{1,3}\]", lowered) or re.search(r"\([A-Z][a-z]+,?\s+\d{4}\)", combined))
+
+        if "abstract" in lowered and paper_section_count >= 3:
+            scores["academic_paper"] += 5.0 + paper_section_count
+        if paper_marker_count >= 2:
+            scores["academic_paper"] += paper_marker_count * 1.5
+        if has_citations:
+            scores["academic_paper"] += 3.0
+
+        # 4. Technical documentation signals
+        tech_markers = [
+            "installation", "getting started", "quickstart", "api reference",
+            "configuration", "parameters:", "returns:", "raises:", "endpoint",
+            "cli", "sdk", "prerequisites", "usage", "pip install", "npm install",
+            "curl -x", "docker run", "import ", "def ", "class "
+        ]
+        tech_count = sum(1 for m in tech_markers if m in lowered)
+        if tech_count >= 3:
+            scores["technical_documentation"] += tech_count * 1.5
+
+        # 5. Report signals
+        report_markers = [
+            "executive summary", "key findings", "recommendations", "annual report",
+            "status report", "progress report", "prepared by", "deliverable",
+            "milestone", "audit report", "overview of findings"
+        ]
+        report_count = sum(1 for m in report_markers if m in lowered)
+        if "executive summary" in lowered:
+            scores["report"] += 4.0
+        if report_count >= 2:
+            scores["report"] += report_count * 1.5
+
+        # 6. Notes signals
+        notes_markers = ["lecture notes", "study notes", "meeting notes", "notes:", "key takeaways", "lecture 1", "lecture 2"]
+        notes_count = sum(1 for m in notes_markers if m in lowered)
+        if notes_count >= 2:
+            scores["notes"] += notes_count * 2.0
+
+        # Evaluate best score
+        best_type, best_score = max(scores.items(), key=lambda item: item[1])
+        # Threshold: require at least 4.0 points of evidence to avoid false positives
+        if best_score < 4.0:
+            return "unknown"
+        return best_type
+
+    def _looks_like_assessment(self, lowered_text: str) -> bool:
+        """Identify question-paper style documents using multi-signal classifier."""
+        return self.classify_document(text=lowered_text) == "assessment"
 
     def _looks_like_instruction(self, lowered_text: str) -> bool:
         """Reject exam instructions and layout boilerplate from summaries."""

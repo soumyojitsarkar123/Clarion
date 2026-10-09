@@ -144,6 +144,15 @@ class GraphExporter:
             
             if "validated" in edge_data:
                 edge_element["data"]["validated"] = edge_data["validated"]
+
+            if "calibrated_probability" in edge_data and edge_data["calibrated_probability"] is not None:
+                edge_element["data"]["calibrated_probability"] = edge_data["calibrated_probability"]
+
+            if "evidence_text" in edge_data and edge_data["evidence_text"]:
+                edge_element["data"]["evidence_text"] = edge_data["evidence_text"]
+
+            if "signal_scores" in edge_data and edge_data["signal_scores"]:
+                edge_element["data"]["signal_scores"] = edge_data["signal_scores"]
             
             elements["edges"].append(edge_element)
         

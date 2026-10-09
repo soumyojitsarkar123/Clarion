@@ -128,5 +128,5 @@ Answer:"""
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Query error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.exception(f"Query error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

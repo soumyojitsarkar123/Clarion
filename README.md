@@ -1,172 +1,249 @@
-# Clarion : Intelligent Document Understanding, Knowledge Graph Generation and Dataset Construction System
+# Clarion: Intelligent Document Understanding, Knowledge Graph Generation, and Dataset Construction System
 
+Clarion is a local-first research platform and document intelligence system combining structure-aware document parsing, dense vector retrieval, deterministic concept extraction, relation dataset construction, and a leak-free benchmarking and human ground-truth annotation suite.
 
-Clarion is a local-first document analysis workspace with a FastAPI backend and a static frontend for uploads, summaries, datasets, and knowledge graph visualization and Dataset Construction.
+---
 
-## What The Current System Actually Does
+## System Overview & Architecture
 
-The current pipeline is:
+Clarion provides two interconnected pipelines:
 
-1. Upload PDF or DOCX documents.
-2. Extract raw text and split it into structure-aware chunks.
-3. Create embeddings with SentenceTransformers and index them with FAISS.
-4. Build a knowledge map from extracted text.
-5. Save summaries, graph artifacts, and relation datasets for later inspection.
-6. Serve the results in the browser UI.
+1. **Document Intelligence Platform**: Ingests unstructured academic and technical documents (PDF, DOCX), performs structure-aware chunking, builds dense semantic vector indices, and generates grounded knowledge graphs and structured summaries.
+2. **Empirical Research & Benchmark Harness**: Evaluates closed-domain knowledge graph relation validation with strict mathematical target-leakage prevention, document-isolated splits, statistical probability calibration, and an integrated human ground-truth annotation and adjudication system.
 
-Important implementation note:
+```text
+DOCUMENT INGESTION & KNOWLEDGE MAPPING
+[PDF / DOCX] ──► Text Extraction ──► Structure-Aware Chunking (Word Slices)
+                                             │
+                       ┌─────────────────────┴─────────────────────┐
+                       ▼                                           ▼
+          Dense Embeddings (BGE-Large)               Lexical Concept Extraction
+                       │                                           │
+                       ▼                                           ▼
+              FAISS Vector Index                     Co-Occurrence & Triples
+                       │                                           │
+                       └─────────────────────┬─────────────────────┘
+                                             ▼
+                               Knowledge Graph & Summaries
+                                             │
+                                             ▼
+                                Candidate Relation Dataset
+                                   (relation_dataset.db)
 
-- The current mapping and summary flow is primarily deterministic and heuristic-first.
-- Live LLM availability is checked, but user-facing summaries and core knowledge-map generation are designed to keep working even when the live model is slow or unavailable.
-- That means the codebase is not an LLM-only extraction pipeline, and the docs need to reflect that clearly.
+RESEARCH BENCHMARK & GROUND-TRUTH PIPELINE
+[Candidate Relations] ──► Annotation Queue (Batch A & Overlap Batch B)
+                                      │
+                                      ▼
+                      Local Web / CLI Annotation Console
+                                      │
+                                      ▼
+                      Inter-Annotator Agreement (Kappa)
+                                      │
+                                      ▼
+                       Disagreement Adjudication
+                                      │
+                                      ▼
+                       Gold Dataset V1 Contract (Eligible & Provenance)
+                                      │
+                                      ▼
+                  Leak-Free Benchmark Harness (5 Seeds)
+          ┌───────────────────────────┴───────────────────────────┐
+          ▼                                                       ▼
+Document-Isolated Splits                                Context-Manager Graph
+(Zero Context Bleed)                                   Target-Leakage Removal
+          │                                                       │
+          └───────────────────────────┬───────────────────────────┘
+                                      ▼
+                       Multi-Signal Model & Baselines
+                                      │
+                                      ▼
+                      Probability Calibration (Platt / Isotonic)
+                                      │
+                                      ▼
+                      Percentile Bootstrap CI (B = 2,000)
+```
 
-## Model Stack
+---
 
-### Embeddings
+## Core Principles & Scientific Integrity
 
-- Default embedding model: `BAAI/bge-large-en-v1.5`
-- Library: `sentence-transformers`
-- Vector index: `faiss-cpu`
-- Device setting: `EMBEDDING_DEVICE=auto`
-- Resolved device is chosen at runtime: `cuda`, `mps`, or `cpu`
+- **Heuristic-First & Provider-Resilient**: Core extraction, chunking, graph generation, and validation run deterministically. When an LLM provider (Ollama, OpenAI, DeepSeek, Gemini) is connected, it enriches confidence scores and generative summaries. If the provider is offline, the entire pipeline remains functional via deterministic fallbacks.
+- **Scientifically Honest Evidence Verification**: The evidence verification module implements directional lexical pattern matching and sentence-level evidence extraction. It does **not** employ a trained Natural Language Inference (NLI) model or claim deep semantic entailment.
+- **Mathematical Target-Leakage Elimination**: Graph topological features (shortest path length, centrality, degree counts) are computed with candidate edges temporarily excised from the graph via a deterministic context manager, preventing trivial self-prediction.
+- **Strict Gating for Real vs. Synthetic Benchmarks**: Synthetic regression fixtures verify algorithmic correctness and absence of leakage. Real-world empirical benchmark claims remain hard-blocked until human gold labels are completed and validated.
 
-### LLM Providers
+---
 
-Supported providers in code:
+## Runtime Models & Schemas
 
-- `ollama`
-- `openai`
-- `deepseek`
-- `gemini`
+### 1. Machine Learning & Embedding Models
+- **Dense Embedding Model**: `BAAI/bge-large-en-v1.5` via `sentence-transformers`
+- **Vector Index**: `faiss-cpu` local vector store
+- **Compute Device**: Auto-resolved (`cuda`, `mps`, or `cpu`) via `EMBEDDING_DEVICE=auto`
+- **LLM Provider Options**: `ollama` (default: `qwen3.5:4b`), `openai`, `deepseek`, `gemini`
 
-Default provider/runtime:
+### 2. Pydantic Schemas ([`Clarion-Backend/models/`](Clarion-Backend/models/))
+- [`document.py`](Clarion-Backend/models/document.py): Ingestion metadata and job state tracking
+- [`chunk.py`](Clarion-Backend/models/chunk.py): Structure-aware text segments and heading metadata
+- [`embedding.py`](Clarion-Backend/models/embedding.py): Vector representations and retrieval queries
+- [`knowledge_map.py`](Clarion-Backend/models/knowledge_map.py): Concepts, relation triples, and topic trees
+- [`graph.py`](Clarion-Backend/models/graph.py): Cytoscape graph serialization formats
+- [`ground_truth.py`](Clarion-Backend/models/ground_truth.py): Closed-domain ground-truth annotations, error taxonomies, and gold dataset records
+- [`retrieval.py`](Clarion-Backend/models/retrieval.py): Similarity search results and scoring
+- [`summary.py`](Clarion-Backend/models/summary.py): Hierarchical extractive and generative summaries
+- [`response.py`](Clarion-Backend/models/response.py): Typed API response envelopes
 
-- `LLM_PROVIDER=ollama`
-- `OLLAMA_MODEL=qwen3.5:4b`
-- `OLLAMA_API_BASE=http://localhost:11434/v1`
-
-Important behavior:
-
-- Ollama is the default, but it is not required for every part of the pipeline to run.
-- If the live provider is unavailable, Clarion falls back to deterministic behavior instead of failing the whole analysis.
-
-## Data Models In The Repository
-
-There are two different meanings of “models” in this repo, and mixing them up causes confusion:
-
-### Runtime ML Models
-
-- Embedding model: `BAAI/bge-large-en-v1.5`
-- LLM model/provider: configurable by environment, defaulting to Ollama `qwen3.5:4b`
-
-### Pydantic Schema Models
-
-Backend schema definitions live in [models](Clarion-Backend/models):
-
-- [document.py](Clarion-Backend/models/document.py)
-- [chunk.py](Clarion-Backend/models/chunk.py)
-- [embedding.py](Clarion-Backend/models/embedding.py)
-- [knowledge_map.py](Clarion-Backend/models/knowledge_map.py)
-- [graph.py](Clarion-Backend/models/graph.py)
-- [retrieval.py](Clarion-Backend/models/retrieval.py)
-- [summary.py](Clarion-Backend/models/summary.py)
-- [response.py](Clarion-Backend/models/response.py)
+---
 
 ## Repository Layout
 
 ```text
 Clarion/
-├── Clarion-Backend/          # FastAPI backend, storage, graph/data services
-├── frontend/                 # Static browser UI
-├── scripts/                  # Windows PowerShell launch helpers
-└── data/                     # Repo-level dataset mirror used by the workspace UI
+├── Clarion-Backend/          # FastAPI backend, storage, evaluation, and benchmark harness
+│   ├── core/
+│   │   ├── benchmarking/     # Canonical benchmark harness, splitters, manifests, annotation tools
+│   │   ├── evaluation/       # Multi-signal validation, lexical evidence verifier, calibration
+│   │   ├── experiments/      # Graph topological features, relation candidate extractors
+│   │   └── llm/              # Provider adapters (Ollama, OpenAI, DeepSeek, Gemini)
+│   ├── data/                 # Backend runtime storage (clarion.db, relation_dataset.db, queues)
+│   ├── graph/                # Graph construction, hierarchy extraction, Cytoscape exporters
+│   ├── models/               # Pydantic data schemas
+│   ├── reports/              # Engineering validation and research protocol documentation
+│   ├── routers/              # REST API endpoint handlers
+│   ├── services/             # Pipeline orchestration, chunking, retrieval, embeddings
+│   ├── tests/                # Comprehensive unit and integration test suite (120 tests)
+│   └── utils/                # Configuration, logging, SQLite helpers
+├── frontend/                 # Static web workspace for uploads, graph viewing, and query exploration
+├── scripts/                  # Development scripts and end-to-end smoke test runner
+├── data/                     # Top-level shared benchmarks and dataset mirrors
+│   ├── benchmarks/           # Canonical benchmark results and benchmark registry
+│   └── datasets/             # Human-readable exported dataset snapshots
+└── appendix_report.md        # Technical architecture report and reference snippets
 ```
+
+---
 
 ## Quick Start
 
-### 1. Backend
+### 1. Environment Setup
 
+**Linux / macOS:**
+```bash
+cd Clarion-Backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+**Windows (PowerShell):**
 ```powershell
 cd Clarion-Backend
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+### 2. Start the Backend API
+
+```bash
+# Run from Clarion-Backend directory
 python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-### 2. Frontend
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- System Status: `http://127.0.0.1:8000/system-status`
 
-```powershell
+### 3. Start the Frontend Workspace
+
+In a separate terminal:
+
+```bash
 cd frontend
-python -m http.server 8080
+python -m http.server 3000
 ```
 
-### 3. Verify The Run
+Open: `http://127.0.0.1:3000` (connects to backend at `http://127.0.0.1:8000`).
 
-- Backend docs: `http://127.0.0.1:8000/docs`
-- Frontend: `http://127.0.0.1:8080`
+### 4. Run the Test Suite
 
-### Windows Helper Scripts
+```bash
+cd Clarion-Backend
+pytest tests/ -v
+```
 
-PowerShell helpers exist under [scripts](scripts), but the manual commands above are the primary documented run path.
+All 120 tests execute deterministically in sub-second to minute intervals without requiring external GPUs or live network connections.
 
-## Reproducibility Notes
+---
 
-This is the part most likely to drift if it is not documented precisely.
+## Human Annotation & Research Benchmarking
 
-### 1. Run From The Correct Working Directory
+Clarion features a specialized CLI for closed-domain relation annotation and benchmarking.
 
-Backend paths such as `data/`, `logs/`, and `data/datasets/` are resolved relative to the backend working directory.
+### Launch Annotation Console (Local Web Interface)
 
-For consistent results, start the backend from `Clarion-Backend/`.
+- **Annotator A (Primary Queue — 200 Candidates)**:
+  ```bash
+  PYTHONPATH=Clarion-Backend python Clarion-Backend/core/benchmarking/annotation_tool.py serve-ui \
+    --file Clarion-Backend/data/ground_truth/annotation_queue_batch1.json \
+    --port 8080
+  ```
+  Access: `http://127.0.0.1:8080`
 
-If you run the backend from a different working directory, you can accidentally create a second `data/` tree and think files are missing.
+- **Annotator B (Independent Overlap Queue — 50 Candidates)**:
+  ```bash
+  PYTHONPATH=Clarion-Backend python Clarion-Backend/core/benchmarking/annotation_tool.py serve-ui \
+    --file Clarion-Backend/data/ground_truth/annotation_queue_batch1_overlap_b.json \
+    --port 8081
+  ```
+  Access: `http://127.0.0.1:8081`
 
-### 2. Pin The Runtime Configuration
+### Compute Inter-Annotator Agreement & Adjudication
 
-For reproducible runs, record at least:
+```bash
+# Validate annotation queues
+python Clarion-Backend/core/benchmarking/annotation_tool.py validate \
+  --file Clarion-Backend/data/ground_truth/annotation_queue_batch1.json
 
-- `LLM_PROVIDER`
-- `OLLAMA_MODEL` or other provider model
-- `EMBEDDING_MODEL_NAME`
-- `EMBEDDING_DEVICE`
-- resolved embedding device
-- `CHUNK_SIZE`
-- `CHUNK_OVERLAP`
-- `SQLITE_TIMEOUT_SECONDS`
+# Calculate Cohen's & Fleiss' Kappa
+python Clarion-Backend/core/benchmarking/annotation_tool.py agreement \
+  --file-a Clarion-Backend/data/ground_truth/annotation_queue_batch1.json \
+  --file-b Clarion-Backend/data/ground_truth/annotation_queue_batch1_overlap_b.json
 
-### 3. Chunking Is Word-Based
+# Extract disagreements for committee review
+python Clarion-Backend/core/benchmarking/annotation_tool.py adjudicate \
+  --file-a Clarion-Backend/data/ground_truth/annotation_queue_batch1.json \
+  --file-b Clarion-Backend/data/ground_truth/annotation_queue_batch1_overlap_b.json \
+  --output Clarion-Backend/data/ground_truth/adjudication_queue_batch1.json
+```
 
-`CHUNK_SIZE` and `CHUNK_OVERLAP` are currently applied to word slices in [chunking_service.py](Clarion-Backend/services/chunking_service.py), not tokenizer-level tokens. Any README claiming token-based chunking would be inaccurate.
+### Execute Canonical Synthetic Benchmark
 
-### 4. Fallback Behavior Changes Outputs
+```bash
+python Clarion-Backend/run_canonical_benchmark.py --runs 5 --seed 42
+```
 
-Clarion intentionally keeps running when some model services are unavailable.
+Outputs are automatically validated and recorded against `data/benchmarks/CANONICAL_BENCHMARK_REGISTRY.json`.
 
-That means two runs on the same file can differ if:
+---
 
-- the live LLM provider is available in one run but not another
-- the embedding model loads in one run but falls back in another
-- the document text extraction quality changes
+## Reproducibility Guidelines
 
-For experiments, record whether the run used:
+For scientific reporting, ensure the following parameters are explicitly logged:
 
-- live embeddings vs deterministic fallback embeddings
-- live provider responses vs deterministic summary/mapping fallback logic
+1. **Working Directory**: Always execute commands from `Clarion-Backend/` to maintain relative database path alignment.
+2. **Configuration Pinning**: Document `EMBEDDING_MODEL_NAME`, resolved compute device, `CHUNK_SIZE` (in words), `CHUNK_OVERLAP`, and `SQLITE_TIMEOUT_SECONDS`.
+3. **Execution Mode**: Explicitly disclose whether an evaluation ran in `SYNTHETIC_REGRESSION` mode or against human-adjudicated gold datasets.
+4. **Resampling Parameters**: Document bootstrap resample iterations ($B=2000$) and random seeds ([42, 43, 44, 45, 46]).
 
-### 5. Storage Outputs
+---
 
-Key artifacts are stored under [Clarion-Backend/data](Clarion-Backend/data):
+## Documentation Links
 
-- main app DB: [clarion.db](Clarion-Backend/data/clarion.db)
-- relation dataset DB: [relation_dataset.db](Clarion-Backend/data/relation_dataset.db)
-- graph exports: [graphs](Clarion-Backend/data/graphs)
-- readable relation snapshots: [datasets](Clarion-Backend/data/datasets)
-
-The workspace also mirrors readable dataset snapshots to the repo-level [data/datasets](data/datasets) folder for easier inspection from the UI/workspace.
-
-## More Specific Docs
-
-- Backend details: [Clarion-Backend/README.md](Clarion-Backend/README.md)
-- Frontend details: [frontend/README.md](frontend/README.md)
-- Script usage: [scripts/README.md](scripts/README.md)
+- **Backend Architecture & API**: [Clarion-Backend/README.md](Clarion-Backend/README.md)
+- **Frontend Workspace**: [frontend/README.md](frontend/README.md)
+- **Script Helpers & Smoke Tests**: [scripts/README.md](scripts/README.md)
+- **Contributing Guidelines**: [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Engineering Validation Report**: [Clarion-Backend/reports/ENGINEERING_VALIDATION_REPORT.md](Clarion-Backend/reports/ENGINEERING_VALIDATION_REPORT.md)
+- **Research Status & Annotation Protocol**: [Clarion-Backend/reports/RESEARCH_EXPERIMENT_REPORT.md](Clarion-Backend/reports/RESEARCH_EXPERIMENT_REPORT.md)
