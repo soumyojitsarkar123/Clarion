@@ -165,6 +165,72 @@ body {
     display: none !important;
 }
 
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: var(--text-alt);
+    transition: all 0.2s ease;
+}
+
+.status-pill.ready {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
+.status-pill.degraded {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+}
+
+.status-pill.fallback {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: #f59e0b;
+}
+
+.status-pill.failed {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+.status-chip.honest-ready #honest-status-badge {
+    color: #34d399;
+}
+
+.status-chip.honest-degraded #honest-status-badge {
+    color: #fbbf24;
+}
+
+.status-chip.honest-fallback #honest-status-badge {
+    color: #f59e0b;
+}
+
+.status-chip.honest-failed #honest-status-badge {
+    color: #f87171;
+}
+
+.chunk-citation {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
 /* Layout Grid */
 .layout {
     display: grid;
@@ -734,6 +800,21 @@ body {
 
 .structure-item:hover {
     border-color: var(--border-light);
+}
+
+.structure-item.level-2 {
+    border-left: 3px solid var(--primary);
+    background: rgba(30, 41, 59, 0.7);
+}
+
+.structure-item.level-3 {
+    border-left: 3px solid var(--accent);
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.structure-item.level-4 {
+    border-left: 3px solid var(--text-dim);
+    background: rgba(30, 41, 59, 0.35);
 }
 
 .structure-item-header {

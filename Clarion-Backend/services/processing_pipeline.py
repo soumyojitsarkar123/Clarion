@@ -199,10 +199,6 @@ class ProcessingPipeline:
                 )
                 await update_progress(JobStatus.INGESTING.value, 10)
                 results["stages_completed"].append("ingestion")
-                results["artifacts"]["document"] = {
-                    "id": document.id,
-                    "word_count": document.metadata.word_count,
-                }
             else:
                 document = self.document_service.get_document(document_id)
                 await update_progress(JobStatus.INGESTING.value, 10)
@@ -211,6 +207,12 @@ class ProcessingPipeline:
 
             if not document:
                 raise PipelineStageError(f"Document not found: {document_id}")
+
+            results["artifacts"]["document"] = {
+                "id": document.id,
+                "word_count": document.metadata.word_count,
+                "page_count": getattr(document.metadata, "page_count", None),
+            }
 
             # Stage 2: Chunking (10-30%)
             if not should_skip("chunking"):
@@ -632,9 +634,45 @@ class ProcessingPipeline:
             structured_summary=summary,
         )
 
+        doc_artifact = results.get("artifacts", {}).get("document", {})
+        chunks_artifact = results.get("artifacts", {}).get("chunks", {})
+        summary_artifact = results.get("artifacts", {}).get("summary", {})
+
+        words_count = doc_artifact.get("word_count") or 0
+        pages_count = doc_artifact.get("page_count") or 0
+        sections_count = len(summary.sections) if (summary and hasattr(summary, "sections") and summary.sections) else summary_artifact.get("section_count", 0)
+        chunks_count = chunks_artifact.get("count", 0)
+
+        metrics = {
+            "words": words_count,
+            "pages": pages_count,
+            "sections": sections_count,
+            "chunks": chunks_count,
+            "concepts": concept_count,
+            "candidate_relations": relation_count,
+            "graph_nodes": node_count,
+            "graph_edges": edge_count,
+        }
+
+        started_str = results.get("started_at")
+        completed_str = results.get("completed_at") or results.get("failed_at")
+        total_duration = 0.0
+        if started_str and completed_str:
+            try:
+                total_duration = round(
+                    (datetime.fromisoformat(completed_str) - datetime.fromisoformat(started_str)).total_seconds(),
+                    2,
+                )
+            except Exception:
+                total_duration = 0.0
+
         return {
             "document_id": results.get("document_id"),
             "success": success,
+            "status": results.get("status", "completed" if success else "failed"),
+            "analysis_mode": results.get("analysis_mode", "llm"),
+            "active_model": results.get("active_model", settings.ollama_model),
+            "total_duration_sec": total_duration,
             "error": error,
             "generated_at": datetime.now().isoformat(),
             "started_at": results.get("started_at"),
@@ -642,6 +680,7 @@ class ProcessingPipeline:
             "stages_completed": results.get("stages_completed", []),
             "stages_failed": results.get("stages_failed", []),
             "skipped_stages": results.get("skipped_stages", []),
+            "metrics": metrics,
             "summary": summary_metrics,
             "insights": {
                 "overview": self._build_overview_text(summary=summary_metrics, narrative_summary=summary.overall_summary if summary else None),

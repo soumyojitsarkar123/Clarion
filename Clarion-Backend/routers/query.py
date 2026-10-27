@@ -12,6 +12,7 @@ from services.retrieval_service import RetrievalService
 from services.knowledge_map_service import KnowledgeMapService
 from services.knowledge_map_service import LLMInterface
 from services.rag_audit_service import get_rag_audit_service
+from core.llm.base import sanitize_llm_text
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ Context:
 Answer:"""
         
         try:
-            response_text = llm.generate(prompt)
+            response_text = sanitize_llm_text(llm.generate(prompt))
         except Exception as e:
             logger.warning(f"LLM generation failed: {str(e)}")
             response_text = "Unable to generate response at this time."

@@ -206,14 +206,18 @@ function selectDocument(doc) {
     if (matching) matching.classList.add("selected");
 
     const sizeFormatted = doc.size ? (doc.size / 1024 / 1024).toFixed(2) : "0.00";
+    const docPages = doc.page_count ?? doc.pages;
     document.getElementById("doc-info").innerHTML = `
         <strong>${escapeHtml(doc.name)}</strong><br>
         Status: <span class="badge">${escapeHtml(doc.status || 'uploaded')}</span><br>
-        Size: ${sizeFormatted} MB • Pages: ${doc.pages ?? 'N/A'} • Words: ${doc.word_count ? Number(doc.word_count).toLocaleString() : 'N/A'}
+        Size: ${sizeFormatted} MB • Pages: ${docPages ?? 'N/A'} • Words: ${doc.word_count ? Number(doc.word_count).toLocaleString() : 'N/A'}
     `;
 
     document.getElementById("status-doc-name").textContent = doc.name;
     document.getElementById("overview-doc-title").textContent = `${doc.name} (${doc.id})`;
+
+    if (doc.word_count) updateOverviewMetric("stat-words", doc.word_count);
+    if (docPages) updateOverviewMetric("stat-pages", docPages);
 
     const analyzeBtn = document.getElementById("analyze-btn");
     analyzeBtn.disabled = false;
@@ -330,16 +334,20 @@ async function refreshPipelineStatus() {
                 if (payload.analysis_mode === "deterministic_fallback") {
                     modeChip.textContent = "Deterministic Fallback";
                     document.getElementById("mode-chip").className = "status-chip mode-fallback";
+                    updateHonestStatus("Fallback Active", "fallback");
                 } else if (payload.analysis_mode === "llm") {
                     modeChip.textContent = "LLM Grounded";
+                    document.getElementById("mode-chip").className = "status-chip";
+                    updateHonestStatus("LLM Ready", "ready");
                 }
 
                 if (payload.active_model) {
                     modelChip.textContent = payload.active_model;
                 }
 
-                if (payload.duration_seconds !== undefined && payload.duration_seconds !== null) {
-                    durationChip.textContent = `${Number(payload.duration_seconds).toFixed(1)}s`;
+                const durVal = payload.total_duration_sec ?? payload.duration_seconds;
+                if (durVal !== undefined && durVal !== null) {
+                    durationChip.textContent = `${Number(durVal).toFixed(1)}s`;
                 }
 
                 if (payload.status === "completed" || payload.status === "degraded" || payload.status === "failed") {
@@ -361,10 +369,86 @@ async function refreshPipelineStatus() {
                         await loadKnowledgeMap(selectedDocId);
                     }
                     if (payload.status === "failed") {
+                        updateHonestStatus("Failed", "failed");
                         setStatus("analysis-status", `Pipeline failed: ${payload.error || "unknown error"}`, "error");
                     }
                     clearInterval(monitorTimer);
                     monitorTimer = null;
+                }
+            } else if (payload && payload.status === "not_found") {
+                // Analyzed document disconnect recovery: query persisted analysis report
+                try {
+                    const reportRes = await fetch(`${API_BASE}/system/analysis-report/${encodeURIComponent(selectedDocId)}`);
+                    if (reportRes.ok) {
+                        const rep = await reportRes.json();
+                        if (rep && (rep.summary || rep.metrics || rep.stage_validations || rep.artifacts)) {
+                            const durVal = rep.total_duration_sec ?? (
+                                rep.started_at && rep.completed_at
+                                    ? Math.max(0, (new Date(rep.completed_at).getTime() - new Date(rep.started_at).getTime()) / 1000)
+                                    : null
+                            );
+
+                            const stageMap = {};
+                            const stagesList = rep.stages_completed && rep.stages_completed.length > 0
+                                ? rep.stages_completed
+                                : ["ingestion", "chunking", "embedding", "llm_analysis", "graph_building"];
+                            stagesList.forEach((s) => {
+                                stageMap[s] = { status: "completed", duration_sec: null };
+                            });
+                            if (rep.stage_validations && Array.isArray(rep.stage_validations)) {
+                                rep.stage_validations.forEach((sv) => {
+                                    stageMap[sv.stage] = {
+                                        status: sv.status || (sv.validation_passed ? "completed" : "completed"),
+                                        duration_sec: (sv.quality_metrics && sv.quality_metrics.duration_sec) ?? null,
+                                    };
+                                });
+                            }
+
+                            const isDegraded = rep.status === "degraded" || rep.analysis_mode === "deterministic_fallback";
+                            const syntheticPayload = {
+                                document_id: selectedDocId,
+                                status: rep.status || (rep.success ? "completed" : "failed"),
+                                analysis_mode: rep.analysis_mode || (isDegraded ? "deterministic_fallback" : "llm"),
+                                active_model: rep.active_model || "qwen3.5:4b",
+                                total_duration_sec: durVal,
+                                overall_progress: 100,
+                                stages: stageMap,
+                            };
+
+                            renderPipelineStatus(syntheticPayload);
+                            renderAnalysisReport(rep);
+
+                            const summary = document.getElementById("pipeline-summary");
+                            const modeChip = document.getElementById("status-mode");
+                            const modelChip = document.getElementById("status-model");
+                            const durationChip = document.getElementById("status-duration");
+
+                            summary.textContent = `${isDegraded ? "Degraded (Fallback)" : "Completed"} — 100%`;
+                            if (isDegraded) {
+                                modeChip.textContent = "Deterministic Fallback";
+                                document.getElementById("mode-chip").className = "status-chip mode-fallback";
+                                updateHonestStatus("Fallback Active", "fallback");
+                            } else {
+                                modeChip.textContent = "LLM Grounded";
+                                document.getElementById("mode-chip").className = "status-chip";
+                                updateHonestStatus("LLM Ready", "ready");
+                            }
+
+                            if (rep.active_model) modelChip.textContent = rep.active_model;
+                            if (durVal !== null && durVal !== undefined) {
+                                durationChip.textContent = `${Number(durVal).toFixed(1)}s`;
+                            }
+
+                            const analyzeBtn = document.getElementById("analyze-btn");
+                            analyzeBtn.disabled = false;
+                            analyzeBtn.textContent = "Re-run Full Analysis";
+
+                            const ragBtn = document.getElementById("rag-query-btn");
+                            if (ragBtn) ragBtn.disabled = false;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Failed to recover from analysis report:", e);
                 }
             }
         }
@@ -453,7 +537,7 @@ function renderConceptsTable(concepts) {
     tbody.innerHTML = "";
 
     if (!concepts || concepts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="muted text-center">No concepts loaded</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="muted text-center">No concepts loaded</td></tr>`;
         countBadge.textContent = "0 concepts";
         return;
     }
@@ -464,10 +548,21 @@ function renderConceptsTable(concepts) {
     tbody.innerHTML = sorted.map((c) => {
         const sections = (c.supporting_sections || []).slice(0, 3).map(s => `<span class="badge">${escapeHtml(s)}</span>`).join(" ");
         const definition = c.definition || c.context || "Identified recurring technical terminology.";
+
+        // Centrality calculation: degree and normalized centrality from knowledge map relations
+        const cName = (c.name || "").toLowerCase();
+        const degree = (currentKnowledgeMap?.relations || []).filter(r =>
+            (r.from_concept || "").toLowerCase() === cName || (r.to_concept || "").toLowerCase() === cName
+        ).length;
+        const totalOthers = Math.max(1, concepts.length - 1);
+        const normCentrality = (degree / totalOthers).toFixed(3);
+        const centralityDisplay = c.centrality !== undefined ? Number(c.centrality).toFixed(3) : `${normCentrality} (deg ${degree})`;
+
         return `
             <tr>
                 <td><strong>${escapeHtml(c.name)}</strong></td>
                 <td><span class="badge">${Number(c.frequency || 1)} occurrences</span></td>
+                <td><span class="confidence-score" title="Degree: ${degree}, Normalized: ${normCentrality}">${centralityDisplay}</span></td>
                 <td>${sections || '<span class="muted">Document Body</span>'}</td>
                 <td>${escapeHtml(definition)}</td>
             </tr>
@@ -493,13 +588,18 @@ function renderCandidateRelationsTable(relations) {
         const relType = r.relation_type || "explanation";
         const conf = Number(r.confidence || 0).toFixed(2);
         const evidence = r.evidence_text || r.description || "Inferred from co-occurrence in document context.";
+        const chunkId = r.source_chunk_id || (r.source_chunk_ids && r.source_chunk_ids[0]) || (r.chunk_ids && r.chunk_ids[0]);
+        const citation = chunkId ? `<div class="chunk-citation" title="Candidate relation source chunk citation">Chunk: ${escapeHtml(chunkId)}</div>` : "";
         return `
             <tr>
                 <td><strong>${escapeHtml(r.from_concept)}</strong></td>
                 <td><span class="relation-type-tag">${escapeHtml(relType)}</span></td>
                 <td><strong>${escapeHtml(r.to_concept)}</strong></td>
                 <td><span class="confidence-score">${conf}</span></td>
-                <td><em>${escapeHtml(evidence)}</em></td>
+                <td>
+                    <div><em>${escapeHtml(evidence)}</em></div>
+                    ${citation}
+                </td>
             </tr>
         `;
     }).join("");
@@ -519,10 +619,12 @@ function renderDocumentStructure(sections) {
     countBadge.textContent = `${sections.length} sections`;
     container.innerHTML = sections.map((sec) => {
         const points = (sec.key_points || []).map(p => `<li>${escapeHtml(p)}</li>`).join("");
+        const level = Math.max(1, parseInt(sec.level || 1, 10));
+        const indentPx = (level - 1) * 20;
         return `
-            <div class="structure-item">
+            <div class="structure-item level-${level}" style="margin-left: ${indentPx}px;">
                 <div class="structure-item-header">
-                    <span class="section-level-badge">L${sec.level || 1}</span>
+                    <span class="section-level-badge">L${level}</span>
                     <span class="structure-item-title">${escapeHtml(sec.title || "Untitled Section")}</span>
                 </div>
                 ${sec.summary ? `<div class="structure-item-summary">${escapeHtml(sec.summary)}</div>` : ""}
@@ -637,7 +739,8 @@ function renderPipelineStatus(payload) {
         timelineBody.innerHTML = `<tr><td colspan="5" class="muted text-center">No stage telemetry recorded</td></tr>`;
     } else {
         timelineBody.innerHTML = stageEntries.map(([name, s]) => {
-            const dur = s.duration_seconds !== undefined && s.duration_seconds !== null ? `${Number(s.duration_seconds).toFixed(2)}s` : "--";
+            const durVal = s.duration_sec ?? s.duration_seconds;
+            const dur = durVal !== undefined && durVal !== null ? `${Number(durVal).toFixed(2)}s` : "--";
             const inSize = s.input_size !== undefined && s.input_size !== null ? s.input_size : "--";
             const outSize = s.output_size !== undefined && s.output_size !== null ? s.output_size : (s.chunk_count || s.node_count || "--");
             const statusClass = s.status === "completed" ? "completed" : (s.status === "fallback" ? "fallback" : "pending");
@@ -890,14 +993,26 @@ function inspectNode(data) {
     title.textContent = nodeName;
     badge.textContent = `Type: ${data.type || "concept"}`;
 
-    const definition = data.definition || data.description || "No formal definition provided in chunk context.";
-    const occurrences = data.frequency ? `${data.frequency} occurrences` : "Identified in graph synthesis";
+    // Match selected node to currentKnowledgeMap.concepts
+    let matchedConcept = null;
+    if (currentKnowledgeMap && currentKnowledgeMap.concepts) {
+        matchedConcept = currentKnowledgeMap.concepts.find(c =>
+            (c.name && c.name.toLowerCase() === nodeName.toLowerCase()) ||
+            (c.id && c.id.toLowerCase() === (data.id || "").toLowerCase()) ||
+            (c.name && c.name.toLowerCase() === (data.id || "").toLowerCase())
+        );
+    }
+
+    const definition = (matchedConcept && matchedConcept.definition) || data.definition || data.description || "No formal definition provided in chunk context.";
+    const occurrences = (matchedConcept && matchedConcept.frequency) ? `${matchedConcept.frequency} occurrences` : (data.frequency ? `${data.frequency} occurrences` : "Identified in graph synthesis");
+    const supportingSections = (matchedConcept && matchedConcept.supporting_sections) || data.supporting_sections || [];
+    const chunkIds = (matchedConcept && matchedConcept.chunk_ids) || data.chunk_ids || [];
 
     // Find connected relations in currentKnowledgeMap
     let relationsHtml = "";
     if (currentKnowledgeMap && currentKnowledgeMap.relations) {
         const connected = currentKnowledgeMap.relations.filter(
-            r => r.from_concept.toLowerCase() === nodeName.toLowerCase() || r.to_concept.toLowerCase() === nodeName.toLowerCase()
+            r => (r.from_concept || "").toLowerCase() === nodeName.toLowerCase() || (r.to_concept || "").toLowerCase() === nodeName.toLowerCase()
         );
         if (connected.length > 0) {
             relationsHtml = `
@@ -915,9 +1030,22 @@ function inspectNode(data) {
         }
     }
 
+    // Source Grounding Citations
+    let citationsHtml = "";
+    if (supportingSections.length > 0 || chunkIds.length > 0) {
+        citationsHtml = `
+            <div class="inspector-citations" style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Source Grounding & Citations</div>
+                ${supportingSections.length > 0 ? `<div style="margin-bottom: 4px;"><strong>Sections:</strong> ${supportingSections.map(s => `<span class="badge" style="margin-right:4px;">${escapeHtml(s)}</span>`).join("")}</div>` : ""}
+                ${chunkIds.length > 0 ? `<div><strong>Source Chunks:</strong> ${chunkIds.map(cid => `<code class="chunk-citation" style="margin-right:4px;">${escapeHtml(cid)}</code>`).join("")}</div>` : ""}
+            </div>
+        `;
+    }
+
     body.innerHTML = `
         <p><strong>Definition & Context:</strong> ${escapeHtml(definition)}</p>
-        <p><strong>Frequency / Centrality:</strong> ${escapeHtml(occurrences)}</p>
+        <p><strong>Frequency / Occurrences:</strong> ${escapeHtml(occurrences)}</p>
+        ${citationsHtml}
         ${relationsHtml}
     `;
 }
@@ -1084,15 +1212,23 @@ async function refreshSystemStatus() {
                 dot.className = "status-indicator-dot error";
             }
 
-            if (hData.services && hData.services.llm) {
-                const llmState = hData.services.llm.state || hData.services.llm.status || "ready";
-                document.getElementById("llm-pill").textContent = `LLM: ${llmState}`;
+            const llmCheck = (hData.checks && hData.checks.llm_connectivity) || {};
+            const llmAvailable = llmCheck.available ?? (llmCheck.status === "healthy");
+
+            const modeText = document.getElementById("status-mode")?.textContent || "";
+            if (modeText.includes("Fallback")) {
+                updateHonestStatus("Fallback Active", "fallback");
+            } else if (!llmAvailable || llmCheck.status === "unhealthy") {
+                updateHonestStatus("LLM Degraded", "degraded");
+            } else {
+                updateHonestStatus("LLM Ready", "ready");
             }
         }
     } catch {
         const dot = document.getElementById("system-dot");
         if (dot) dot.className = "status-indicator-dot error";
         document.getElementById("health-pill").textContent = "System: offline";
+        updateHonestStatus("LLM Degraded", "degraded");
     }
 }
 
@@ -1138,11 +1274,33 @@ function renderAnalysisReport(report) {
     reportBox.textContent = JSON.stringify(report, null, 2);
 
     const metrics = report.metrics || {};
-    if (metrics.words) updateOverviewMetric("stat-words", metrics.words);
-    if (metrics.pages) updateOverviewMetric("stat-pages", metrics.pages);
-    if (metrics.chunks) updateOverviewMetric("stat-chunks", metrics.chunks);
-
+    const summary = report.summary || {};
     const artifacts = report.artifacts || {};
+
+    const words = metrics.words ?? artifacts.document?.word_count ?? selectedDoc?.word_count;
+    if (words !== undefined && words !== null) updateOverviewMetric("stat-words", words);
+
+    const pages = metrics.pages ?? artifacts.document?.page_count ?? selectedDoc?.page_count ?? selectedDoc?.pages;
+    if (pages !== undefined && pages !== null) updateOverviewMetric("stat-pages", pages);
+
+    const sections = metrics.sections ?? artifacts.summary?.section_count;
+    if (sections !== undefined && sections !== null) updateOverviewMetric("stat-sections", sections);
+
+    const chunks = metrics.chunks ?? artifacts.chunks?.count;
+    if (chunks !== undefined && chunks !== null) updateOverviewMetric("stat-chunks", chunks);
+
+    const concepts = metrics.concepts ?? summary.concept_count;
+    if (concepts !== undefined && concepts !== null) updateOverviewMetric("stat-concepts", concepts);
+
+    const relations = metrics.candidate_relations ?? metrics.relations ?? summary.relation_count;
+    if (relations !== undefined && relations !== null) updateOverviewMetric("stat-relations", relations);
+
+    const nodes = metrics.graph_nodes ?? summary.graph_nodes;
+    if (nodes !== undefined && nodes !== null) updateOverviewMetric("stat-nodes", nodes);
+
+    const edges = metrics.graph_edges ?? summary.graph_edges;
+    if (edges !== undefined && edges !== null) updateOverviewMetric("stat-edges", edges);
+
     renderDatasetStats({
         total_records: Number(artifacts.dataset_records || 0),
         exportFolder: artifacts.dataset_export ? "Exported to disk" : "Pending export",
@@ -1165,4 +1323,19 @@ function setStatus(elementId, message, type = "") {
     if (!el) return;
     el.textContent = message;
     el.className = `status-box ${type}`;
+}
+
+function updateHonestStatus(statusText, variant) {
+    const badge = document.getElementById("honest-status-badge");
+    const chip = document.getElementById("honest-chip");
+    const pill = document.getElementById("llm-pill");
+
+    if (badge) badge.textContent = statusText;
+    if (chip) {
+        chip.className = `status-chip honest-${variant || "ready"}`;
+    }
+    if (pill) {
+        pill.textContent = statusText;
+        pill.className = `status-pill ${variant || "ready"}`;
+    }
 }

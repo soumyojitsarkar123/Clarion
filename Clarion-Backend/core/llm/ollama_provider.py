@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 
 from core.llm.base import (
     BaseLLMProvider, LLMResponse, ModelInfo, ProviderType,
-    TokenUsage, LLMProviderError
+    TokenUsage, LLMProviderError, sanitize_llm_text
 )
 
 logger = logging.getLogger(__name__)
@@ -156,8 +156,7 @@ class OllamaProvider(BaseLLMProvider):
             elapsed_ms = (time.time() - start_time) * 1000
 
             content = response.choices[0].message.content
-            if content is None:
-                content = ""
+            content = sanitize_llm_text(content)
 
             return LLMResponse(
                 content=content,
@@ -220,17 +219,19 @@ Respond with ONLY the JSON object, no other text."""
             **kwargs
         )
 
+        clean_content = sanitize_llm_text(response.content)
+
         try:
             # Try to parse the response
-            result = json.loads(response.content)
+            result = json.loads(clean_content)
             return result
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {e}")
-            logger.debug(f"Raw response: {response.content}")
+            logger.debug(f"Raw response: {clean_content}")
             
             # Try to extract JSON from response
             import re
-            json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            json_match = re.search(r'\{.*\}', clean_content, re.DOTALL)
             if json_match:
                 try:
                     result = json.loads(json_match.group())

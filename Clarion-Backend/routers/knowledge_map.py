@@ -81,6 +81,8 @@ async def get_knowledge_map(document_id: str):
                     "relation_type": rel.relation_type.value,
                     "is_candidate": getattr(rel, "is_candidate", True),
                     "source_chunk_id": getattr(rel, "source_chunk_id", None) or (rel.source_chunk_ids[0] if getattr(rel, "source_chunk_ids", None) else (rel.chunk_ids[0] if getattr(rel, "chunk_ids", None) else None)),
+                    "source_chunk_ids": getattr(rel, "source_chunk_ids", []) or ([rel.source_chunk_id] if getattr(rel, "source_chunk_id", None) else []),
+                    "evidence_text": getattr(rel, "evidence_text", None),
                     "description": rel.description,
                     "confidence": rel.confidence
                 }

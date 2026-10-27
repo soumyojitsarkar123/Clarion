@@ -49,7 +49,11 @@
                     <span class="status-indicator-dot" id="system-dot"></span>
                     <span class="chip-value" id="health-pill">System: checking</span>
                 </div>
-                <span class="status-pill hidden" id="llm-pill">LLM: checking</span>
+                <div class="status-chip" id="honest-chip" title="Honest LLM & Execution State">
+                    <span class="chip-label">STATUS</span>
+                    <span class="chip-value" id="honest-status-badge">LLM: checking</span>
+                </div>
+                <span class="status-pill" id="llm-pill">LLM: checking</span>
             </div>
         </header>
 
@@ -216,15 +220,16 @@
                         <table class="data-table" id="concepts-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 22%;">Concept</th>
+                                    <th style="width: 20%;">Concept</th>
                                     <th style="width: 12%;">Frequency</th>
-                                    <th style="width: 26%;">Supporting Sections</th>
-                                    <th style="width: 40%;">Definition & Grounded Context</th>
+                                    <th style="width: 12%;">Centrality</th>
+                                    <th style="width: 22%;">Supporting Sections</th>
+                                    <th style="width: 34%;">Definition & Grounded Context</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="4" class="muted text-center">No concepts loaded</td>
+                                    <td colspan="5" class="muted text-center">No concepts loaded</td>
                                 </tr>
                             </tbody>
                         </table>

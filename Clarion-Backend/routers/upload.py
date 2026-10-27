@@ -80,7 +80,8 @@ async def list_documents():
                     "size": doc.metadata.file_size,
                     "status": doc.status,
                     "uploaded_at": doc.metadata.upload_time.isoformat(),
-                    "word_count": doc.metadata.word_count
+                    "word_count": doc.metadata.word_count,
+                    "page_count": getattr(doc.metadata, "page_count", None),
                 }
                 for doc in documents
             ]

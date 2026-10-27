@@ -22,7 +22,12 @@ from models.knowledge_map import (
 )
 from utils.config import settings
 from utils.sqlite import connect as sqlite_connect
-from core.evaluation.evidence_verifier import EvidenceVerifier
+from core.evaluation.evidence_verifier import (
+    EvidenceVerifier,
+    RELATION_INDICATOR_PATTERNS,
+    NEGATION_PATTERNS,
+)
+from core.llm.base import sanitize_llm_text
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +37,7 @@ _CONCEPT_STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "into", "your",
     "have", "has", "were", "was", "are", "our", "their", "which", "when",
     "where", "than", "also", "can", "will", "should", "could", "would",
-    "about", "after", "before", "between", "because", "using", "used",
+    "about", "after", "before", "between", "because", "using", "used", "based",
     "document", "section", "analysis", "system", "data", "model", "question",
     "questions", "attempt", "page", "pages", "marks", "mark", "each", "part",
     "answer", "subject", "code", "full", "semester", "stream", "paper",
@@ -44,6 +49,29 @@ _CONCEPT_STOPWORDS = {
     "copyright", "index", "preface", "foreword", "appendix", "acknowledgment",
     "acknowledgments", "contributor", "contributors", "reviewer", "reviewers",
     "isbn",
+    # Stopwords, discourse markers, determiners, adverbs, and front-matter tokens
+    "more", "there", "then", "such", "what", "other", "many", "most", "also", "same",
+    "much", "very", "well", "just", "even", "here", "how", "why", "who", "whom",
+    "whose", "while", "thus", "hence", "therefore", "however", "instead", "rather",
+    "either", "neither", "both", "all", "any", "every", "whether", "since",
+    "overall", "first", "second", "third", "one", "two", "three", "four", "five",
+    "six", "seven", "eight", "nine", "ten", "proceedings", "conference",
+    "international", "journal", "article", "symposium", "workshop", "problem",
+    "problems", "thing", "things", "item", "items", "way", "ways", "case", "cases",
+    "example", "examples", "like", "such as",
+}
+
+_CODE_VARIABLE_TOKENS = {
+    "dist", "col", "idx", "ptr", "arr", "val", "cnt", "tmp", "len", "pos",
+    "adj", "res", "num", "src", "dst", "row", "var", "arg", "param", "params",
+    "func", "def", "str", "nullptr", "bool", "char", "int", "void", "curr", "prev",
+    "next", "min", "max",
+}
+
+_FRAGMENT_END_VERBS = {
+    "represents", "describes", "controls", "provides", "shows", "indicates",
+    "contains", "involves", "requires", "includes", "determines", "gives",
+    "makes", "takes", "uses", "illustrates",
 }
 
 _GENERIC_CONCEPT_NAMES = {
@@ -98,6 +126,32 @@ _GENERIC_CONCEPT_NAMES = {
     "reviewers",
     "acknowledgment",
     "acknowledgments",
+    "more",
+    "there",
+    "then",
+    "such",
+    "what",
+    "other",
+    "many",
+    "most",
+    "proceedings",
+    "conference",
+    "international",
+    "problem",
+    "problems",
+    "item",
+    "items",
+    "thing",
+    "things",
+    "way",
+    "ways",
+    "case",
+    "cases",
+    "dist",
+    "row",
+    "col",
+    "row col",
+    "mst edges",
 }
 
 _ALLOWED_MULTIWORD_CONCEPTS = {
@@ -328,11 +382,11 @@ class LLMInterface:
         """
         if not self._is_service_available():
             return self._fallback_generate(prompt)
-        return self._call_api(prompt)
+        return sanitize_llm_text(self._call_api(prompt))
 
     def _extract_json_fragment(self, response: str) -> Optional[Any]:
         """Best-effort JSON extraction from noisy model output."""
-        text = (response or "").strip()
+        text = sanitize_llm_text(response or "")
         if not text:
             return None
 
@@ -973,8 +1027,9 @@ class KnowledgeMapService:
             ),
             reverse=True,
         )
+        min_score = 2 if len(chunks) > 3 else 1
         for phrase, score in ranked_phrases[:35]:
-            if score < 2:
+            if score < min_score and phrase not in _ALLOWED_MULTIWORD_CONCEPTS:
                 continue
             display_name = self._display_concept_name(phrase)
             normalized_name = display_name.lower()
@@ -1050,8 +1105,6 @@ class KnowledgeMapService:
                 if pair_key in seen_pairs:
                     continue
                 seen_pairs.add(pair_key)
-                confidence = min(0.45 + (0.08 * len(overlap)), 0.78)
-
                 # Ground candidate relation in textual evidence from overlapping chunks
                 overlap_chunks = [c for c in chunks if c.chunk_id in overlap]
                 ev_result = self.evidence_verifier.extract_evidence(
@@ -1060,6 +1113,53 @@ class KnowledgeMapService:
                     relation_type="explanation",
                     chunks=overlap_chunks,
                 )
+
+                # Conservative filtering: require genuine sentence-level co-occurrence within a single sentence
+                single_sentence_evidence = ""
+                for chunk in overlap_chunks:
+                    for s in self.evidence_verifier.split_sentences(chunk.content):
+                        s_lower = s.lower()
+                        if a.lower() in s_lower and b.lower() in s_lower:
+                            single_sentence_evidence = s
+                            break
+                    if single_sentence_evidence:
+                        break
+
+                if not single_sentence_evidence:
+                    continue
+
+                # Check for explicit contradiction/negation in evidence sentence
+                if any(neg.search(single_sentence_evidence) for neg in NEGATION_PATTERNS):
+                    continue
+
+                # Infer specific relation type from lexical indicator patterns (structural/causal before generic definition)
+                inferred_rel_type = RelationType.EXPLANATION
+                priority_types = [
+                    "part-of",
+                    "cause-effect",
+                    "prerequisite",
+                    "example-of",
+                    "derives-from",
+                    "similar-to",
+                    "definition",
+                ]
+                for r_type in priority_types:
+                    patterns = RELATION_INDICATOR_PATTERNS.get(r_type, [])
+                    matched = False
+                    for pat in patterns:
+                        if re.search(pat, single_sentence_evidence, re.IGNORECASE):
+                            try:
+                                inferred_rel_type = RelationType(r_type)
+                                matched = True
+                                break
+                            except ValueError:
+                                pass
+                    if matched:
+                        break
+
+                lex_score = ev_result.lexical_support_score
+                confidence = round(min(0.40 + (0.10 * min(len(overlap), 3)) + (0.35 * max(lex_score, 0.2)), 0.85), 3)
+
                 primary_chunk_id = overlap_chunks[0].chunk_id if overlap_chunks else None
                 all_source_ids = [c.chunk_id for c in overlap_chunks]
 
@@ -1069,11 +1169,11 @@ class KnowledgeMapService:
                         from_concept=a,
                         to_concept=b,
                         relation_type=RelationType.EXPLANATION,
-                        description="Candidate semantic relation inferred from co-occurrence in document body.",
-                        confidence=round(confidence, 3),
-                        evidence_text=ev_result.best_sentence if ev_result.best_sentence else None,
+                        description=f"Candidate semantic relation inferred from sentence co-occurrence and lexical support ({inferred_rel_type.value}).",
+                        confidence=confidence,
+                        evidence_text=single_sentence_evidence,
                         signal_scores={
-                            "cooccurrence": round(confidence, 3),
+                            "cooccurrence": confidence,
                             "lexical_support": ev_result.lexical_support_score,
                         },
                         is_candidate=True,
@@ -1225,9 +1325,11 @@ class KnowledgeMapService:
         return aliases.get(normalized, normalized)
 
     def _is_valid_concept_name(self, phrase: str) -> bool:
-        """Reject OCR fragments, instructions, and sentence-like strings."""
+        """Reject OCR fragments, instructions, code variables, duplicate n-grams, and sentence-like strings."""
         if not phrase:
             return False
+        if phrase in _ALLOWED_MULTIWORD_CONCEPTS:
+            return True
         compact = phrase.replace(" ", "")
         if len(compact) < 4 or len(compact) > 40:
             return False
@@ -1242,20 +1344,36 @@ class KnowledgeMapService:
             return False
         if any(len(word) < 3 for word in words):
             return False
-        if len(words) == 1 and words[0] in _CONCEPT_STOPWORDS:
+        if words[-1] in _FRAGMENT_END_VERBS:
+            return False
+
+        # Reject duplicate words in n-grams (e.g. 'edge dist dist', 'edge dist edge')
+        if len(words) > 1 and len(words) != len(set(words)):
+            return False
+
+        # Reject code variable tokens and malformed code n-grams (e.g. 'dist', 'row col', 'edge dist')
+        if any(word in _CODE_VARIABLE_TOKENS for word in words):
+            return False
+
+        # Reject single-word concepts matching stopwords or generic filler
+        if len(words) == 1 and (words[0] in _CONCEPT_STOPWORDS or words[0] in _GENERIC_CONCEPT_NAMES):
             return False
         if len(words) == 1 and self._is_generic_unigram(words[0]):
             return False
         if len(words) == 1 and len(words[0]) < 4:
             return False
+
+        # Reject multiword concepts starting or ending with stopwords
         if len(words) > 1 and (words[0] in _CONCEPT_STOPWORDS or words[-1] in _CONCEPT_STOPWORDS):
             return False
-        if (
-            len(words) > 1
-            and phrase not in _ALLOWED_MULTIWORD_CONCEPTS
-            and (self._is_generic_unigram(words[0]) or self._is_generic_unigram(words[-1]))
-        ):
-            return False
+
+        # Reject multiword concepts containing generic concept names unless whitelisted
+        if len(words) > 1 and phrase not in _ALLOWED_MULTIWORD_CONCEPTS:
+            if any(w in _GENERIC_CONCEPT_NAMES for w in words):
+                return False
+            if self._is_generic_unigram(words[0]) or self._is_generic_unigram(words[-1]):
+                return False
+
         alpha_only = "".join(words)
         vowel_count = sum(ch in "aeiou" for ch in alpha_only.lower())
         if vowel_count < max(1, len(alpha_only) * 0.18):
@@ -1315,13 +1433,35 @@ class KnowledgeMapService:
             source_map[phrase].append(chunk_id)
 
     def _is_redundant_concept(self, concept_name: str, selected_names: Sequence[str]) -> bool:
-        """Suppress generic one-word concepts when a stronger phrase already exists."""
+        """Suppress generic one-word concepts when a stronger phrase already exists, or singular/plural duplicates."""
         lower_name = concept_name.lower()
         lower_words = set(lower_name.split())
+
+        def _stem(w: str) -> str:
+            if w.endswith("ies") and len(w) > 4:
+                return w[:-3] + "y"
+            if w.endswith("es") and len(w) > 4:
+                if w.endswith(("ches", "shes", "sses", "xes", "zes")):
+                    return w[:-2]
+                return w[:-1]
+            if w.endswith("s") and not w.endswith("ss") and len(w) > 2:
+                return w[:-1]
+            return w
+
+        name_stem = " ".join(_stem(w) for w in lower_name.split())
+        name_stripped = " ".join(w.rstrip("s") for w in lower_name.split())
+
         for existing in selected_names:
             existing_lower = existing.lower()
             existing_words = set(existing_lower.split())
-            if lower_name == existing_lower:
+            existing_stem = " ".join(_stem(w) for w in existing_lower.split())
+            existing_stripped = " ".join(w.rstrip("s") for w in existing_lower.split())
+
+            if (
+                lower_name == existing_lower
+                or name_stem == existing_stem
+                or name_stripped == existing_stripped
+            ):
                 return True
             if len(lower_words) == 1 and lower_words.issubset(existing_words):
                 return True
@@ -1364,14 +1504,20 @@ class KnowledgeMapService:
     def _is_generic_unigram(self, word: str) -> bool:
         """Reject common academic filler words, generic unigrams, and standalone names."""
         word = word.lower()
-        return word in _GENERIC_CONCEPT_NAMES or word in {
-            "question", "random", "possible", "following", "given", "find",
-            "define", "explain", "state", "show", "meaning", "sampled",
-            "size", "time", "value", "normal", "error", "type", "taken",
-            "drawn", "replacement", "without", "some", "these", "those",
-            "each", "part", "total", "point", "case", "way", "need",
-            "form", "item", "term", "good", "great", "john", "david", "peter",
-        }
+        return (
+            word in _GENERIC_CONCEPT_NAMES
+            or word in _CONCEPT_STOPWORDS
+            or word in _CODE_VARIABLE_TOKENS
+            or word in {
+                "question", "random", "possible", "following", "given", "find",
+                "define", "explain", "state", "show", "meaning", "sampled",
+                "size", "time", "value", "normal", "error", "type", "taken",
+                "drawn", "replacement", "without", "some", "these", "those",
+                "each", "part", "total", "point", "case", "way", "need",
+                "form", "item", "term", "good", "great", "john", "david", "peter",
+                "more", "there", "then", "such", "what", "other", "many", "most", "same",
+            }
+        )
 
     def _is_instruction_phrase(self, lowered_text: str) -> bool:
         """Reject layout and instruction phrases from concept extraction."""

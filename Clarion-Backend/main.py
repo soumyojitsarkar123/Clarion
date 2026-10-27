@@ -36,7 +36,25 @@ async def lifespan(app: FastAPI):
     setup_logging(log_level="INFO", log_file=str(settings.logs_dir / "clarion.log"))
     logger = logging.getLogger(__name__)
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    logger.info("Canonical database path: %s", settings.get_db_path())
+    logger.info("Canonical data directory: %s", settings.data_dir)
     logger.info("Embedding device resolved to %s", resolved_device)
+    try:
+        llm = get_llm_interface()
+        llm_available = llm._is_service_available()
+        provider_name = settings.llm_provider.capitalize()
+        model_display = f"{provider_name} ({llm.model})" if llm_available else "Demo (Fallback)"
+        fallback_status = "active (deterministic fallback)" if not llm_available else "inactive (live LLM active)"
+        logger.info(
+            "Startup Diagnostic: DB=%s | Provider=%s | Model=%s | LLM Status=%s | Fallback=%s",
+            settings.get_db_path(),
+            provider_name,
+            model_display,
+            "available" if llm_available else "unavailable",
+            fallback_status,
+        )
+    except Exception as exc:
+        logger.warning("Startup Diagnostic: LLM probe encountered: %s", exc)
     yield
     logger.info("Application shutdown")
 
@@ -142,7 +160,11 @@ async def system_status():
                 "model": f"{provider_name} ({llm.model})" if llm_available else "Demo",
                 "provider": provider_name,
             },
-            "database": "ok",
+            "database": {
+                "status": "ok",
+                "canonical_path": str(settings.get_db_path()),
+                "exists": settings.get_db_path().exists(),
+            },
             "embeddings": "ready",
             "graph_engine": "ready",
         },
@@ -164,6 +186,28 @@ async def system_status():
             "memory_mb": round(memory_mb, 2),
             "cpu_percent": cpu_percent,
         },
+    }
+
+
+@app.get("/system/runtime-diagnostic")
+async def runtime_diagnostic():
+    """Startup & runtime diagnostic reporting resolved paths and model/fallback state."""
+    llm = get_llm_interface()
+    llm_available = llm._is_service_available()
+    provider_name = settings.llm_provider.capitalize()
+    return {
+        "status": "ok",
+        "app_name": settings.app_name,
+        "app_version": settings.app_version,
+        "canonical_database_path": str(settings.get_db_path()),
+        "canonical_data_dir": str(settings.data_dir),
+        "database_exists": settings.get_db_path().exists(),
+        "llm_provider": provider_name,
+        "llm_model": llm.model if llm_available else "fallback",
+        "llm_status": "available" if llm_available else "unavailable",
+        "fallback_mode": not llm_available,
+        "embedding_model": settings.embedding_model_name,
+        "embedding_device": settings.embedding_device_actual or settings.embedding_device,
     }
 
 

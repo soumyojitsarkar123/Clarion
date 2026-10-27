@@ -1,0 +1,291 @@
+{
+  "benchmark_timestamp": "2026-10-09T08:43:14.305397+00:00",
+  "document": {
+    "id": "53faa553-512e-42cf-9a5d-c3559c8fa170",
+    "filename": "AI_Book.pdf",
+    "file_size_bytes": 21133797,
+    "page_count": 1151,
+    "word_count": 552827,
+    "text_length_chars": 3466453
+  },
+  "chunking": {
+    "total_chunks": 1544,
+    "sections_detected": 1537,
+    "min_words": 100,
+    "mean_words": 371.49,
+    "max_words": 633,
+    "micro_chunks_lt_100": 0,
+    "micro_chunks_lt_100_pct": 0.0,
+    "micro_chunks_lt_20": 0,
+    "micro_chunks_lt_20_pct": 0.0,
+    "chunk_distribution": {
+      "1-19 words (micro)": 0,
+      "20-49 words (short)": 0,
+      "50-99 words (sub-target)": 0,
+      "100-249 words (moderate)": 432,
+      "250-499 words (full)": 518,
+      "500+ words (overflow)": 594
+    },
+    "duration_sec": 3.2
+  },
+  "embedding_caching": {
+    "sample_size": 100,
+    "cold_hits": 0,
+    "cold_misses": 100,
+    "cold_duration_sec": 112.843,
+    "cold_throughput_chunks_sec": 0.886,
+    "warm_hits": 100,
+    "warm_misses": 0,
+    "warm_duration_sec": 0.04256,
+    "warm_throughput_chunks_sec": 2349.6,
+    "speedup_factor": 2651.4,
+    "vector_dimension": 1024,
+    "model_name": "BAAI/bge-large-en-v1.5",
+    "round_trip_max_error": 0.0,
+    "hash_keying_verified": true
+  },
+  "pipeline": {
+    "status": "degraded",
+    "analysis_mode": "deterministic_fallback",
+    "active_model": "qwen3.5:4b",
+    "total_duration_sec": 31.13,
+    "stages_completed": [
+      "ingestion",
+      "chunking",
+      "mapping",
+      "graph_building",
+      "evaluation",
+      "hierarchy"
+    ],
+    "skipped_stages": [
+      "embedding"
+    ],
+    "llm_state": "LLM_UNAVAILABLE / FALLBACK_USED",
+    "fallback_reason": "Ollama connection refused on localhost:11434 [Errno 111]",
+    "summary_prefix": "Deterministic fallback analysis: "
+  },
+  "classification_summary": {
+    "document_type": "textbook",
+    "overall_summary": "Deterministic fallback analysis: This document is a comprehensive textbook focused on then, problem, proceedings, and such. The main themes developed across the chapters include then, problem, proceedings, such, and figure. Bibliography The following abbreviations are used for frequently cited conferences and journals: AAAI Proceedings of the AAAI Confer ence on Arti\ufb01cial Intelligence AAMAS Proceedings of the International Conference on.",
+    "sections_count": 887
+  },
+  "knowledge_map": {
+    "concept_count": 12,
+    "concepts": [
+      {
+        "name": "More",
+        "frequency": 25,
+        "degree": 11,
+        "norm_centrality": 1.0,
+        "supporting_sections": [
+          "Chapter 25. Robotics",
+          "Chapter 2. Intelligent Agents",
+          "Chapter 18. Learning from Examples"
+        ]
+      },
+      {
+        "name": "There",
+        "frequency": 25,
+        "degree": 11,
+        "norm_centrality": 1.0,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 10. Classical Planning",
+          "A simple knowledge base"
+        ]
+      },
+      {
+        "name": "Then",
+        "frequency": 25,
+        "degree": 11,
+        "norm_centrality": 1.0,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 2. Intelligent Agents",
+          "Chapter 18. Learning from Examples"
+        ]
+      },
+      {
+        "name": "Probability",
+        "frequency": 22,
+        "degree": 11,
+        "norm_centrality": 1.0,
+        "supporting_sections": [
+          "Chapter 2. Intelligent Agents",
+          "Chapter 18. Learning from Examples",
+          "Chapter 15. Probabilistic Reasoning over Time"
+        ]
+      },
+      {
+        "name": "What",
+        "frequency": 20,
+        "degree": 6,
+        "norm_centrality": 0.545,
+        "supporting_sections": [
+          "Chapter 2. Intelligent Agents",
+          "Chapter 18. Learning from Examples",
+          "Chapter 15. Probabilistic Reasoning over Time"
+        ]
+      },
+      {
+        "name": "Function",
+        "frequency": 19,
+        "degree": 5,
+        "norm_centrality": 0.455,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 2. Intelligent Agents",
+          "Chapter 18. Learning from Examples"
+        ]
+      },
+      {
+        "name": "Actions",
+        "frequency": 20,
+        "degree": 5,
+        "norm_centrality": 0.455,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 10. Classical Planning",
+          "Chapter 2. Intelligent Agents"
+        ]
+      },
+      {
+        "name": "Such",
+        "frequency": 17,
+        "degree": 4,
+        "norm_centrality": 0.364,
+        "supporting_sections": [
+          "Chapter 25. Robotics",
+          "Chapter 10. Classical Planning",
+          "Chapter 2. Intelligent Agents"
+        ]
+      },
+      {
+        "name": "Other",
+        "frequency": 15,
+        "degree": 4,
+        "norm_centrality": 0.364,
+        "supporting_sections": [
+          "Chapter 25. Robotics",
+          "Chapter 18. Learning from Examples",
+          "Chapter 15. Probabilistic Reasoning over Time"
+        ]
+      },
+      {
+        "name": "Action",
+        "frequency": 17,
+        "degree": 4,
+        "norm_centrality": 0.364,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 10. Classical Planning",
+          "Chapter 2. Intelligent Agents"
+        ]
+      },
+      {
+        "name": "Search",
+        "frequency": 16,
+        "degree": 4,
+        "norm_centrality": 0.364,
+        "supporting_sections": [
+          "The erratic vacuum world",
+          "Chapter 10. Classical Planning",
+          "I MPERFECT REAL-TIMEDECISIONS"
+        ]
+      },
+      {
+        "name": "Information",
+        "frequency": 18,
+        "degree": 4,
+        "norm_centrality": 0.364,
+        "supporting_sections": [
+          "Chapter 14. Probabilistic Reasoning",
+          "Chapter 18. Learning from Examples",
+          "Chapter 25. Robotics"
+        ]
+      }
+    ],
+    "relation_count": 40,
+    "candidate_relations_sample": [
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "There",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Then",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "1786d132-06a3-4008-9486-fdb9ebad12b6"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Probability",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "What",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Function",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Actions",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Such",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "530db29f-22e8-42fc-ba72-768225e15753"
+      },
+      {
+        "from": "More",
+        "type": "explanation",
+        "to": "Other",
+        "confidence": 0.78,
+        "is_candidate": true,
+        "source_chunk_id": "728c0ac6-29c5-4567-94c2-8c3b599de3a4"
+      }
+    ]
+  },
+  "graph": {
+    "node_count": 19,
+    "edge_count": 58,
+    "density": 0.1696
+  },
+  "metrics_deck": {
+    "words": 552827,
+    "pages": 1151,
+    "sections": 887,
+    "chunks": 1544,
+    "concepts": 12,
+    "candidate_relations": 40,
+    "graph_nodes": 19,
+    "graph_edges": 58
+  }
+}

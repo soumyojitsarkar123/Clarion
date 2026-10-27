@@ -69,9 +69,9 @@ async def analyze_document(document_id: str, request: Optional[AnalyzeRequest] =
                 "message": "Document has already been fully analyzed",
             }
 
-        if not document.text_content:
+        if not document.text_content or not document.text_content.strip():
             raise HTTPException(
-                status_code=400, detail="Document has no text content to analyze"
+                status_code=400, detail="Document text content is empty or NULL"
             )
 
         skip_stages = []

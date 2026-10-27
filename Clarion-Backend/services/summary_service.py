@@ -18,7 +18,7 @@ from utils.config import settings
 logger = logging.getLogger(__name__)
 
 _STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "between", "by", "can", "carries",
+    "a", "an", "and", "are", "as", "at", "be", "between", "by", "but", "can", "carries",
     "does", "each", "for", "from", "given", "has", "have", "how", "if", "in", "into",
     "is", "it", "its", "more", "most", "not", "of", "on", "only", "or", "that", "the",
     "their", "them", "these", "this", "those", "through", "to", "using", "was", "what",
@@ -33,6 +33,14 @@ _STOPWORDS = {
     "construct", "support", "set", "drawn", "taken", "shows", "show", "using",
     "acceptable", "obtained", "randomly", "would", "given", "question", "questions",
     "suppose",
+    # Additional generic discourse markers, stopwords, and front-matter fillers
+    "then", "there", "such", "other", "many", "most", "also", "well", "very", "much",
+    "proceedings", "conference", "international", "journal", "figure", "figures",
+    "table", "tables", "problem", "problems", "approach", "first", "second", "third",
+    "one", "two", "three", "four", "new", "overall", "since", "here", "thus", "hence",
+    "therefore", "however", "instead", "rather", "whether", "whereas", "meanwhile",
+    "nevertheless", "though", "although", "even", "just", "either", "neither", "both",
+    "all", "any", "every",
 }
 
 _SUMMARY_GENERIC_TOPICS = {
@@ -49,6 +57,28 @@ _SUMMARY_GENERIC_TOPICS = {
     "text",
     "summary",
     "paper",
+    "then",
+    "there",
+    "such",
+    "more",
+    "other",
+    "many",
+    "most",
+    "proceedings",
+    "conference",
+    "figure",
+    "figures",
+    "table",
+    "tables",
+    "problem",
+    "problems",
+    "approach",
+    "item",
+    "items",
+    "thing",
+    "things",
+    "way",
+    "ways",
 }
 
 
@@ -465,7 +495,8 @@ class SummaryService:
     def _prepare_text_for_analysis(self, text: str) -> str:
         """Normalize raw chunk text for extractive summarization."""
         lines = []
-        for raw_line in (text or "").splitlines():
+        raw_parts = re.split(r"(?<=[.!?])\s+|\n+", text or "")
+        for raw_line in raw_parts:
             line = self._clean_sentence(raw_line)
             if self._should_skip_line(line):
                 continue
@@ -509,7 +540,9 @@ class SummaryService:
         markers = (
             "thank the following", "grateful to", "acknowledges the", "contributions of",
             "editorial board", "reviewers:", "credits:", "printed in", "all rights reserved",
-            "isbn", "published by", "preface to the", "edition was published"
+            "isbn", "published by", "preface to the", "edition was published",
+            "bibliography", "abbreviations are used", "abbreviations used", "frequently cited",
+            "proceedings of the", "conference on", "in press", "dissertation", "thesis"
         )
         return any(m in lowered for m in markers)
 
@@ -665,14 +698,15 @@ class SummaryService:
             return True
         if re.fullmatch(r"part\s*[-:]?\s*[a-z0-9]+", lowered):
             return True
-        if self._looks_like_instruction(lowered):
+        if sum(c in "┌─│└├┤┬┴┼═║╔╗╚╝━" for c in line) > 1:
             return True
         alpha_count = sum(char.isalpha() for char in line)
         digit_count = sum(char.isdigit() for char in line)
-        weird_count = sum(not (char.isalnum() or char.isspace() or char in ".,;:!?()%/-'\"") for char in line)
+        allowed_math = ".,;:!?()%/-+=<>[]{}|*&^~_$#@≥≤≠≈→←·×°±√∞∑∏∫∂'\""
+        weird_count = sum(not (char.isalnum() or char.isspace() or char in allowed_math or ord(char) > 0x370) for char in line)
         if alpha_count < 3 and digit_count > 0:
             return True
-        if weird_count > max(2, len(line) * 0.05):
+        if weird_count > max(2, len(line) * 0.08):
             return True
         return False
 

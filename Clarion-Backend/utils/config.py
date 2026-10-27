@@ -10,6 +10,11 @@ except ImportError:  # pragma: no cover
 from pathlib import Path
 from typing import Optional, Literal
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
+
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+CANONICAL_DATA_DIR = BACKEND_ROOT / "data"
+CANONICAL_LOGS_DIR = BACKEND_ROOT / "logs"
 
 
 def get_best_device() -> str:
@@ -31,13 +36,32 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Paths
-    data_dir: Path = Path("./data")
-    vectorstore_dir: Path = Path("./data/vectorstore")
-    logs_dir: Path = Path("./logs")
-    dataset_dir: Path = Path("./data/datasets")
+    data_dir: Path = CANONICAL_DATA_DIR
+    vectorstore_dir: Path = CANONICAL_DATA_DIR / "vectorstore"
+    logs_dir: Path = CANONICAL_LOGS_DIR
+    dataset_dir: Path = CANONICAL_DATA_DIR / "datasets"
 
     # Database
-    database_url: str = "sqlite:///./data/clarion.db"
+    database_url: str = f"sqlite:///{CANONICAL_DATA_DIR / 'clarion.db'}"
+
+    @model_validator(mode="after")
+    def resolve_canonical_paths(self) -> "Settings":
+        """Anchor relative paths to BACKEND_ROOT to ensure consistent runtime across launch CWDs."""
+        if not self.data_dir.is_absolute():
+            self.data_dir = (BACKEND_ROOT / self.data_dir).resolve()
+        if not self.vectorstore_dir.is_absolute():
+            self.vectorstore_dir = self.data_dir / "vectorstore"
+        if not self.logs_dir.is_absolute():
+            self.logs_dir = (BACKEND_ROOT / self.logs_dir).resolve()
+        if not self.dataset_dir.is_absolute():
+            self.dataset_dir = self.data_dir / "datasets"
+        if "sqlite:///./data/clarion.db" in self.database_url or self.database_url.startswith("sqlite:///./"):
+            self.database_url = f"sqlite:///{self.data_dir / 'clarion.db'}"
+        return self
+
+    def get_db_path(self) -> Path:
+        """Return the resolved filesystem path to clarion.db."""
+        return self.data_dir / "clarion.db"
 
     # Embedding Model
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
@@ -74,7 +98,7 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3.5:4b"
     ollama_api_base: str = "http://localhost:11434/v1"
     ollama_health_timeout_seconds: float = 2.0
-    ollama_request_timeout_seconds: int = 30
+    ollama_request_timeout_seconds: int = 180
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2000
 

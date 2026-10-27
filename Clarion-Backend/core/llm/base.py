@@ -2,10 +2,25 @@
 Base LLM Provider - Abstract interface for LLM implementations.
 """
 
+import re
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from pydantic import BaseModel, Field
+
+THINK_TAG_REGEX = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
+
+
+def sanitize_llm_text(text: Optional[str]) -> str:
+    """
+    Sanitize model output by stripping reasoning tokens (<think>...</think>)
+    and trimming surrounding whitespace.
+    """
+    if not text:
+        return ""
+    cleaned = THINK_TAG_REGEX.sub("", str(text))
+    return cleaned.strip()
+
 
 
 class LLMRuntimeState(str, Enum):
