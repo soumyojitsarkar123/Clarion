@@ -1,0 +1,274 @@
+ M Clarion-Backend/.env.example
+ M Clarion-Backend/core/llm/base.py
+ M Clarion-Backend/core/llm/ollama_provider.py
+ M Clarion-Backend/models/response.py
+ M Clarion-Backend/reports/ENGINEERING_VALIDATION_REPORT.md
+ M Clarion-Backend/reports/RESEARCH_EXPERIMENT_REPORT.md
+ M Clarion-Backend/routers/dataset_factory.py
+ M Clarion-Backend/routers/query.py
+ M Clarion-Backend/routers/system.py
+ M Clarion-Backend/routers/upload.py
+ M Clarion-Backend/services/background_service.py
+ M Clarion-Backend/services/chunking_service.py
+ M Clarion-Backend/services/dataset_factory_service.py
+ M Clarion-Backend/services/embedding_service.py
+ M Clarion-Backend/services/knowledge_map_service.py
+ M Clarion-Backend/services/pipeline_observability.py
+ M Clarion-Backend/services/processing_pipeline.py
+ M Clarion-Backend/services/retrieval_service.py
+ M Clarion-Backend/services/summary_service.py
+ M Clarion-Backend/tests/conftest.py
+ M Clarion-Backend/tests/test_annotation_ui.py
+ M Clarion-Backend/tests/test_api.py
+ M Clarion-Backend/tests/test_chunking_service.py
+ M Clarion-Backend/tests/test_document_intelligence_overhaul.py
+ M Clarion-Backend/tests/test_m3_fallback_quality.py
+ M Clarion-Backend/utils/config.py
+ M Clarion-Backend/utils/file_handler.py
+ M Clarion-Backend/utils/sqlite.py
+ M GATE_STATUS.md
+ M PROJECT.md
+ M appendix_report.md
+ D docs/AI_BOOK_BASELINE.md
+ D docs/AI_BOOK_MILESTONE2_TELEMETRY.json
+ D docs/AI_BOOK_MILESTONE2_TELEMETRY.md
+ D docs/milestone2_acceptance_report.md
+ D docs/milestone4_1_acceptance_report.md
+ D docs/milestone4_acceptance_report.md
+ M frontend/app.js
+ M frontend/index.html
+ M frontend/styles.css
+ M scripts/verify_frontend_e2e_contracts.py
+?? .claude/settings.local.json
+?? BACKEND_REGRESSION_FINAL_REPORT.md
+?? BACKEND_VERIFICATION_REPORT.md
+?? BGE_MODEL_VALIDATION_REPORT.md
+?? CLARION_CURRENT_STATUS.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/BACKEND_REGRESSION_FINAL_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/CLARION_CURRENT_STATUS.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/DATASET_GENERATION_RELIABILITY_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/FINAL_AUDIT_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/FIX_LOG.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/FRONTEND_TIMELINE_VERIFICATION.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/LATENCY_VALIDATION_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/MANUSCRIPT_STATUS_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/OLLAMA_PERFORMANCE_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/PIPELINE_TELEMETRY_SCHEMA.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/PIPELINE_TIMELINE_AUDIT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/RESEARCH_EXPERIMENT_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/SUBMISSION_READINESS_CHECKLIST.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_2026-11-11/WORKTREE_RECOVERY_REPORT.md
+?? CLARION_DOCUMENTATION_CONSOLIDATION_ZIP_INTEGRITY.txt
+?? Clarion-Backend/.pytest-tmp-live-elevated/test_live_ollama_reasoning_supcurrent
+?? Clarion-Backend/.pytest-tmp-live-elevated/test_live_ollama_structured_jscurrent
+?? Clarion-Backend/.pytest-tmp/test_live_ollama_reasoning_supcurrent
+?? Clarion-Backend/.pytest-tmp/test_live_ollama_structured_jscurrent
+?? Clarion-Backend/.venv-recovery/Scripts/Activate.ps1
+?? Clarion-Backend/.venv-recovery/Scripts/activate
+?? Clarion-Backend/.venv-recovery/Scripts/activate.bat
+?? Clarion-Backend/.venv-recovery/Scripts/deactivate.bat
+?? Clarion-Backend/.venv-recovery/Scripts/dotenv.exe
+?? Clarion-Backend/.venv-recovery/Scripts/f2py.exe
+?? Clarion-Backend/.venv-recovery/Scripts/fastapi.exe
+?? Clarion-Backend/.venv-recovery/Scripts/fonttools.exe
+?? Clarion-Backend/.venv-recovery/Scripts/hf.exe
+?? Clarion-Backend/.venv-recovery/Scripts/httpx.exe
+?? Clarion-Backend/.venv-recovery/Scripts/httpx2.exe
+?? Clarion-Backend/.venv-recovery/Scripts/idna.exe
+?? Clarion-Backend/.venv-recovery/Scripts/isympy.exe
+?? Clarion-Backend/.venv-recovery/Scripts/markdown-it.exe
+?? Clarion-Backend/.venv-recovery/Scripts/normalizer.exe
+?? Clarion-Backend/.venv-recovery/Scripts/numpy-config.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pip.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pip3.12.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pip3.exe
+?? Clarion-Backend/.venv-recovery/Scripts/py.test.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pyftmerge.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pyftsubset.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pygmentize.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pytest.exe
+?? Clarion-Backend/.venv-recovery/Scripts/python.exe
+?? Clarion-Backend/.venv-recovery/Scripts/pythonw.exe
+?? Clarion-Backend/.venv-recovery/Scripts/tiny-agents.exe
+?? Clarion-Backend/.venv-recovery/Scripts/torchfrtrace.exe
+?? Clarion-Backend/.venv-recovery/Scripts/torchrun.exe
+?? Clarion-Backend/.venv-recovery/Scripts/tqdm.exe
+?? Clarion-Backend/.venv-recovery/Scripts/transformers.exe
+?? Clarion-Backend/.venv-recovery/Scripts/ttx.exe
+?? Clarion-Backend/.venv-recovery/Scripts/typer.exe
+?? Clarion-Backend/.venv-recovery/Scripts/uvicorn.exe
+?? Clarion-Backend/.venv-recovery/Scripts/watchfiles.exe
+?? Clarion-Backend/.venv-recovery/Scripts/websockets.exe
+?? Clarion-Backend/.venv-recovery/pyvenv.cfg
+?? Clarion-Backend/.venv-recovery/share/man/man1/isympy.1
+?? Clarion-Backend/.venv-recovery/share/man/man1/ttx.1
+?? Clarion-Backend/.venv-validation/Scripts/Activate.ps1
+?? Clarion-Backend/.venv-validation/Scripts/activate
+?? Clarion-Backend/.venv-validation/Scripts/activate.bat
+?? Clarion-Backend/.venv-validation/Scripts/deactivate.bat
+?? Clarion-Backend/.venv-validation/Scripts/dotenv.exe
+?? Clarion-Backend/.venv-validation/Scripts/f2py.exe
+?? Clarion-Backend/.venv-validation/Scripts/fastapi.exe
+?? Clarion-Backend/.venv-validation/Scripts/fonttools.exe
+?? Clarion-Backend/.venv-validation/Scripts/hf.exe
+?? Clarion-Backend/.venv-validation/Scripts/httpx.exe
+?? Clarion-Backend/.venv-validation/Scripts/httpx2.exe
+?? Clarion-Backend/.venv-validation/Scripts/idna.exe
+?? Clarion-Backend/.venv-validation/Scripts/isympy.exe
+?? Clarion-Backend/.venv-validation/Scripts/markdown-it.exe
+?? Clarion-Backend/.venv-validation/Scripts/normalizer.exe
+?? Clarion-Backend/.venv-validation/Scripts/numpy-config.exe
+?? Clarion-Backend/.venv-validation/Scripts/pip.exe
+?? Clarion-Backend/.venv-validation/Scripts/pip3.12.exe
+?? Clarion-Backend/.venv-validation/Scripts/pip3.exe
+?? Clarion-Backend/.venv-validation/Scripts/py.test.exe
+?? Clarion-Backend/.venv-validation/Scripts/pyftmerge.exe
+?? Clarion-Backend/.venv-validation/Scripts/pyftsubset.exe
+?? Clarion-Backend/.venv-validation/Scripts/pygmentize.exe
+?? Clarion-Backend/.venv-validation/Scripts/pytest.exe
+?? Clarion-Backend/.venv-validation/Scripts/python.exe
+?? Clarion-Backend/.venv-validation/Scripts/pythonw.exe
+?? Clarion-Backend/.venv-validation/Scripts/tiny-agents.exe
+?? Clarion-Backend/.venv-validation/Scripts/torchfrtrace.exe
+?? Clarion-Backend/.venv-validation/Scripts/torchrun.exe
+?? Clarion-Backend/.venv-validation/Scripts/tqdm.exe
+?? Clarion-Backend/.venv-validation/Scripts/transformers.exe
+?? Clarion-Backend/.venv-validation/Scripts/ttx.exe
+?? Clarion-Backend/.venv-validation/Scripts/typer.exe
+?? Clarion-Backend/.venv-validation/Scripts/uvicorn.exe
+?? Clarion-Backend/.venv-validation/Scripts/watchfiles.exe
+?? Clarion-Backend/.venv-validation/Scripts/websockets.exe
+?? Clarion-Backend/.venv-validation/pyvenv.cfg
+?? Clarion-Backend/.venv-validation/share/man/man1/isympy.1
+?? Clarion-Backend/.venv-validation/share/man/man1/ttx.1
+?? Clarion-Backend/WORKTREE_RECOVERY_BACKUP.patch
+?? Clarion-Backend/scripts/validate_bge_segmentation.py
+?? Clarion-Backend/tests/test_adversarial_normalization.py
+?? Clarion-Backend/tests/test_adversarial_stress_r2_2.py
+?? Clarion-Backend/tests/test_challenger1_m1_adversarial.py
+?? Clarion-Backend/tests/test_challenger2_m1_adversarial.py
+?? Clarion-Backend/tests/test_challenger2_m1_benchmarks.py
+?? Clarion-Backend/tests/test_dataset_factory.py
+?? Clarion-Backend/tests/test_e2e_pipeline_orchestration.py
+?? Clarion-Backend/tests/test_embedding_segments.py
+?? Clarion-Backend/tests/test_frontend_duration_format.py
+?? Clarion-Backend/tests/test_live_ollama_dataset.py
+?? Clarion-Backend/tests/test_m1_algorithmic_fixes.py
+?? Clarion-Backend/tests/test_pipeline_status.py
+?? DATABASE_MIGRATION_REPORT.md
+?? DATASET_GENERATION_RELIABILITY_REPORT.md
+?? ENVIRONMENT_RECOVERY_REPORT.md
+?? EXPERIMENTAL_RESULTS.md
+?? FINAL_AUDIT_REPORT.md
+?? FIX_LOG.md
+?? FRONTEND_NOMENCLATURE_AUDIT.md
+?? FRONTEND_TIMELINE_VERIFICATION.md
+?? FULL_UPLOAD_PIPELINE_REPORT.md
+?? GRAPH_ARTIFACT_REGISTRY.md
+?? LATENCY_VALIDATION_REPORT.md
+?? LLM_TEST_DETERMINISM_REPORT.md
+?? MANUSCRIPT_STATUS_REPORT.md
+?? MATHEMATICAL_AUDIT.md
+?? OLLAMA_PERFORMANCE_REPORT.md
+?? PAPER_CODE_CONSISTENCY.md
+?? PIPELINE_TELEMETRY_SCHEMA.md
+?? PIPELINE_TIMELINE_AUDIT.md
+?? POST_AUDIT_FINDINGS.md
+?? PROCESSING_PIPELINE_INTEGRATION_REPORT.md
+?? PROVENANCE_AND_RETRIEVAL_VALIDATION.md
+?? SEGMENTATION_INTEGRATION_REPORT.md
+?? SUBMISSION_READINESS_CHECKLIST.md
+?? TEST_INFRA.md
+?? TEST_READY.md
+?? TOKEN_LENGTH_VALIDATION_REPORT.md
+?? VERIFICATION_PRESNAPSHOT.json
+?? WORKTREE_RECOVERY_BACKUP.patch
+?? WORKTREE_RECOVERY_REPORT.md
+?? data/backups_m4_1/clarion_backend_backup.db
+?? data/backups_m4_1/root_backup.db
+?? docs/AI_Book.pdf
+?? "docs/DAA FINAL.pdf"
+?? "docs/UNIT II \342\200\224 SELF MANAGEMENT SKILLS.pdf"
+?? "docs/UNIT III \342\200\224 ENTREPRENEURSHIP SKILLS.pdf"
+?? "docs/UNIT III \342\200\224 SOFTWARE & AI WORKFLOW.pdf"
+?? "docs/UNIT IV Information Retrieval Overview.pdf"
+?? "docs/UNIT IV \342\200\224 NEGOTIATION SKILLS.pdf"
+?? "docs/UNIT IV \342\200\224 STORYTELLING, BRANDING & ETHICS.pptx.pdf"
+?? "docs/Unit-2 Data exploration and Vizualization.pdf"
+?? "docs/Unit-3 Vector Calculus.pdf"
+?? "docs/Unit-4 Advanced OLAP Concepts.pptx.pdf"
+?? references.bib
+?? scripts/adversarial_frontend_challenge.py
+?? scripts/adversarial_m5_challenger_verification.py
+?? scripts/generate_graph_artifact_registry.py
+?? scripts/run_all_e2e_tests.sh
+?? scripts/verify_challenger_m1_adversarial.py
+?? scripts/verify_challenger_m2_adversarial.py
+?? scripts/verify_challenger_m5_adversarial.py
+?? scripts/verify_e2e_requirements_matrix.py
+?? scripts/verify_startup_dom_invariants.py
+?? tests/e2e/__init__.py
+?? tests/e2e/conftest.py
+?? tests/e2e/run_e2e_suite.py
+?? tests/e2e/test_helpers.py
+?? tests/e2e/tier1_feature_coverage/__init__.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f01_genuine_metrics.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f02_no_synthetic_row.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f03_telemetry_schema.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f04_duration_formatting.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f05_semantic_labels.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f06_frontend_invariants.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f07_chunk_batching.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f08_provenance.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f09_ollama_parameters.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f10_checkpoints.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f11_retries_validation.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f12_export_gate.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f13_attempt_telemetry.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f14_baseline_regression.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f15_database_safety.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f16_model_transparency.py
+?? tests/e2e/tier1_feature_coverage/test_t1_f17_deliverables_readiness.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b01_metrics_boundaries.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b02_synthetic_row_guards.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b03_schema_corrupted.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b04_subsecond_limits.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b05_disambiguation_limits.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b06_frontend_dom_limits.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b07_chunk_limits.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b08_provenance_boundaries.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b09_reasoning_edge_cases.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b10_checkpoint_recovery.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b11_retry_exhaustion.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b12_export_gate_corner.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b13_telemetry_missing.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b14_regression_boundaries.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b15_db_concurrency_locks.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b16_mock_leakage_guards.py
+?? tests/e2e/tier2_boundary_corner/test_t2_b17_deliverable_validation.py
+?? tests/e2e/tier3_cross_feature/test_t3_x01_ingest_metrics_passthrough.py
+?? tests/e2e/tier3_cross_feature/test_t3_x02_chunking_provenance.py
+?? tests/e2e/tier3_cross_feature/test_t3_x03_mapping_graph_disambiguation.py
+?? tests/e2e/tier3_cross_feature/test_t3_x04_ollama_checkpoint_resume.py
+?? tests/e2e/tier3_cross_feature/test_t3_x05_export_gate_telemetry.py
+?? tests/e2e/tier3_cross_feature/test_t3_x06_db_safety_regression.py
+?? tests/e2e/tier3_cross_feature/test_t3_x07_frontend_timeline_cold_recovery.py
+?? tests/e2e/tier3_cross_feature/test_t3_x08_format_duration_pipeline_poll.py
+?? tests/e2e/tier3_cross_feature/test_t3_x09_retry_backoff_checkpoint_sync.py
+?? tests/e2e/tier3_cross_feature/test_t3_x10_model_switch_reasoning_flags.py
+?? tests/e2e/tier3_cross_feature/test_t3_x11_gold_export_partial_state.py
+?? tests/e2e/tier3_cross_feature/test_t3_x12_statistics_attempt_correlation.py
+?? tests/e2e/tier3_cross_feature/test_t3_x13_degraded_pipeline_ui_conformance.py
+?? tests/e2e/tier3_cross_feature/test_t3_x14_large_document_chunk_split_export.py
+?? tests/e2e/tier3_cross_feature/test_t3_x15_rag_audit_evaluation_alignment.py
+?? tests/e2e/tier3_cross_feature/test_t3_x16_multi_tenant_isolation_sessions.py
+?? tests/e2e/tier3_cross_feature/test_t3_x17_deliverables_git_integrity.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s01_academic_paper_pipeline.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s02_technical_slides_pipeline.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s03_textbook_chapter_pipeline.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s04_dataset_factory_resilience.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s05_gold_dataset_export_audit.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s06_concurrent_uploads.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s07_cold_recovery_pipeline.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s08_adversarial_corrupt_ingest.py
+?? tests/e2e/tier4_real_world_scenarios/test_t4_s09_full_publication_audit.py

@@ -1,0 +1,570 @@
+{
+  "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+  "extraction_method": "llm",
+  "analysis_mode": "llm",
+  "main_topics": [
+    {
+      "id": "d57f131d-eadc-480a-9917-1364bac89887",
+      "title": "OLAP",
+      "description": "Online Analytical Processing is a system designed for long-term strategic decision-making through extensive read scans of large datasets.",
+      "concept_ids": [
+        "4889f09c-274b-4c54-9330-d2b07119e697"
+      ],
+      "subtopic_ids": []
+    },
+    {
+      "id": "576f7ad2-a96e-4eba-a022-51118f728dea",
+      "title": "Data Cubes",
+      "description": "A multidimensional data structure used to efficiently compute and materialize complex aggregations across hierarchical levels.",
+      "concept_ids": [
+        "6bd8d314-9f8d-4729-807e-19eb84f260d5"
+      ],
+      "subtopic_ids": []
+    },
+    {
+      "id": "e9cec201-e942-494e-b723-d9d491cf0640",
+      "title": "OLTP",
+      "description": "Online Transaction Processing focuses on daily individual record updates, contrasting with OLAP's analytical read patterns.",
+      "concept_ids": [
+        "06299fe4-bb65-4b5f-87d5-2d5c141cab55"
+      ],
+      "subtopic_ids": []
+    },
+    {
+      "id": "3489bc89-4b3c-4ea0-b0c9-fc4444774530",
+      "title": "High-Dimensional Indexing",
+      "description": "Specialized indexing techniques designed to optimize performance for complex decision support queries in multi-level hierarchies.",
+      "concept_ids": [
+        "584febaa-83d8-4e0d-9fb9-5c5a9fe223df"
+      ],
+      "subtopic_ids": []
+    },
+    {
+      "id": "3b110616-bec7-4230-8e2d-ff2016b63105",
+      "title": "Performance Optimization",
+      "description": "Strategies aimed at achieving sub-second response times for interactive exploration of historical data volumes.",
+      "concept_ids": [
+        "cd188b8f-fdd0-4ab8-bb40-f153aaec787a"
+      ],
+      "subtopic_ids": []
+    }
+  ],
+  "subtopics": [],
+  "dependencies": [
+    {
+      "from": "OLAP",
+      "to": "OLTP",
+      "relation": "explanation"
+    }
+  ],
+  "concepts": [
+    {
+      "id": "4889f09c-274b-4c54-9330-d2b07119e697",
+      "name": "OLAP",
+      "frequency": 1,
+      "supporting_sections": [],
+      "definition": "Online Analytical Processing is a system designed for long-term strategic decision-making through extensive read scans of large datasets.",
+      "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+      "chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+      ],
+      "node_type": "concept",
+      "extraction_status": "extracted_candidate",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    },
+    {
+      "id": "6bd8d314-9f8d-4729-807e-19eb84f260d5",
+      "name": "Data Cubes",
+      "frequency": 1,
+      "supporting_sections": [],
+      "definition": "A multidimensional data structure used to efficiently compute and materialize complex aggregations across hierarchical levels.",
+      "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+      "chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+      ],
+      "node_type": "concept",
+      "extraction_status": "extracted_candidate",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    },
+    {
+      "id": "06299fe4-bb65-4b5f-87d5-2d5c141cab55",
+      "name": "OLTP",
+      "frequency": 1,
+      "supporting_sections": [],
+      "definition": "Online Transaction Processing focuses on daily individual record updates, contrasting with OLAP's analytical read patterns.",
+      "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+      "chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+      ],
+      "node_type": "concept",
+      "extraction_status": "extracted_candidate",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    },
+    {
+      "id": "584febaa-83d8-4e0d-9fb9-5c5a9fe223df",
+      "name": "High-Dimensional Indexing",
+      "frequency": 1,
+      "supporting_sections": [],
+      "definition": "Specialized indexing techniques designed to optimize performance for complex decision support queries in multi-level hierarchies.",
+      "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+      "chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+      ],
+      "node_type": "concept",
+      "extraction_status": "extracted_candidate",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    },
+    {
+      "id": "cd188b8f-fdd0-4ab8-bb40-f153aaec787a",
+      "name": "Performance Optimization",
+      "frequency": 1,
+      "supporting_sections": [],
+      "definition": "Strategies aimed at achieving sub-second response times for interactive exploration of historical data volumes.",
+      "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+      "chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+      ],
+      "node_type": "concept",
+      "extraction_status": "extracted_candidate",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "4db8f912-7566-41e9-81ae-7e52cc119fa9",
+      "from_concept": "OLAP",
+      "to_concept": "OLTP",
+      "relation_type": "explanation",
+      "is_candidate": true,
+      "source_chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+      "source_chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+        "4d255eda-9adf-4e1f-a2a1-a2d1321aa098",
+        "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7"
+      ],
+      "evidence_text": "ADVANCED OLAP OLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing) supports long-term strategic decision-making.",
+      "description": "Candidate semantic relation inferred from sentence co-occurrence and lexical support (explanation).",
+      "confidence": 0.85,
+      "validation_status": "candidate_unverified",
+      "source_evidence": [
+        {
+          "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+          "excerpt": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schema",
+          "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+          "page_references": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "source_intervals": [
+            {
+              "source_start": 0,
+              "source_end": 31,
+              "mapping": "combined_source_span",
+              "page_number": 1,
+              "page_char_start": 0,
+              "page_char_end": 31
+            },
+            {
+              "source_start": 33,
+              "source_end": 451,
+              "mapping": "combined_source_span",
+              "page_number": 2,
+              "page_char_start": 0,
+              "page_char_end": 418
+            },
+            {
+              "source_start": 453,
+              "source_end": 778,
+              "mapping": "combined_source_span",
+              "page_number": 3,
+              "page_char_start": 0,
+              "page_char_end": 325
+            },
+            {
+              "source_start": 871,
+              "source_end": 1314,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 0,
+              "page_char_end": 443
+            }
+          ],
+          "location_available": true
+        },
+        {
+          "chunk_id": "4d255eda-9adf-4e1f-a2a1-a2d1321aa098",
+          "excerpt": "multidimensional queries for deeper insights.\n4. Data Scale: OLTP handles gigabytes of current data; OLAP manages terabytes of historical data for\ncomprehensive analysis.\nThese differences highlight the distinct purposes and functionalities of OLTP and OLAP systems.\n\n1. Integration layer: Consolidates data from heterogeneous operational sources. \n2. Storage layer: Maintains historical data in Star or Snowflake schemas.\n3. OLAP Server: Acts as the middle-tier engine for multidimensional logic.\n4. Client Frontend: Provides visualization, reporting, and dashboard capabilities. \n5. Metadata Repository: Stores definitions of cubes, dimensions, and hierarchies. THE OLAP ECOSYSTEM\n\n1. Data is viewed as a \"Cube\" consisting of dimensions and measures.\n2. Dimensions represent descriptive attributes like Time, Product, and Geography. \n3. Measures are quantitative values like Sales Amount, Cost, or Quantity.\n4. Concept hierarchies allow navigation through different levels of abstraction.",
+          "section_title": "Work Nature: OLTP tasks involve straightforward CRUD operations; OLAP requires complex",
+          "page_references": [
+            4,
+            5,
+            6
+          ],
+          "source_intervals": [
+            {
+              "source_start": 1404,
+              "source_end": 1669,
+              "mapping": "combined_source_span",
+              "page_number": 4,
+              "page_char_start": 533,
+              "page_char_end": 798
+            },
+            {
+              "source_start": 1671,
+              "source_end": 2081,
+              "mapping": "combined_source_span",
+              "page_number": 5,
+              "page_char_start": 0,
+              "page_char_end": 410
+            },
+            {
+              "source_start": 2083,
+              "source_end": 2385,
+              "mapping": "combined_source_span",
+              "page_number": 6,
+              "page_char_start": 0,
+              "page_char_end": 302
+            }
+          ],
+          "location_available": true
+        },
+        {
+          "chunk_id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+          "excerpt": "MODELING\n\n A Data Cube is a multidimensional representation of aggregated data values. \n1. Base Cuboid: The most detailed level of data in the multidimensional space.\n2. Apex Cuboid: The highest level of summarization, often representing \"All\". \n3. Intermediate Cuboids: Pre-calculated aggregates at various granularity levels. \n4. Cubes enable rapid \"Slice and Dice\" operations during interactive sessions. DATA CUBE TECHNOLOGY\n\n1. A lattice represents the hierarchy of all possible cuboids in a schema.\n2. For $n$ dimensions, there are $2^n$ possible cuboids to compute.\n3. Each path in the lattice represents a different drill-down or roll-up route.\n4. The size of the lattice grows exponentially with the number of dimensions. \n5. Visualization helps in determining which cuboids are worth pre-computing. THE CUBOID LATTICE\n\nRoll-Up: Moves up the concept hierarchy to a more generalized level. \nDrill-Down: Navigates from summary data to more detailed information. \nSlice: Selects a single dimension from the cube to create a 2 D view.\nDice: Selects a sub-cube by applying filters to multiple dimensions.\nThese operations are the building blocks of multidimensional exploration. CORE OPERATIONS:\n",
+          "section_title": "Enables users to analyze performance across multiple intersecting categories. MULTIDIMENSIONAL",
+          "page_references": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "source_intervals": [
+            {
+              "source_start": 2483,
+              "source_end": 2491,
+              "mapping": "combined_source_span",
+              "page_number": 6,
+              "page_char_start": 400,
+              "page_char_end": 408
+            },
+            {
+              "source_start": 2493,
+              "source_end": 2908,
+              "mapping": "combined_source_span",
+              "page_number": 7,
+              "page_char_start": 0,
+              "page_char_end": 415
+            },
+            {
+              "source_start": 2910,
+              "source_end": 3301,
+              "mapping": "combined_source_span",
+              "page_number": 8,
+              "page_char_start": 0,
+              "page_char_end": 391
+            },
+            {
+              "source_start": 3303,
+              "source_end": 3682,
+              "mapping": "combined_source_span",
+              "page_number": 9,
+              "page_char_start": 0,
+              "page_char_end": 379
+            },
+            {
+              "source_start": 3684,
+              "source_end": 3975,
+              "mapping": "combined_source_span",
+              "page_number": 10,
+              "page_char_start": 0,
+              "page_char_end": 291
+            },
+            {
+              "source_start": 4071,
+              "source_end": 4079,
+              "mapping": "combined_source_span",
+              "page_number": 10,
+              "page_char_start": 387,
+              "page_char_end": 395
+            },
+            {
+              "source_start": 4081,
+              "source_end": 4398,
+              "mapping": "combined_source_span",
+              "page_number": 11,
+              "page_char_start": 0,
+              "page_char_end": 317
+            },
+            {
+              "source_start": 4400,
+              "source_end": 4687,
+              "mapping": "combined_source_span",
+              "page_number": 12,
+              "page_char_start": 0,
+              "page_char_end": 287
+            },
+            {
+              "source_start": 4780,
+              "source_end": 5152,
+              "mapping": "combined_source_span",
+              "page_number": 13,
+              "page_char_start": 0,
+              "page_char_end": 372
+            },
+            {
+              "source_start": 5154,
+              "source_end": 5425,
+              "mapping": "combined_source_span",
+              "page_number": 14,
+              "page_char_start": 0,
+              "page_char_end": 271
+            }
+          ],
+          "location_available": true
+        }
+      ]
+    }
+  ]
+}

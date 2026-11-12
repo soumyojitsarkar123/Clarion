@@ -1,0 +1,2 @@
+from pathlib import Path
+p=Path('research_artifacts/scripts/generate_protocol_reports.py');t=p.read_text(encoding='utf-8');t=t.replace('No deletion hashes or replacement-copy claims are applicable.', 'Removed cache file paths, sizes and hashes are recorded in `research_artifacts/processed/cache_cleanup_manifest.csv`; the caches were reproducible and contained no unique source/evidence, so no replacement copy was retained.');p.write_text(t,encoding='utf-8')

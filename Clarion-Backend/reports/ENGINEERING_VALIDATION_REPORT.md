@@ -63,9 +63,12 @@ To ensure honest scientific terminology, the term **"entailment"** has been repl
 
 ## 4. Engineering Regression Results (Synthetic Benchmark Fixture)
 
-Executed via `run_canonical_benchmark.py` on `data/ground_truth/synthetic_benchmark_fixture.json` across 5 random seeds (42–46):
+> [!CAUTION]
+> **Synthetic Test Harness Disclaimer:**  
+> The quantitative evaluations reported in Tables 1, 2, and 3 below are generated strictly by the synthetic test harness (`run_canonical_benchmark.py`) evaluated on `data/ground_truth/synthetic_benchmark_fixture.json` across 5 random seeds (42–46) under document-isolated splitting.  
+> **These tables do NOT report human gold annotations, nor do they represent real-world empirical performance.** They serve exclusively to verify algorithmic correctness, lack of data leakage, calibration monotonicity, and ablation sensitivity. Empirical human evaluation remains pending completion of the human annotation protocol.
 
-### Table 1: Model Classification Performance (Document-Isolated Splits)
+### Table 1: Model Classification Performance (Synthetic Test Harness — Document-Isolated Splits, Not Human Gold)
 | Method | F1 Score | Accuracy | Precision | Recall | AUROC |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Baseline: Accept All (Constant 1.0) | $0.5714 \pm 0.000$ | $0.4000 \pm 0.000$ | $0.4000$ | $1.0000$ | $0.5000$ |
@@ -76,14 +79,14 @@ Executed via `run_canonical_benchmark.py` on `data/ground_truth/synthetic_benchm
 | Multi-Signal Model (Uncalibrated) | $0.7200 \pm 0.065$ | $0.7000 \pm 0.075$ | $0.7000$ | $0.7500$ | $0.7875$ |
 | **Multi-Signal Calibrated (Platt)** | **$0.7800 \pm 0.055$** | **$0.7500 \pm 0.068$** | **$0.7600$** | **$0.8200$** | **$0.8125$** |
 
-### Table 2: Probability Calibration & False Accept Rate (FAR)
+### Table 2: Probability Calibration & False Accept Rate (Synthetic Test Harness — Not Human Gold)
 | Method | Expected Calibration Error (ECE) | Maximum Calibration Error (MCE) | Brier Score | False Accept Rate (FAR) |
 | :--- | :---: | :---: | :---: | :---: |
 | Baseline: LLM Confidence | $0.3421 \pm 0.045$ | $0.4850$ | $0.2840$ | $1.0000 \pm 0.000$ |
 | Multi-Signal Model (Uncalibrated) | $0.2150 \pm 0.038$ | $0.3410$ | $0.1870$ | $0.6000 \pm 0.082$ |
 | **Multi-Signal Calibrated (Platt)** | **$0.1234 \pm 0.021$** | **$0.1890$** | **$0.1120$** | **$0.7000 \pm 0.065$** |
 
-### Table 3: Leave-One-Signal-Out Ablation Study
+### Table 3: Leave-One-Signal-Out Ablation Study (Synthetic Test Harness — Not Human Gold)
 | Configuration | F1 Score | ECE | FAR |
 | :--- | :---: | :---: | :---: |
 | Full Calibrated Model | **$0.7800 \pm 0.055$** | **$0.1234$** | **$0.7000$** |
@@ -95,7 +98,78 @@ Executed via `run_canonical_benchmark.py` on `data/ground_truth/synthetic_benchm
 
 ---
 
-## 5. Automated Regression Test Suite
+## 5. Comprehensive Reproducibility Manifest
+
+To guarantee full scientific reproducibility across independent computing environments, all configuration parameters, random seeds, dataset splits, model weights, and reproduction commands are specified below:
+
+### A. Reproducibility Configuration Matrix
+
+| Parameter / Dimension | Exact Specification / Value | Source Code Location |
+|---|---|---|
+| **Benchmark Random Seeds** | 5 seeds: `[42, 43, 44, 45, 46]` | `run_canonical_benchmark.py:103` |
+| **Annotation Sampling Seed** | Primary queue (200 records): `42`<br>Overlap queue (50 records): `42` | `data/ground_truth/annotation_queue_batch1.json`<br>`data/ground_truth/annotation_queue_batch1_overlap_b.json` |
+| **Dataset Splits** | 60% Train, 20% Validation, 20% Test | `run_canonical_benchmark.py:87-89` |
+| **Split Isolation Strategy** | `split_strategy = "document"`, `doc_key = "document_id"` (strictly asserted via `assert_no_document_leakage()`) | `core/benchmarking/splitter.py:80-120` |
+| **Embedding Model** | `BAAI/bge-large-en-v1.5` (1024-dim, unit normalized $\|v\|_2 = 1.0$) | `Clarion-Backend/services/embedding_service.py` |
+| **Vector Index Type** | FAISS `IndexFlatL2` dense index | `Clarion-Backend/vectorstore/faiss_store.py` |
+| **Vector Similarity Metric** | $s = 1 / (1 + \|q - v\|_2^2) \in (0, 1]$ | `Clarion-Backend/services/retrieval_service.py:68` |
+| **Chunking Parameters** | Chunk size: 512 words<br>Overlap: 50 words<br>Minimum chunk size: 100 words | `Clarion-Backend/services/chunking_service.py:201` |
+| **Chunking Step Size** | $\text{step} = \max(1, C_{\text{size}} - C_{\text{overlap}}) = 512 - 50 = 462\text{ words}$ | `Clarion-Backend/services/chunking_service.py:205` |
+| **Trailing Residual Policy** | Slices $< 100$ words merged into preceding chunk (no text dropped) | `Clarion-Backend/services/chunking_service.py:215` |
+| **Retrieval Settings** | `top_k = 5`, `similarity_threshold = 0.50` | `Clarion-Backend/utils/config.py:75-76` |
+| **Calibration Estimators** | Platt: `LogisticRegression(C=1.0)`<br>Isotonic: `IsotonicRegression(out_of_bounds='clip')` | `core/evaluation/calibration.py:84, 150` |
+| **Statistical Resampling** | $B = 2,000$ paired document-cluster bootstrap iterations | `core/benchmarking/harness.py:321` |
+| **Confidence Interval Method** | Empirical percentile bootstrap 95% CI: $[\text{percentile}_{2.5}, \text{percentile}_{97.5}]$ | `core/benchmarking/harness.py:330` |
+| **Operating System** | Linux Ubuntu 24.04 LTS (x86_64, kernel 6.6+) | Host environment |
+| **Python Environment** | Python 3.12.3, scikit-learn 1.4+, NetworkX 3.2+, NumPy 1.26+, FastAPI 0.110+ | Virtual environment `.venv_linux` |
+
+### B. Complete Reproduction Commands
+
+#### 1. Execute Canonical 5-Seed Synthetic Regression Benchmark:
+```bash
+PYTHONPATH=Clarion-Backend /mnt/d/Clarion/.venv_linux/bin/python \
+  Clarion-Backend/run_canonical_benchmark.py \
+  --dataset Clarion-Backend/data/ground_truth/synthetic_benchmark_fixture.json \
+  --runs 5 --seed 42
+```
+*Expected Result*: Writes canonical benchmark artifact to `Clarion-Backend/data/benchmarks/` with verified 95% bootstrap CIs bounded in $[0, 1]$.
+
+#### 2. Validate Human Annotation Batch Queues:
+```bash
+# Validate Primary Human Queue (200 records, seed=42):
+PYTHONPATH=Clarion-Backend /mnt/d/Clarion/.venv_linux/bin/python \
+  Clarion-Backend/core/benchmarking/annotation_tool.py validate \
+  --file Clarion-Backend/data/ground_truth/annotation_queue_batch1.json
+
+# Validate Independent Overlap Queue (50 records, seed=42):
+PYTHONPATH=Clarion-Backend /mnt/d/Clarion/.venv_linux/bin/python \
+  Clarion-Backend/core/benchmarking/annotation_tool.py validate \
+  --file Clarion-Backend/data/ground_truth/annotation_queue_batch1_overlap_b.json
+```
+*Expected Result*: Both files report `"is_valid": true`, `"total_records": 200` and `50`, `"completed_records": 0`, `"completion_ratio": 0.0`.
+
+#### 3. Verify Startup DOM Invariants & Implementation Contracts:
+```bash
+# Verify DOM Invariants (Zero state, 8 metric cards, disabled actions):
+/mnt/d/Clarion/.venv_linux/bin/python scripts/verify_startup_dom_invariants.py
+```
+*Expected Result*: 15/15 invariants pass cleanly with exit code 0.
+
+#### 4. Verify Frontend & API Integration Contracts:
+```bash
+PYTHONPATH=Clarion-Backend /mnt/d/Clarion/.venv_linux/bin/python scripts/verify_frontend_e2e_contracts.py
+```
+*Expected Result*: 6/6 steps pass cleanly (health, library, metrics, Cytoscape schema, RAG query, error boundaries).
+
+#### 5. Execute Backend Pytest Regression Test Suite:
+```bash
+PYTHONPATH=Clarion-Backend /mnt/d/Clarion/.venv_linux/bin/pytest Clarion-Backend/tests -q
+```
+*Expected Result*: All 104+ unit and integration tests pass cleanly with 0 failures.
+
+---
+
+## 6. Automated Regression Test Suite
 
 All 76 baseline backend tests plus 15 new validity regression tests pass cleanly:
 - `test_graph_leakage.py`: 9 tests (invariance, reciprocal exclusion, self-loops, duplicate edges, batch isolation)

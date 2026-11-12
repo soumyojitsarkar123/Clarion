@@ -1,0 +1,19 @@
+diff --git a/.gitignore b/.gitignore
+index a8f6254..0ed728c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -135,4 +135,12 @@ README_FINAL_STATUS.md
+ README_GITHUB.md
+ GITHUB_SETUP.md
+ FRONTEND_IMPLEMENTATION_COMPLETE.md
+-QUICK_REFERENCE.md
+\ No newline at end of file
++QUICK_REFERENCE.md
++
++# Local validation environments and pytest temp outputs
++Clarion-Backend/.venv-recovery/
++Clarion-Backend/.venv-validation/
++.pytest-tmp/
++.pytest-tmp-live-elevated/
++Clarion-Backend/.pytest-tmp/
++Clarion-Backend/.pytest-tmp-live-elevated/

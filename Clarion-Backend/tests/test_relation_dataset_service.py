@@ -163,3 +163,8 @@ def test_safe_export_stem(isolated_settings):
     service = RelationDatasetService()
     assert service._safe_export_stem("My: Paper?.pdf") == "My_Paper"
     assert service._safe_export_stem("") == "dataset"
+
+
+def test_workspace_dataset_mirror_can_be_disabled(monkeypatch):
+    monkeypatch.setenv("CLARION_DISABLE_WORKSPACE_DATASET_MIRROR", "1")
+    assert RelationDatasetService()._workspace_dataset_dir() is None

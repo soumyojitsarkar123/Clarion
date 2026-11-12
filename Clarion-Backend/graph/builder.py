@@ -262,7 +262,9 @@ class GraphBuilder:
             
             # Add edge with attributes
             is_validated = bool(
-                relation.calibrated_probability is not None and relation.calibrated_probability >= 0.5
+                not relation.is_candidate
+                and relation.calibrated_probability is not None
+                and relation.calibrated_probability >= 0.5
             )
             self.graph.add_edge(
                 from_node_id,
@@ -276,6 +278,8 @@ class GraphBuilder:
                 description=relation.description,
                 weight=self._calculate_edge_weight(relation),
                 validated=is_validated,
+                is_candidate=bool(relation.is_candidate),
+                chunk_ids=list(relation.source_chunk_ids or ([relation.source_chunk_id] if relation.source_chunk_id else [])),
             )
             
             self.relation_edges[relation.id] = edge_id

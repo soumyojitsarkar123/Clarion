@@ -5,6 +5,7 @@ Integrates existing services to execute the full pipeline:
 ingestion → chunking → embedding → mapping → graph → evaluation → hierarchy
 """
 
+import asyncio
 import logging
 import re
 from typing import Optional, Callable, Dict, Any, List
@@ -470,10 +471,11 @@ class ProcessingPipeline:
             # Stage 8: Summarization (Internal)
             if chunks and not should_skip("summarization"):
                 try:
-                    summary_obj = self.summary_service.generate_summary(
+                    summary_obj = await asyncio.to_thread(
+                        self.summary_service.generate_summary,
                         document_id=document_id,
                         title=document.metadata.filename if document.metadata else "Document",
-                        chunks=chunks
+                        chunks=chunks,
                     )
                     results["artifacts"]["summary"] = {
                         "section_count": len(summary_obj.sections),
@@ -490,8 +492,8 @@ class ProcessingPipeline:
                 or km_meta.get("analysis_mode") == "deterministic_fallback"
             )
             sum_fallback = False
-            if summary_obj and summary_obj.overall_summary:
-                sum_fallback = "Deterministic fallback analysis" in summary_obj.overall_summary
+            if summary_obj:
+                sum_fallback = bool(summary_obj.metadata.get("fallback_used")) or not summary_obj.metadata.get("llm_summary_accepted", True)
 
             is_fallback = bool(km_fallback or sum_fallback)
             analysis_mode = "deterministic_fallback" if is_fallback else "llm"
@@ -604,6 +606,12 @@ class ProcessingPipeline:
                     "validation_passed": (stage.get("validation") or {}).get("passed"),
                     "issues": (stage.get("validation") or {}).get("issues", []),
                     "quality_metrics": stage.get("quality_metrics", {}),
+                    "duration_sec": stage.get("duration_sec"),
+                    "input_size": stage.get("input_size"),
+                    "output_size": stage.get("output_size"),
+                    "start_time": stage.get("start_time"),
+                    "end_time": stage.get("end_time"),
+                    "errors": stage.get("errors", []),
                 }
             )
 
@@ -692,6 +700,7 @@ class ProcessingPipeline:
                 "recommendations": recommendations,
             },
             "stage_validations": stage_validations,
+            "audit": audit,
             "artifacts": results.get("artifacts", {}),
             "evaluation": evaluation,
             "hierarchy": hierarchy,
@@ -983,7 +992,10 @@ class ProcessingPipeline:
             
             chunks = self.chunking_service.chunk_document(
                 document.id, 
-                document.text_content
+                document.text_content,
+                source_metadata=document.source_provenance,
+                source_pages=document.source_pages,
+                source_blocks=document.source_blocks,
             )
             
             return chunks
@@ -1025,15 +1037,22 @@ class ProcessingPipeline:
                     metadata={"processed": processed, "total": total, "percent": stage_pct},
                 )
 
-            if hasattr(self.embedding_service, "generate_embeddings_async"):
+            if hasattr(self.embedding_service, "generate_embedding_segments"):
+                embedding_chunks, embeddings = await asyncio.to_thread(
+                    self.embedding_service.generate_embedding_segments, chunks
+                )
+                await on_batch_progress(len(embedding_chunks), len(embedding_chunks))
+            elif hasattr(self.embedding_service, "generate_embeddings_async"):
+                embedding_chunks = chunks
                 embeddings = await self.embedding_service.generate_embeddings_async(
                     chunks, batch_callback=on_batch_progress
                 )
             else:
+                embedding_chunks = chunks
                 embeddings = self.embedding_service.generate_embeddings(chunks)
 
             vector_store = self.embedding_service.create_vector_index(
-                document_id, chunks, embeddings
+                document_id, embedding_chunks, embeddings
             )
             
             return vector_store
@@ -1051,7 +1070,8 @@ class ProcessingPipeline:
             else:
                 self.knowledge_map_service.delete_knowledge_map(document_id)
             
-            knowledge_map = self.knowledge_map_service.build_knowledge_map(
+            knowledge_map = await asyncio.to_thread(
+                self.knowledge_map_service.build_knowledge_map,
                 document_id, chunks
             )
             
@@ -1078,13 +1098,14 @@ class ProcessingPipeline:
                             graph = pickle.load(f)
                         return graph, legacy_path
             
-            graph = self.graph_builder.build_from_knowledge_map(knowledge_map)
-            
-            graph_path = save_graph_json(graph, document_id)
-            
-            cytoscape_path = settings.data_dir / "graphs" / f"{document_id}_cytoscape.json"
-            self.graph_exporter.save_to_file(graph, cytoscape_path, format="cytoscape")
-            
+            def _build_and_save_graph():
+                g = self.graph_builder.build_from_knowledge_map(knowledge_map)
+                gp = save_graph_json(g, document_id)
+                cp = settings.data_dir / "graphs" / f"{document_id}_cytoscape.json"
+                self.graph_exporter.save_to_file(g, cp, format="cytoscape")
+                return g, gp
+
+            graph, graph_path = await asyncio.to_thread(_build_and_save_graph)
             return graph, graph_path
         except Exception as e:
             logger.error(f"Graph building failed: {e}")
@@ -1093,38 +1114,41 @@ class ProcessingPipeline:
     async def _stage_evaluation(self, document_id, knowledge_map, chunks, graph):
         """Stage 6: Evaluate quality and detect hallucinations."""
         try:
-            confidence_scores = {}
-            for relation in knowledge_map.relations:
-                score = self.confidence_scorer.score_relation(
-                    relation, chunks, graph=graph
+            def _eval_sync():
+                confidence_scores = {}
+                for relation in knowledge_map.relations:
+                    score = self.confidence_scorer.score_relation(
+                        relation, chunks, graph=graph
+                    )
+                    confidence_scores[relation.id] = score
+                    relation.confidence = score
+                
+                report = self.hallucination_detector.detect(
+                    knowledge_map, chunks, graph
                 )
-                confidence_scores[relation.id] = score
-                relation.confidence = score
-            
-            report = self.hallucination_detector.detect(
-                knowledge_map, chunks, graph
-            )
-            
-            avg_confidence = sum(confidence_scores.values()) / len(confidence_scores) if confidence_scores else 0
-            
-            return {
-                "document_id": document_id,
-                "overall_score": round(avg_confidence, 3),
-                "confidence_scores": confidence_scores,
-                "flags": [
-                    {
-                        "type": flag.flag_type,
-                        "severity": flag.severity,
-                        "item_type": flag.item_type,
-                        "item_id": flag.item_id,
-                        "description": flag.description,
-                        "suggestion": flag.suggestion
-                    }
-                    for flag in report.flags
-                ],
-                "recommendations": report.recommendations,
-                "risk_score": report.overall_risk_score
-            }
+                
+                avg_confidence = sum(confidence_scores.values()) / len(confidence_scores) if confidence_scores else 0
+                
+                return {
+                    "document_id": document_id,
+                    "overall_score": round(avg_confidence, 3),
+                    "confidence_scores": confidence_scores,
+                    "flags": [
+                        {
+                            "type": flag.flag_type,
+                            "severity": flag.severity,
+                            "item_type": flag.item_type,
+                            "item_id": flag.item_id,
+                            "description": flag.description,
+                            "suggestion": flag.suggestion
+                        }
+                        for flag in report.flags
+                    ],
+                    "recommendations": report.recommendations,
+                    "risk_score": report.overall_risk_score
+                }
+
+            return await asyncio.to_thread(_eval_sync)
         except Exception as e:
             logger.error(f"Evaluation failed: {e}")
             return {
@@ -1138,34 +1162,35 @@ class ProcessingPipeline:
     async def _stage_hierarchy(self, document_id: str, graph):
         """Stage 7: Generate hierarchies and learning paths."""
         try:
-            generator = HierarchyGenerator(graph)
-            
-            layers = generator.generate_conceptual_layers()
-            chains = generator.generate_prerequisite_chains()
-            topic_tree = generator.generate_topic_tree()
-            
-            return {
-                "document_id": document_id,
-                "layers": [
-                    {
-                        "level": layer.level,
-                        "name": layer.name,
-                        "description": layer.description,
-                        "concept_count": len(layer.concept_ids)
-                    }
-                    for layer in layers
-                ],
-                "chains": [
-                    {
-                        "chain_id": chain.chain_id,
-                        "target": chain.target_concept_id,
-                        "length": chain.total_length,
-                        "difficulty": chain.estimated_difficulty
-                    }
-                    for chain in chains
-                ],
-                "topic_tree": topic_tree.dict() if topic_tree else None
-            }
+            def _hier_sync():
+                generator = HierarchyGenerator(graph)
+                layers = generator.generate_conceptual_layers()
+                chains = generator.generate_prerequisite_chains()
+                topic_tree = generator.generate_topic_tree()
+                return {
+                    "document_id": document_id,
+                    "layers": [
+                        {
+                            "level": layer.level,
+                            "name": layer.name,
+                            "description": layer.description,
+                            "concept_count": len(layer.concept_ids)
+                        }
+                        for layer in layers
+                    ],
+                    "chains": [
+                        {
+                            "chain_id": chain.chain_id,
+                            "target": chain.target_concept_id,
+                            "length": chain.total_length,
+                            "difficulty": chain.estimated_difficulty
+                        }
+                        for chain in chains
+                    ],
+                    "topic_tree": topic_tree.dict() if topic_tree else None
+                }
+
+            return await asyncio.to_thread(_hier_sync)
         except Exception as e:
             logger.error(f"Hierarchy generation failed: {e}")
             return {

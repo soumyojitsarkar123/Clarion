@@ -38,16 +38,16 @@ def estimate_size(payload: Any) -> int:
         return len(payload)
     if isinstance(payload, (list, tuple, set, dict)):
         return len(payload)
-    if hasattr(payload, "number_of_nodes") and hasattr(payload, "number_of_edges"):
-        try:
+    try:
+        if hasattr(payload, "number_of_nodes") and hasattr(payload, "number_of_edges"):
             return int(payload.number_of_nodes()) + int(payload.number_of_edges())
-        except Exception:
-            return 1
-    if hasattr(payload, "word_count"):
-        try:
+    except Exception:
+        return 1
+    try:
+        if hasattr(payload, "word_count"):
             return int(payload.word_count or 0)
-        except Exception:
-            return 0
+    except Exception:
+        return 0
     return 1
 
 
@@ -71,7 +71,7 @@ class PipelineStateTracker:
                 "started_perf": time.perf_counter(),
                 "updated_at": _utc_now(),
                 "completed_at": None,
-                "total_duration_sec": 0.0,
+                "total_duration_sec": None,
                 "error": None,
                 "stages": {
                     stage: {
@@ -81,9 +81,9 @@ class PipelineStateTracker:
                         "start_time": None,
                         "start_perf": None,
                         "end_time": None,
-                        "duration_sec": 0.0,
-                        "input_size": 0,
-                        "output_size": 0,
+                        "duration_sec": None,
+                        "input_size": None,
+                        "output_size": None,
                         "quality_metrics": {},
                         "errors": [],
                     }
@@ -103,7 +103,7 @@ class PipelineStateTracker:
             state["updated_at"] = _utc_now()
 
     def start_stage(
-        self, document_id: str, stage: str, input_size: int = 0, progress: Optional[int] = None
+        self, document_id: str, stage: str, input_size: Optional[int] = None, progress: Optional[int] = None
     ) -> None:
         with self._lock:
             stage_state = self._get_stage(document_id, stage)
@@ -142,7 +142,7 @@ class PipelineStateTracker:
         self,
         document_id: str,
         stage: str,
-        output_size: int = 0,
+        output_size: Optional[int] = None,
         quality_metrics: Optional[Dict[str, Any]] = None,
         progress: Optional[int] = None,
     ) -> None:
@@ -184,7 +184,7 @@ class PipelineStateTracker:
         document_id: str,
         stage: str,
         error: str,
-        output_size: int = 0,
+        output_size: Optional[int] = None,
         quality_metrics: Optional[Dict[str, Any]] = None,
     ) -> None:
         with self._lock:
@@ -250,71 +250,87 @@ class PipelineStateTracker:
 
     def _format_pipeline_status(self, state: Dict[str, Any]) -> Dict[str, Any]:
         out = deepcopy(state)
-        stages = out.get("stages", {})
-        ing = stages.get("ingestion", {})
-        ch = stages.get("chunking", {})
-        emb = stages.get("embedding", {})
-        map_stage = stages.get("mapping", {})
-        gb = stages.get("graph_building", {})
-
-        chunk_count = int(ch.get("output_size", 0) or 0)
-        emb_duration = float(emb.get("duration_sec", 0.0) or 0.0)
-        throughput = round(chunk_count / emb_duration, 2) if emb_duration > 0 and chunk_count > 0 else 0.0
+        raw_stages = out.get("stages", {})
 
         is_fallback = (
             out.get("analysis_mode") == "deterministic_fallback"
             or out.get("status") == "degraded"
         )
-        llm_stage_status = (
-            "fallback"
-            if is_fallback
-            else (
-                "completed"
-                if map_stage.get("status") == "completed"
-                else map_stage.get("status", "pending")
-            )
-        )
+        active_model = out.get("active_model", settings.ollama_model)
+        analysis_mode = out.get("analysis_mode", "llm")
 
-        formatted_stages = {
-            "ingestion": {
-                "status": ing.get("status", "pending"),
-                "duration_sec": float(ing.get("duration_sec", 0.0) or 0.0),
-            },
-            "chunking": {
-                "status": ch.get("status", "pending"),
-                "duration_sec": float(ch.get("duration_sec", 0.0) or 0.0),
-                "chunk_count": chunk_count,
-            },
-            "embedding": {
-                "status": emb.get("status", "pending"),
-                "duration_sec": emb_duration,
-                "throughput_chunks_sec": throughput,
-                "device": settings.embedding_device_actual or "cpu",
-            },
-            "llm_analysis": {
-                "status": llm_stage_status,
-                "duration_sec": float(map_stage.get("duration_sec", 0.0) or 0.0),
-                "model": out.get("active_model", settings.ollama_model),
-            },
-            "graph_building": {
-                "status": gb.get("status", "pending"),
-                "duration_sec": float(gb.get("duration_sec", 0.0) or 0.0),
-                "node_count": int(gb.get("quality_metrics", {}).get("node_count", 0)),
-                "edge_count": int(gb.get("quality_metrics", {}).get("edge_count", 0)),
-            },
-        }
+        authoritative_stages: Dict[str, Dict[str, Any]] = {}
+        for stage_key in PIPELINE_STAGES:
+            st = raw_stages.get(stage_key, {})
+            q_metrics = deepcopy(st.get("quality_metrics", {}))
 
-        # Keep original stages for backward compatibility with frontend
-        for k, v in stages.items():
-            if k not in formatted_stages:
-                formatted_stages[k] = v
+            dur_raw = st.get("duration_sec")
+            dur = float(dur_raw) if dur_raw is not None else None
 
-        out["stages"] = formatted_stages
+            in_sz = st.get("input_size")
+            out_sz = st.get("output_size")
+
+            st_status = st.get("status", "pending")
+            if stage_key == "mapping" and is_fallback and st_status == "completed":
+                st_status = "fallback"
+
+            formatted_st: Dict[str, Any] = {
+                "name": stage_key,
+                "status": st_status,
+                "progress": st.get("progress", 0),
+                "start_time": st.get("start_time"),
+                "end_time": st.get("end_time"),
+                "duration_sec": dur,
+                "input_size": in_sz,
+                "output_size": out_sz,
+                "quality_metrics": q_metrics,
+                "errors": list(st.get("errors", [])),
+            }
+
+            # Supplement derived metrics truthfully without stripping base sizes
+            if stage_key == "mapping":
+                q_metrics["analysis_mode"] = analysis_mode
+                q_metrics["model"] = active_model
+                formatted_st["analysis_mode"] = analysis_mode
+                formatted_st["model"] = active_model
+
+            if st_status != "pending":
+                if stage_key == "chunking":
+                    chunk_count = out_sz if out_sz is not None else q_metrics.get("chunk_count")
+                    if chunk_count is not None:
+                        q_metrics["chunk_count"] = int(chunk_count)
+                        formatted_st["chunk_count"] = int(chunk_count)
+                elif stage_key == "embedding":
+                    chunk_count = in_sz if in_sz is not None else q_metrics.get("chunk_count")
+                    throughput = (
+                        round(int(chunk_count) / dur, 2)
+                        if chunk_count is not None and dur and dur > 0
+                        else None
+                    )
+                    if throughput is not None:
+                        q_metrics["throughput_chunks_sec"] = throughput
+                    device = settings.embedding_device_actual or "cpu"
+                    q_metrics["device"] = device
+                    formatted_st["throughput_chunks_sec"] = throughput
+                    formatted_st["device"] = device
+                elif stage_key == "graph_building":
+                    node_count = q_metrics.get("node_count")
+                    edge_count = q_metrics.get("edge_count")
+                    if node_count is not None:
+                        formatted_st["node_count"] = node_count
+                    if edge_count is not None:
+                        formatted_st["edge_count"] = edge_count
+
+            formatted_st["quality_metrics"] = q_metrics
+            authoritative_stages[stage_key] = formatted_st
+
+        out["stages"] = authoritative_stages
         out["document_id"] = out.get("document_id", "")
         out["status"] = out.get("status", "running")
-        out["analysis_mode"] = out.get("analysis_mode", "llm")
-        out["active_model"] = out.get("active_model", settings.ollama_model)
-        out["total_duration_sec"] = float(out.get("total_duration_sec", 0.0) or 0.0)
+        out["analysis_mode"] = analysis_mode
+        out["active_model"] = active_model
+        tot_dur = out.get("total_duration_sec")
+        out["total_duration_sec"] = float(tot_dur) if tot_dur is not None else None
         return out
 
     def _get_stage(self, document_id: str, stage: str) -> Optional[Dict[str, Any]]:
@@ -337,8 +353,8 @@ class PipelineAuditor:
                 "start_perf": None,
                 "end_time": None,
                 "duration_sec": None,
-                "input_size": 0,
-                "output_size": 0,
+                "input_size": None,
+                "output_size": None,
                 "errors": [],
                 "quality_metrics": {},
                 "status": "pending",
@@ -347,12 +363,12 @@ class PipelineAuditor:
             for stage in PIPELINE_STAGES
         }
 
-    def start_stage(self, stage: str, input_size: int = 0, progress: Optional[int] = None) -> None:
+    def start_stage(self, stage: str, input_size: Optional[int] = None, progress: Optional[int] = None) -> None:
         record = self.stages[stage]
         record["start_time"] = _utc_now()
         record["start_perf"] = time.perf_counter()
         record["status"] = "running"
-        record["input_size"] = int(max(0, input_size))
+        record["input_size"] = int(max(0, input_size)) if input_size is not None else None
         self.tracker.start_stage(self.document_id, stage, input_size=input_size, progress=progress)
         log_structured(
             logger,
@@ -383,7 +399,7 @@ class PipelineAuditor:
     def complete_stage(
         self,
         stage: str,
-        output_size: int = 0,
+        output_size: Optional[int] = None,
         quality_metrics: Optional[Dict[str, Any]] = None,
         progress: Optional[int] = None,
     ) -> None:
@@ -395,7 +411,7 @@ class PipelineAuditor:
         if start_p is not None:
             record["duration_sec"] = round(time.perf_counter() - start_p, 4)
         record["status"] = "completed"
-        record["output_size"] = int(max(0, output_size))
+        record["output_size"] = int(max(0, output_size)) if output_size is not None else None
         record["quality_metrics"] = quality_metrics
         record["validation"] = validation
         self.tracker.complete_stage(
@@ -424,7 +440,7 @@ class PipelineAuditor:
         self,
         stage: str,
         error: str,
-        output_size: int = 0,
+        output_size: Optional[int] = None,
         quality_metrics: Optional[Dict[str, Any]] = None,
     ) -> None:
         quality_metrics = quality_metrics or {}
@@ -434,7 +450,7 @@ class PipelineAuditor:
         if start_p is not None:
             record["duration_sec"] = round(time.perf_counter() - start_p, 4)
         record["status"] = "failed"
-        record["output_size"] = int(max(0, output_size))
+        record["output_size"] = int(max(0, output_size)) if output_size is not None else None
         record["quality_metrics"] = quality_metrics
         record["errors"].append(error)
         self.tracker.fail_stage(
@@ -487,11 +503,11 @@ class PipelineAuditor:
         }
 
     def _validate(
-        self, stage: str, output_size: int, metrics: Dict[str, Any]
+        self, stage: str, output_size: Optional[int], metrics: Dict[str, Any]
     ) -> Dict[str, Any]:
         issues: List[str] = []
 
-        if stage in {"chunking", "embedding", "mapping", "graph_building"} and output_size <= 0:
+        if stage in {"chunking", "embedding", "mapping", "graph_building"} and output_size == 0:
             issues.append("Output size is zero")
 
         if stage == "evaluation":

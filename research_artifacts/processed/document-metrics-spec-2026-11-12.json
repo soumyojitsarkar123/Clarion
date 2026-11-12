@@ -1,0 +1,34 @@
+{
+  "schema_version": "clarion-document-metrics-v1",
+  "word_count": {
+    "algorithm": "Count non-empty whitespace-delimited units in normalized extracted text.",
+    "raw_word_count": "Same count over extractor text before Clarion normalization.",
+    "normalized_word_count": "Same count over normalized document text; this is the canonical UI word count.",
+    "punctuation": "Attached punctuation stays with its unit; punctuation-only whitespace units count as units.",
+    "hyphenated_terms": "One unit when no whitespace separates the term.",
+    "contractions": "One unit when no whitespace separates the contraction.",
+    "numbers": "One unit per whitespace-delimited number expression.",
+    "unicode": "Any non-empty whitespace-delimited Unicode sequence counts as one unit.",
+    "headers_footers_tables": "Count any text emitted by the extractor; headers/footers are not removed, and DOCX table rows are included.",
+    "empty_pages": "Contribute zero units.",
+    "model_tokens": "Never used as word counts."
+  },
+  "pages": {
+    "physical_pages": "PDF page objects reported by the parser.",
+    "extracted_pages": "Pages where extraction did not raise an exception; an empty result still counts as extracted.",
+    "text_bearing_pages": "Successfully extracted pages whose raw text contains a non-whitespace character.",
+    "empty_text_pages": "Extracted pages without non-whitespace text; not asserted to be image-only.",
+    "indexed_pages": "Distinct page numbers appearing in retained chunk source provenance.",
+    "ocr": "Not available unless an OCR stage is separately configured; image-only pages are not labeled as OCR text."
+  },
+  "chunks": {
+    "candidate_raw_chunks": "Unique pre-merge raw chunk IDs retained through merge lineage.",
+    "retained_chunks": "Persisted source chunk rows.",
+    "rejected_chunks": "Null unless a pipeline stage persists a rejection count; not inferred by subtracting merged counts."
+  },
+  "embedding": {
+    "embedding_segments": "Persisted model-safe source text segments.",
+    "mapped_vectors": "Database vector-map entries.",
+    "faiss_vectors": "ntotal from a successfully loaded FAISS index whose vector IDs match the persisted mapping."
+  }
+}

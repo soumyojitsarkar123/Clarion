@@ -1,0 +1,68 @@
+{
+  "action": "rolled_back_only_the_two_contract_probe_audits_and_empty_additive_schema",
+  "db_relative_path": "Clarion-Backend/data/clarion.db",
+  "removed_probe_audit_ids": [
+    "d65020ba-8e6d-4f72-ba54-2647161e1b78",
+    "e3034eb8-1af7-4481-ad9d-6a0f8ae0dd00"
+  ],
+  "pre_undo_database_sha256": "c1ab9e309cb24d782e4271595cd5691cfbf6bcebc2ad338a01e6b475e0003023",
+  "post_undo_database_sha256": "6c2025dbb60741ab76a1e7dcc8ec8b58b2e1d74b3fc0796e282cd6fc66bc650d",
+  "table_counts_before_undo": {
+    "documents": 58,
+    "chunks": 12685,
+    "embeddings": 4673,
+    "embedding_segments": 9,
+    "knowledge_maps": 55,
+    "summaries": 59,
+    "analysis_reports": 49,
+    "processing_jobs": 53,
+    "rag_audits": 141
+  },
+  "table_counts_after_undo": {
+    "documents": 58,
+    "chunks": 12685,
+    "embeddings": 4673,
+    "embedding_segments": 9,
+    "knowledge_maps": 55,
+    "summaries": 59,
+    "analysis_reports": 49,
+    "processing_jobs": 53,
+    "rag_audits": 139
+  },
+  "migration_tables_dropped_empty": [
+    "document_source_pages",
+    "document_source_blocks",
+    "embedding_segments_v2",
+    "embedding_vector_map",
+    "schema_migrations"
+  ],
+  "null_only_migration_columns_removed": {
+    "documents": [
+      "source_provenance_json",
+      "source_file_path",
+      "source_file_sha256",
+      "extracted_page_count",
+      "text_bearing_page_count",
+      "raw_word_count"
+    ],
+    "chunks": [
+      "source_provenance_json",
+      "raw_chunk_ids_json",
+      "provenance_version"
+    ],
+    "embeddings": [
+      "embedding_model_id",
+      "embedding_model_revision"
+    ],
+    "embedding_segments": [
+      "source_provenance_json",
+      "token_count",
+      "embedding_model_id",
+      "embedding_model_revision",
+      "generation_version"
+    ]
+  },
+  "remaining_existing_audits_preserved": true,
+  "existing_document_and_chunk_counts_preserved": true,
+  "schema_reconciles_to_pre_probe_table_set": true
+}

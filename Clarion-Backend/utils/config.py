@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Application
-    app_name: str = "Intelligent Document Knowledge System"
+    app_name: str = "Clarion"
     app_version: str = "1.0.0"
     debug: bool = False
 
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
 
     # Embedding Model
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
-    embedding_batch_size: int = 32
+    embedding_batch_size: int = 64
     embedding_device: str = "auto"
     embedding_device_actual: Optional[str] = None
 
@@ -101,6 +101,12 @@ class Settings(BaseSettings):
     ollama_request_timeout_seconds: int = 180
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2000
+    # Runtime request limits, distinct from any advertised model maximum.
+    llm_context_window: int = 4096
+    llm_reserved_output_tokens: int = 2000
+    llm_token_safety_tokens: int = 256
+    # Optional HF tokenizer ID known to match the served model; loaded from cache only.
+    llm_tokenizer_name: Optional[str] = None
 
     # Dataset Generation
     dataset_generation_enabled: bool = True
@@ -112,6 +118,14 @@ class Settings(BaseSettings):
     dataset_generation_interval_hours: float = 1.0
     dataset_require_llm_for_export: bool = True
     dataset_background_postprocess_enabled: bool = True
+    dataset_chunk_timeout_seconds: float = 60.0
+    dataset_max_retries_per_chunk: int = 3
+    dataset_backoff_base_seconds: float = 1.0
+    dataset_backoff_jitter_factor: float = 0.2
+    dataset_chunks_per_prompt: int = 1
+    # Structured dataset samples are concise; reserve a bounded response budget
+    # per chunk instead of the general-purpose 2K generation ceiling.
+    dataset_max_output_tokens: int = 1024
 
     # Retrieval
     default_top_k: int = 5

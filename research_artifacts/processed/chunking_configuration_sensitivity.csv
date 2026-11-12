@@ -1,0 +1,89 @@
+﻿filename,pages,extracted_words,chunk_size_words,overlap_words,sections,raw_chunks,retained_chunks,embedding_segments,mean_segment_tokens,p95_segment_tokens,max_segment_tokens,source_coverage
+AI_Book.pdf,1151,0,256,0,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,256,50,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,384,0,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,384,50,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,512,0,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,512,50,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,768,0,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+AI_Book.pdf,1151,0,768,50,0,0,0,0,,,,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,256,0,5,77,77,105,365.26666666666665,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,256,50,5,96,96,129,366.61240310077517,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,384,0,5,53,53,106,361.8301886792453,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,384,50,5,60,60,119,366.98319327731093,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,512,0,5,40,40,93,412.13978494623655,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,512,50,5,44,44,100,423.03,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,768,0,5,28,28,88,435.4318181818182,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+DAA FINAL.pdf,87,19830,768,50,5,30,30,91,447.2637362637363,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,256,0,1,5,5,5,294.8,311,311,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,256,50,1,6,6,6,298.5,318,318,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,384,0,1,3,3,4,368,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,384,50,1,4,4,4,410,469,469,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,512,0,1,3,3,5,294.8,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,512,50,1,3,3,5,319.8,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,768,0,1,2,2,4,368,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT II — SELF MANAGEMENT SKILLS.pdf,24,1235,768,50,1,2,2,4,382.5,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,256,0,1,6,6,6,287.6666666666667,313,313,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,256,50,1,7,7,7,297.7142857142857,314,314,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,384,0,1,4,4,4,430.5,459,459,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,384,50,1,5,5,5,388.4,453,453,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,512,0,1,3,3,5,344.8,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,512,50,1,3,3,6,307.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,768,0,1,2,2,4,430.5,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,37,1470,768,50,1,2,2,4,444,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,256,0,7,10,5,5,359.6,467,467,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,256,50,7,11,6,6,349,386,386,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,384,0,7,9,4,5,359.6,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,384,50,7,9,4,6,320.1666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,512,0,7,8,3,5,359.6,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,512,50,7,9,4,6,322.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,768,0,7,8,3,5,359.6,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,25,1397,768,50,7,8,3,6,310.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,256,0,1,12,12,12,349.5,449,449,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,256,50,1,15,15,15,339.4,428,428,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,384,0,1,8,8,12,349.5,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,384,50,1,9,9,13,362.53846153846155,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,512,0,1,6,6,12,349.5,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,512,50,1,7,7,13,353.3076923076923,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,768,0,1,4,4,10,419,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV Information Retrieval Overview.pdf,43,3053,768,50,1,5,5,11,406.3636363636364,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,256,0,2,6,6,6,288.6666666666667,334,334,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,256,50,2,7,7,7,291.7142857142857,323,323,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,384,0,2,4,4,4,432,469,469,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,384,50,2,4,4,4,462,505,505,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,512,0,2,4,4,6,288.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,512,50,2,4,4,6,311,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,768,0,2,2,2,4,432,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+UNIT IV — NEGOTIATION SKILLS.pdf,26,1414,768,50,2,2,2,4,432,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,256,0,4,7,5,5,245.2,315,315,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,256,50,4,7,5,5,281.2,315,315,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,384,0,4,5,3,3,407.3333333333333,453,453,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,384,50,4,5,3,3,427,453,453,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,512,0,4,5,3,4,306,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,512,50,4,5,3,4,321.5,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,768,0,4,4,2,3,407.3333333333333,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",29,1085,768,50,4,4,2,3,407.3333333333333,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,256,0,1,12,12,12,331,348,348,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,256,50,1,15,15,15,326.1333333333333,347,347,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,384,0,1,8,8,9,440.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,384,50,1,9,9,11,408.3636363636364,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,512,0,1,6,6,12,331,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,512,50,1,7,7,13,335.7692307692308,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,768,0,1,4,4,9,440.6666666666667,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-2 Data exploration and Vizualization.pdf,10,3014,768,50,1,5,5,9,468.55555555555554,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,256,0,1,8,8,8,326.375,372,372,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,256,50,1,10,10,10,318.8,364,364,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,384,0,1,5,5,8,326.375,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,384,50,1,6,6,9,326,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,512,0,1,4,4,8,326.375,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,512,50,1,5,5,9,318,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,768,0,1,3,3,7,372.7142857142857,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-3 Vector Calculus.pdf,32,1974,768,50,1,3,3,7,393.14285714285717,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,256,0,10,11,7,7,320.85714285714283,458,458,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,256,50,10,11,7,7,330.7142857142857,458,458,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,384,0,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,384,50,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,512,0,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,512,50,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,768,0,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets
+Unit-4 Advanced OLAP Concepts.pptx.pdf,31,1601,768,50,10,10,6,8,281,512,512,NOT MEASURED: chunk merge/reindex does not retain reliable source offsets

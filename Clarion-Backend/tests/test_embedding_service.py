@@ -48,8 +48,8 @@ def test_vector_store_round_trip(isolated_settings):
     vector_store = service.create_vector_index("doc-1", chunks, embeddings)
     assert vector_store.index is not None
 
-    reloaded = VectorStore("doc-1")
-    assert reloaded._load_index()
+    reloaded = service.get_vector_store("doc-1")
+    assert reloaded is not None
     assert reloaded.chunk_ids == [chunk.chunk_id for chunk in chunks]
 
     query = service._fallback_embed_text("null hypothesis")
@@ -66,5 +66,5 @@ def test_delete_embeddings(isolated_settings):
     embeddings = [service._fallback_embed_text(chunk.content) for chunk in chunks]
     service.create_vector_index("doc-1", chunks, embeddings)
     service.delete_embeddings("doc-1")
-    assert VectorStore("doc-1")._load_index() is False
+    assert service.get_vector_store("doc-1") is None
     assert service.get_vector_store("doc-1") is None

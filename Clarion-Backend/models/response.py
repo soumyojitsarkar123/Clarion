@@ -33,6 +33,8 @@ class AnalyzeResponse(BaseModel):
 class KnowledgeMapResponse(BaseModel):
     """Response for knowledge map retrieval."""
     document_id: str = Field(..., description="Document ID")
+    extraction_method: str = Field("unknown", description="Concept extraction method")
+    analysis_mode: str = Field("unknown", description="Analysis mode")
     main_topics: List[Dict[str, Any]] = Field(..., description="Main topics")
     subtopics: List[Dict[str, Any]] = Field(..., description="Subtopics")
     dependencies: List[Dict[str, str]] = Field(..., description="Concept dependencies")
@@ -46,3 +48,6 @@ class QueryResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(..., description="Retrieval results")
     response: str = Field(..., description="Generated response")
     knowledge_map: Optional[Dict[str, Any]] = Field(None, description="Related knowledge map")
+    fallback_used: bool = Field(False, description="Whether deterministic fallback analysis was used")
+    omitted_evidence: List[Dict[str, str]] = Field(default_factory=list, description="Retrieved evidence not sent to the generator and the reason")
+    token_metrics: Optional[Dict[str, Any]] = Field(None, description="Token budget and provider usage; estimates are labeled")

@@ -1,0 +1,3 @@
+# Final engineering freeze — 2026-11-12
+
+Recoverable snapshot of the current source state. `head.txt` and `git-status.txt` record the checkout identity/state; `tracked-worktree.patch` stores the tracked diff against that HEAD; `untracked-files.zip` stores every non-ignored Git-untracked file outside this snapshot directory, listed with size and SHA-256 in `manifest.json`. The manifest also hashes the patch and archive. Snapshot files are excluded from their own archive to avoid recursion. Git-ignored environments and local caches are not copied. Restore into a separate checkout after inspecting and verifying the manifest.

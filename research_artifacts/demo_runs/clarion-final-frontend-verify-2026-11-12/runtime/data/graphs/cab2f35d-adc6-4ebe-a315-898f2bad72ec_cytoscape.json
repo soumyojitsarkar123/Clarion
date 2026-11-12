@@ -1,0 +1,276 @@
+{
+  "format": "cytoscape",
+  "generated_at": "2026-11-12T21:36:16.497673",
+  "elements": {
+    "nodes": [
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "label": "Document",
+          "type": "document",
+          "centrality": 0.05400174816438677
+        }
+      },
+      {
+        "data": {
+          "id": "topic_d57f131d-eadc-480a-9917-1364bac89887",
+          "label": "OLAP",
+          "type": "topic",
+          "centrality": 0.06318219530775049
+        }
+      },
+      {
+        "data": {
+          "id": "topic_576f7ad2-a96e-4eba-a022-51118f728dea",
+          "label": "Data Cubes",
+          "type": "topic",
+          "centrality": 0.06318219530775049
+        }
+      },
+      {
+        "data": {
+          "id": "topic_e9cec201-e942-494e-b723-d9d491cf0640",
+          "label": "OLTP",
+          "type": "topic",
+          "centrality": 0.06318219530775049
+        }
+      },
+      {
+        "data": {
+          "id": "topic_3489bc89-4b3c-4ea0-b0c9-fc4444774530",
+          "label": "High-Dimensional Indexing",
+          "type": "topic",
+          "centrality": 0.06318219530775049
+        }
+      },
+      {
+        "data": {
+          "id": "topic_3b110616-bec7-4230-8e2d-ff2016b63105",
+          "label": "Performance Optimization",
+          "type": "topic",
+          "centrality": 0.06318219530775049
+        }
+      },
+      {
+        "data": {
+          "id": "concept_4889f09c-274b-4c54-9330-d2b07119e697",
+          "label": "OLAP",
+          "type": "concept",
+          "name": "OLAP",
+          "definition": "Online Analytical Processing is a system designed for long-term strategic decision-making through extensive read scans of large datasets.",
+          "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+          "community": 0,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+          ],
+          "centrality": 0.10770735786602044,
+          "chunk_count": 1
+        }
+      },
+      {
+        "data": {
+          "id": "concept_6bd8d314-9f8d-4729-807e-19eb84f260d5",
+          "label": "Data Cubes",
+          "type": "concept",
+          "name": "Data Cubes",
+          "definition": "A multidimensional data structure used to efficiently compute and materialize complex aggregations across hierarchical levels.",
+          "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+          "community": 2,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+          ],
+          "centrality": 0.10770735786602044,
+          "chunk_count": 1
+        }
+      },
+      {
+        "data": {
+          "id": "concept_06299fe4-bb65-4b5f-87d5-2d5c141cab55",
+          "label": "OLTP",
+          "type": "concept",
+          "name": "OLTP",
+          "definition": "Online Transaction Processing focuses on daily individual record updates, contrasting with OLAP's analytical read patterns.",
+          "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+          "community": 0,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+          ],
+          "centrality": 0.1992578438327793,
+          "chunk_count": 1
+        }
+      },
+      {
+        "data": {
+          "id": "concept_584febaa-83d8-4e0d-9fb9-5c5a9fe223df",
+          "label": "High-Dimensional Indexing",
+          "type": "concept",
+          "name": "High-Dimensional Indexing",
+          "definition": "Specialized indexing techniques designed to optimize performance for complex decision support queries in multi-level hierarchies.",
+          "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+          "community": 1,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+          ],
+          "centrality": 0.10770735786602044,
+          "chunk_count": 1
+        }
+      },
+      {
+        "data": {
+          "id": "concept_cd188b8f-fdd0-4ab8-bb40-f153aaec787a",
+          "label": "Performance Optimization",
+          "type": "concept",
+          "name": "Performance Optimization",
+          "definition": "Strategies aimed at achieving sub-second response times for interactive exploration of historical data volumes.",
+          "context": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategie",
+          "community": 3,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452"
+          ],
+          "centrality": 0.10770735786602044,
+          "chunk_count": 1
+        }
+      }
+    ],
+    "edges": [
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec_topic_d57f131d-eadc-480a-9917-1364bac89887",
+          "source": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "target": "topic_d57f131d-eadc-480a-9917-1364bac89887",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 1.0
+        }
+      },
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec_topic_576f7ad2-a96e-4eba-a022-51118f728dea",
+          "source": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "target": "topic_576f7ad2-a96e-4eba-a022-51118f728dea",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 1.0
+        }
+      },
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec_topic_e9cec201-e942-494e-b723-d9d491cf0640",
+          "source": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "target": "topic_e9cec201-e942-494e-b723-d9d491cf0640",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 1.0
+        }
+      },
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec_topic_3489bc89-4b3c-4ea0-b0c9-fc4444774530",
+          "source": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "target": "topic_3489bc89-4b3c-4ea0-b0c9-fc4444774530",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 1.0
+        }
+      },
+      {
+        "data": {
+          "id": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec_topic_3b110616-bec7-4230-8e2d-ff2016b63105",
+          "source": "doc_cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+          "target": "topic_3b110616-bec7-4230-8e2d-ff2016b63105",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 1.0
+        }
+      },
+      {
+        "data": {
+          "id": "topic_d57f131d-eadc-480a-9917-1364bac89887_concept_4889f09c-274b-4c54-9330-d2b07119e697",
+          "source": "topic_d57f131d-eadc-480a-9917-1364bac89887",
+          "target": "concept_4889f09c-274b-4c54-9330-d2b07119e697",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 0.8
+        }
+      },
+      {
+        "data": {
+          "id": "topic_576f7ad2-a96e-4eba-a022-51118f728dea_concept_6bd8d314-9f8d-4729-807e-19eb84f260d5",
+          "source": "topic_576f7ad2-a96e-4eba-a022-51118f728dea",
+          "target": "concept_6bd8d314-9f8d-4729-807e-19eb84f260d5",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 0.8
+        }
+      },
+      {
+        "data": {
+          "id": "topic_e9cec201-e942-494e-b723-d9d491cf0640_concept_06299fe4-bb65-4b5f-87d5-2d5c141cab55",
+          "source": "topic_e9cec201-e942-494e-b723-d9d491cf0640",
+          "target": "concept_06299fe4-bb65-4b5f-87d5-2d5c141cab55",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 0.8
+        }
+      },
+      {
+        "data": {
+          "id": "topic_3489bc89-4b3c-4ea0-b0c9-fc4444774530_concept_584febaa-83d8-4e0d-9fb9-5c5a9fe223df",
+          "source": "topic_3489bc89-4b3c-4ea0-b0c9-fc4444774530",
+          "target": "concept_584febaa-83d8-4e0d-9fb9-5c5a9fe223df",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 0.8
+        }
+      },
+      {
+        "data": {
+          "id": "topic_3b110616-bec7-4230-8e2d-ff2016b63105_concept_cd188b8f-fdd0-4ab8-bb40-f153aaec787a",
+          "source": "topic_3b110616-bec7-4230-8e2d-ff2016b63105",
+          "target": "concept_cd188b8f-fdd0-4ab8-bb40-f153aaec787a",
+          "relation_type": "hierarchy",
+          "confidence": 1.0,
+          "weight": 0.8
+        }
+      },
+      {
+        "data": {
+          "id": "rel_4db8f912-7566-41e9-81ae-7e52cc119fa9",
+          "source": "concept_4889f09c-274b-4c54-9330-d2b07119e697",
+          "target": "concept_06299fe4-bb65-4b5f-87d5-2d5c141cab55",
+          "relation_type": "explanation",
+          "confidence": 0.85,
+          "weight": 0.7749999999999999,
+          "description": "Candidate semantic relation inferred from sentence co-occurrence and lexical support (explanation).",
+          "validated": false,
+          "is_candidate": true,
+          "chunk_ids": [
+            "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+            "4d255eda-9adf-4e1f-a2a1-a2d1321aa098",
+            "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7"
+          ],
+          "evidence_text": "ADVANCED OLAP OLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing) supports long-term strategic decision-making.",
+          "signal_scores": {
+            "cooccurrence": 0.85,
+            "lexical_support": 0.45
+          }
+        }
+      }
+    ]
+  },
+  "metrics": {
+    "node_count": 11,
+    "edge_count": 11,
+    "density": 0.1,
+    "diameter": null,
+    "radius": null,
+    "avg_path_length": null,
+    "clustering_coefficient": 0.0,
+    "transitivity": 0.0,
+    "is_connected": true,
+    "num_components": 1,
+    "avg_degree": 2.0,
+    "max_degree": 5,
+    "min_degree": 1
+  }
+}

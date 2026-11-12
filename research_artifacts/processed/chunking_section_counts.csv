@@ -1,0 +1,34 @@
+﻿filename,section_index,title,words,formula_planning_estimate,actual_raw_chunks,delta_actual_minus_planning
+DAA FINAL.pdf,0,,2371,6,5,-1
+DAA FINAL.pdf,1,T (n/4),195,1,1,0
+DAA FINAL.pdf,2,T (n/4),2570,6,6,0
+DAA FINAL.pdf,3,T (n/2),3589,8,8,0
+DAA FINAL.pdf,4,D):,11094,24,24,0
+UNIT II — SELF MANAGEMENT SKILLS.pdf,0,,1235,3,3,0
+UNIT III — ENTREPRENEURSHIP SKILLS.pdf,0,,1470,4,3,-1
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,0,,97,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,1,Design Assets Manually,11,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,2,Manual Animation,13,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,3,Editing & Audio Setup,9,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,4,Rendering & Export,83,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,5,"Premiere Pro → sequencing, audio, and final export",14,1,1,0
+UNIT III — SOFTWARE & AI WORKFLOW.pdf,6,Create AI voiceovers and background music,1096,3,3,0
+UNIT IV Information Retrieval Overview.pdf,0,,3053,7,7,0
+UNIT IV — NEGOTIATION SKILLS.pdf,0,,645,2,2,0
+UNIT IV — NEGOTIATION SKILLS.pdf,1,Follow-up,759,2,2,0
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",0,,383,1,1,0
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",1,"Problem–solution format — shows an issue, then the",1,1,1,0
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",2,"Emotional appeal — colors, music, and pacing to evoke",1,1,1,0
+"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",3,Data storytelling — animated infographics to explain facts,651,2,2,0
+Unit-2 Data exploration and Vizualization.pdf,0,,3014,7,7,0
+Unit-3 Vector Calculus.pdf,0,,1974,5,5,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,0,,94,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,1,Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS,58,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,2,Work Nature: OLTP tasks involve straightforward CRUD operations; OLAP requires complex,132,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,3,Enables users to analyze performance across multiple intersecting categories. MULTIDIMENSIONAL,221,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,4,"Statistical Functions: Support for Average, Median, and Standard Deviation. CORE OPERATIONS:",84,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,5,Utilizes standard SQL to perform multidimensional analysis tasks. RELATIONAL OLAP (ROLAP),86,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,6,Provides a balanced solution for enterprise-wide decision support. HYBRID OLAP (HOLAP),152,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,7,Ensures that frequently accessed summary data is always ready. PARTIAL MATERIALIZATION,99,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,8,Helps maintain analytical performance while respecting hardware limits. ADVANCED CUBE COMPACTION,154,1,1,0
+Unit-4 Advanced OLAP Concepts.pptx.pdf,9,Efficiently handles multi-dimensional queries with multiple selection criteria. BITMAP INDEXING,415,1,1,0

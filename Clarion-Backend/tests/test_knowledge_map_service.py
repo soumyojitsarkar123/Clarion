@@ -29,9 +29,11 @@ def test_cooccurrence_relations_are_labeled(isolated_settings, sample_chunks):
     concepts = service._extract_concepts_heuristic(sample_chunks)
     relations = service._detect_relations_by_cooccurrence(concepts, sample_chunks)
     for relation in relations:
-        assert relation.relation_type == RelationType.EXPLANATION
+        assert relation.relation_type in set(RelationType)
+        assert relation.evidence_text
+        assert relation.source_chunk_ids
         assert "co-occurrence" in relation.description.lower()
-        assert 0.0 <= relation.confidence <= 0.8
+        assert 0.0 <= relation.confidence <= 0.85
     assert not any(relation.from_concept == relation.to_concept for relation in relations)
 
 

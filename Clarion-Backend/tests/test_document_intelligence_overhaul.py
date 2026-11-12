@@ -257,7 +257,7 @@ def test_concepts_have_frequency_and_supporting_sections(isolated_settings, samp
 # ============================================================================
 
 def test_summary_deterministic_fallback_notice(isolated_settings, sample_chunks):
-    """Deterministic fallback summaries must explicitly expose the fallback notice and document type."""
+    """Deterministic fallback summaries must expose grounded text without template boilerplate, and set metadata flags."""
     summary_service = SummaryService()
     summary = summary_service.generate_summary(
         document_id="doc-test",
@@ -265,7 +265,12 @@ def test_summary_deterministic_fallback_notice(isolated_settings, sample_chunks)
         chunks=sample_chunks,
     )
     assert isinstance(summary, StructuredSummary)
-    assert summary.overall_summary.startswith("Deterministic fallback analysis: ")
+    assert summary.overall_summary and len(summary.overall_summary.strip()) > 0
+    assert "Deterministic fallback analysis" not in summary.overall_summary
+    assert "assessment-style document focused on" not in summary.overall_summary
+    assert summary.metadata["fallback_used"] is True
+    assert summary.metadata["analysis_mode"] == "deterministic_fallback"
+    assert summary.metadata["llm_summary_accepted"] is False
     assert summary.document_type in [
         "textbook", "academic_paper", "report", "assessment",
         "technical_documentation", "notes", "unknown"
@@ -315,11 +320,14 @@ def test_pipeline_tracker_reports_degraded_and_contract_stages(isolated_settings
     assert "ingestion" in stages
     assert "chunking" in stages
     assert "embedding" in stages
-    assert "llm_analysis" in stages
+    assert "mapping" in stages
     assert "graph_building" in stages
+    assert "evaluation" in stages
+    assert "hierarchy" in stages
+    assert "llm_analysis" not in stages
 
-    assert stages["llm_analysis"]["status"] == "fallback"
-    assert stages["llm_analysis"]["model"] == "qwen3.5:4b"
+    assert stages["mapping"]["status"] == "fallback"
+    assert stages["mapping"]["model"] == "qwen3.5:4b"
     assert stages["chunking"]["chunk_count"] == 2
     assert stages["graph_building"]["node_count"] == 4
     assert stages["graph_building"]["edge_count"] == 3
@@ -337,9 +345,11 @@ def test_embedding_fallback_dimension_is_1024(isolated_settings):
     assert len(vec) == 1024
 
 
-def test_embedding_sqlite_cache_roundtrip(isolated_settings):
-    """Precomputed embeddings are cached in SQLite and reused on repeat calls."""
+def test_embedding_sqlite_cache_roundtrip(isolated_settings, monkeypatch):
+    """Fallback vectors are cached under their own identity and reused."""
     emb_service = EmbeddingService()
+    emb_service.model = None
+    monkeypatch.setattr(emb_service, "_load_model", lambda: None)
     chunks = [
         Chunk(
             chunk_id="c1",
@@ -357,11 +367,23 @@ def test_embedding_sqlite_cache_roundtrip(isolated_settings):
     # Verify directly in SQLite table
     conn = sqlite3.connect(emb_service.db_path)
     cur = conn.cursor()
-    cur.execute("SELECT content_hash, vector_blob FROM chunk_embeddings WHERE model_name = ?", (emb_service.model_name,))
+    cache_model_id = emb_service.active_model_id
+    assert cache_model_id == "clarion-hash-fallback-v1"
+    cur.execute("SELECT content_hash, vector_blob FROM chunk_embeddings WHERE model_name = ?", (cache_model_id,))
     rows = cur.fetchall()
     conn.close()
     assert len(rows) >= 1
 
-    # Second call retrieves from cache
+    # Fail if the second call recomputes instead of using the persisted vector.
+    monkeypatch.setattr(
+        emb_service,
+        "_fallback_embed_text",
+        lambda _text: pytest.fail("fallback vector should be served from SQLite cache"),
+    )
     vectors_2 = emb_service.generate_embeddings(chunks)
-    assert vectors_1 == vectors_2
+    assert len(vectors_1) == len(vectors_2)
+    assert all(
+        len(first) == len(second)
+        and all(abs(left - right) <= 1e-6 for left, right in zip(first, second))
+        for first, second in zip(vectors_1, vectors_2)
+    )

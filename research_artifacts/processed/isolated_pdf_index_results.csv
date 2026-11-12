@@ -1,0 +1,12 @@
+﻿alignment_ok,document_id,embedding_dimension,embedding_segments,extracted_words,faiss_vectors,filename,indexed_vectors,pages,raw_chunks,retained_chunks,retrieval_ready_records,sqlite_chunks,sqlite_embedding_records,sqlite_segment_records,status,using_fallback_embeddings,warning
+,,,0,0,,AI_Book.pdf,0,1151,0,0,0,,,,NO_EXTRACTABLE_TEXT,,Document Service rejects <20 extracted words; OCR not run.
+True,4b87e76f-a836-4466-b1e0-c4459315e854,1024,100,19830,100,DAA FINAL.pdf,100,87,44,44,100,44,100,100,INDEXED,False,
+True,150a3d7a-5718-4bea-9748-0e7ecf61629e,1024,5,1235,5,UNIT II — SELF MANAGEMENT SKILLS.pdf,5,24,3,3,5,3,5,5,INDEXED,False,
+True,d1831fd7-c5cb-4b3f-a90b-a7f5b53d1e26,1024,6,1470,6,UNIT III — ENTREPRENEURSHIP SKILLS.pdf,6,37,3,3,6,3,6,6,INDEXED,False,
+True,30d609f4-f8dc-4b21-ae07-bd0054f3172e,1024,6,1397,6,UNIT III — SOFTWARE & AI WORKFLOW.pdf,6,25,4,4,6,4,6,6,INDEXED,False,
+True,a647cea7-d933-45b6-a84e-d577f0e802f1,1024,13,3053,13,UNIT IV Information Retrieval Overview.pdf,13,43,7,7,13,7,13,13,INDEXED,False,
+True,f31ca741-9b8a-4460-9b52-cf772b42ca65,1024,6,1414,6,UNIT IV — NEGOTIATION SKILLS.pdf,6,26,4,4,6,4,6,6,INDEXED,False,
+True,c424254b-8d29-4fed-a9a3-302419da378c,1024,4,1085,4,"UNIT IV — STORYTELLING, BRANDING & ETHICS.pptx.pdf",4,29,3,3,4,3,4,4,INDEXED,False,
+True,8c5aa0ac-73d5-409d-a221-ccff5d1b2eef,1024,13,3014,13,Unit-2 Data exploration and Vizualization.pdf,13,10,7,7,13,7,13,13,INDEXED,False,
+True,126ccd93-6167-46a8-b3f9-b10f55838277,1024,9,1974,9,Unit-3 Vector Calculus.pdf,9,32,5,5,9,5,9,9,INDEXED,False,
+True,f49d6f70-6bb3-43c8-becd-bb479486eb41,1024,8,1601,8,Unit-4 Advanced OLAP Concepts.pptx.pdf,8,31,6,6,8,6,8,8,INDEXED,False,

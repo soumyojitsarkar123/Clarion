@@ -1,0 +1,126 @@
+{
+  "run_id": "clarion-final-demo-2026-11-12",
+  "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+  "source_document": "docs/Unit-4 Advanced OLAP Concepts.pptx.pdf",
+  "independent_pdf_inspection": {
+    "physical_pages": 31,
+    "extracted_pages": 31,
+    "text_bearing_pages": 31,
+    "raw_whitespace_words": 1496
+  },
+  "document_status": "analyzed",
+  "api_counts": {
+    "physical_pages": 31,
+    "extracted_pages": 31,
+    "text_bearing_pages": 31,
+    "empty_text_pages": 0,
+    "indexed_pages": 31,
+    "indexed_page_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "raw_words": 1496,
+    "normalized_words": 1600,
+    "candidate_raw_chunks": 10,
+    "retained_chunks": 6,
+    "rejected_chunks": null,
+    "embedding_segments": 8,
+    "mapped_vectors": 8,
+    "faiss_vectors": 8
+  },
+  "database_retained_chunks": 6,
+  "database_embedding_segments": 8,
+  "knowledge_map": {
+    "concepts": 5,
+    "candidate_relations": 1,
+    "evidence_backed_relations": 1,
+    "duplicate_concept_names": 0,
+    "duplicate_directed_relation_pairs": 0
+  },
+  "graph": {
+    "nodes": 11,
+    "edges": 11,
+    "orphan_edges": []
+  },
+  "retrieval": {
+    "results": 5,
+    "generated_answer": true,
+    "fallback_used": false,
+    "results_with_page_citations": 5
+  },
+  "reconciliation": {
+    "document_id_matches": true,
+    "physical_pages_api_db_independent": [
+      31,
+      31,
+      31
+    ],
+    "extracted_pages_api_independent": [
+      31,
+      31
+    ],
+    "text_bearing_pages_api_independent": [
+      31,
+      31
+    ],
+    "raw_words_api_db_independent": [
+      1496,
+      1496,
+      1496
+    ],
+    "normalized_words_api_db": [
+      1600,
+      1600
+    ],
+    "retained_chunks_api_db": [
+      6,
+      6
+    ],
+    "segments_api_db": [
+      8,
+      8
+    ],
+    "vectors_api": [
+      8,
+      8
+    ],
+    "source_hash_matches_record": true,
+    "retrieval_results_have_document_and_page_provenance": true
+  },
+  "limitations": [
+    "Browser automation did not reach page rendering: Chromium and Edge exited during process startup in this Windows session; no screenshot or frontend interaction is claimed as verified.",
+    "Only one PDF was run through live processing in this session; slide PDF behavior is shown, while long-text, table-heavy, and image-only/low-text documents remain for the next validation pass.",
+    "Rejected chunk count is not exposed by the current API; it is null, not inferred.",
+    "The dataset-export mirror was copied into this isolated run and the uniquely named workspace mirror was removed; set CLARION_DISABLE_WORKSPACE_DATASET_MIRROR=1 for isolated runs."
+  ],
+  "all_reconciliations_pass": true
+}

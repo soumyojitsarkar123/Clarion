@@ -97,6 +97,7 @@ class OpenAIProvider(BaseLLMProvider):
         
         temperature = temperature or self.temperature
         max_tokens = max_tokens or self.max_tokens
+        budget_metrics = self.preflight_request(prompt, system_message, max_tokens)
         
         try:
             messages = []
@@ -115,7 +116,7 @@ class OpenAIProvider(BaseLLMProvider):
             
             elapsed_ms = (time.time() - start_time) * 1000
             
-            return LLMResponse(
+            return self.record_response_usage(LLMResponse(
                 content=sanitize_llm_text(response.choices[0].message.content),
                 model=response.model,
                 usage=TokenUsage(
@@ -124,8 +125,9 @@ class OpenAIProvider(BaseLLMProvider):
                     total_tokens=response.usage.total_tokens
                 ),
                 finish_reason=response.choices[0].finish_reason,
-                response_time_ms=elapsed_ms
-            )
+                response_time_ms=elapsed_ms,
+                metadata={"token_budget": budget_metrics.__dict__},
+            ))
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise LLMProviderError(f"OpenAI generation failed: {str(e)}")

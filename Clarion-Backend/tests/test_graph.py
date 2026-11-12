@@ -140,7 +140,10 @@ def test_edge_provenance_and_calibration_in_cytoscape(isolated_settings):
 
     assert edge_data is not None
     assert edge_data["evidence_text"] == "The null hypothesis specifies that there is no effect."
-    assert edge_data["validated"] is True
+    # Calibration is a model score; the source relation remains a candidate
+    # until the evidence itself is independently validated.
+    assert edge_data["validated"] is False
+    assert edge_data["is_candidate"] is True
     assert edge_data["signal_scores"]["entailment"] == 0.85
 
     # Check Cytoscape export
@@ -154,5 +157,6 @@ def test_edge_provenance_and_calibration_in_cytoscape(isolated_settings):
 
     assert cyto_edge is not None
     assert cyto_edge["data"]["evidence_text"] == "The null hypothesis specifies that there is no effect."
-    assert cyto_edge["data"]["validated"] is True
+    assert cyto_edge["data"]["validated"] is False
+    assert cyto_edge["data"]["is_candidate"] is True
 

@@ -59,22 +59,32 @@ class RetrievalService:
         chunks = {chunk.chunk_id: chunk for chunk in self.chunking_service.get_chunks(document_id)}
         
         for chunk_id, distance in search_results:
-            if chunk_id not in chunks:
+            segment = self.embedding_service.get_embedding_segment(
+                chunk_id, vector_store.model_id, vector_store.model_revision
+            )
+            source_chunk_id = segment["source_chunk_id"] if segment else chunk_id
+            if source_chunk_id not in chunks:
                 continue
-            
-            chunk = chunks[chunk_id]
+            chunk = chunks[source_chunk_id]
             
             score = 1.0 / (1.0 + distance)
             
             if score < self.similarity_threshold:
                 continue
             
+            provenance = (segment or {}).get("source_provenance") or chunk.source_provenance or {}
             result = RetrievalResult(
                 chunk_id=chunk.chunk_id,
-                content=chunk.content,
+                content=segment["content"] if segment else chunk.content,
                 score=score,
                 section_title=chunk.section_title,
-                position_index=chunk.position_index
+                position_index=chunk.position_index,
+                document_id=document_id,
+                page_references=provenance.get("page_references", []),
+                source_intervals=provenance.get("source_intervals", []),
+                segment_id=chunk_id,
+                raw_chunk_ids=chunk.raw_chunk_ids or [chunk.chunk_id],
+                embedding_model_id=vector_store.model_id,
             )
             
             results.append(result)

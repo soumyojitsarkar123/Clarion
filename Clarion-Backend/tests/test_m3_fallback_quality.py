@@ -133,7 +133,7 @@ def test_cooccurrence_relations_infer_typed_patterns(isolated_settings):
     relations = service._detect_relations_by_cooccurrence(concepts, chunks)
     assert len(relations) == 1
     rel = relations[0]
-    assert rel.relation_type == RelationType.EXPLANATION
+    assert rel.relation_type == RelationType.PART_OF
     assert "part-of" in rel.description
     assert rel.evidence_text is not None
     assert "priority queue is a component of dijkstra algorithm" in rel.evidence_text.lower()
@@ -158,3 +158,80 @@ def test_summary_filters_boilerplate_and_proceedings(isolated_settings):
     ]
     for s in technical_sentences:
         assert service._looks_like_acknowledgment(s.lower()) is False
+
+
+def test_fallback_overall_summary_has_no_template_boilerplate(isolated_settings):
+    """Fallback overall summary must contain zero canned templates or generic filler."""
+    service = SummaryService()
+    exam_text = (
+        "Computer Organization & Architecture Final Examination\n\n"
+        "Time Allowed: 3 Hours. Maximum Marks: 100.\n"
+        "Instructions to candidates: Answer any four questions.\n"
+        "Q 1. What is virtual memory? Explain how paging works in operating systems.\n"
+        "Carry Look Ahead Adder computes carry in parallel using generate and propagate signals.\n"
+        "Virtual memory allows secondary storage to operate as an extension of main memory.\n"
+        "Pipeline hazard stalls the execution cycle when data dependencies cannot be resolved.\n"
+        "Cache memory exploits spatial and temporal locality to reduce latency."
+    )
+    chunks = [
+        _make_chunk("c1", "Computer Organization & Architecture Final Examination\nTime Allowed: 3 Hours."),
+        _make_chunk("c2", "Carry Look Ahead Adder computes carry in parallel using generate and propagate signals."),
+        _make_chunk("c3", "Virtual memory allows secondary storage to operate as an extension of main memory."),
+        _make_chunk("c4", "Cache memory exploits spatial and temporal locality to reduce latency."),
+    ]
+    summary = service.generate_summary(
+        document_id="doc-coa-test",
+        title="COA_Final_Exam_Prediction_Sheet.pdf",
+        chunks=chunks,
+    )
+
+    overall = summary.overall_summary
+    assert overall and len(overall) > 50
+
+    # Strict assertion: zero template filler
+    canned_phrases = [
+        "deterministic fallback analysis",
+        "assessment-style document",
+        "question-driven material",
+        "it also discusses applications and examples",
+        "covers ",
+        "also touches on ",
+    ]
+    for phrase in canned_phrases:
+        assert phrase not in overall.lower(), f"Canned phrase '{phrase}' found in overall summary: {overall}"
+
+    # Metadata decoupling assertions
+    assert summary.metadata["fallback_used"] is True
+    assert summary.metadata["analysis_mode"] == "deterministic_fallback"
+    assert summary.metadata["llm_summary_accepted"] is False
+
+
+def test_fallback_key_points_filters_exam_stems_and_bare_formulas(isolated_settings):
+    """Fallback key point extraction must reject question stems, exam instructions, and bare equations."""
+    service = SummaryService()
+    noisy_section_text = (
+        "Instructions: Attempt any four questions. Each question carries 10 marks.\n"
+        "What is the difference between SRAM and DRAM?\n"
+        "Q 1. Explain the working principle of Carry Look Ahead Adder.\n"
+        "AMAT = Hit Time + (Miss Rate * Miss Penalty)\n"
+        "Carry Look Ahead Adder computes carry in parallel using generate and propagate signals.\n"
+        "Virtual memory allows secondary storage to operate as an extension of main memory.\n"
+        "Cache memory exploits temporal and spatial locality to minimize processor latency."
+    )
+    points = service._build_fallback_key_points(noisy_section_text)
+    assert len(points) >= 2
+
+    for pt in points:
+        # Must not end with question mark or contain question mark
+        assert "?" not in pt
+        # Must not start with exam instruction or stem
+        assert not pt.lower().startswith(("what is", "q 1", "instructions", "attempt any"))
+        # Must not be a bare formula
+        assert not pt.startswith("AMAT =")
+        # Must be a grounded declarative sentence
+        assert any(pt.startswith(prefix) for prefix in [
+            "Carry Look Ahead Adder",
+            "Virtual memory",
+            "Cache memory",
+        ])
+

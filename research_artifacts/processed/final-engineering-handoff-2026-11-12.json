@@ -1,0 +1,1791 @@
+{
+  "created_at_utc": "2026-11-12T16:18:57.896486+00:00",
+  "head": "ebca6ed0125c7131c05c945620b23a1970844b92",
+  "branch": "main",
+  "commit_created": false,
+  "release_zip_created": false,
+  "research_manuscript_or_academic_reports_written": false,
+  "git_status_counts": {
+    "modified_tracked": 51,
+    "deleted_tracked": 2,
+    "untracked_nonignored": 379,
+    "staged": 0
+  },
+  "modified_tracked_paths": [
+    ".gitignore",
+    "Clarion-Backend/.env.example",
+    "Clarion-Backend/core/llm/base.py",
+    "Clarion-Backend/core/llm/factory.py",
+    "Clarion-Backend/core/llm/glm_provider.py",
+    "Clarion-Backend/core/llm/kimi_provider.py",
+    "Clarion-Backend/core/llm/ollama_provider.py",
+    "Clarion-Backend/core/llm/openai_provider.py",
+    "Clarion-Backend/graph/builder.py",
+    "Clarion-Backend/graph/exporter.py",
+    "Clarion-Backend/models/chunk.py",
+    "Clarion-Backend/models/document.py",
+    "Clarion-Backend/models/response.py",
+    "Clarion-Backend/models/retrieval.py",
+    "Clarion-Backend/reports/ENGINEERING_VALIDATION_REPORT.md",
+    "Clarion-Backend/reports/RESEARCH_EXPERIMENT_REPORT.md",
+    "Clarion-Backend/routers/dataset_factory.py",
+    "Clarion-Backend/routers/knowledge_map.py",
+    "Clarion-Backend/routers/query.py",
+    "Clarion-Backend/routers/system.py",
+    "Clarion-Backend/routers/upload.py",
+    "Clarion-Backend/services/background_service.py",
+    "Clarion-Backend/services/chunking_service.py",
+    "Clarion-Backend/services/dataset_factory_service.py",
+    "Clarion-Backend/services/document_service.py",
+    "Clarion-Backend/services/embedding_service.py",
+    "Clarion-Backend/services/knowledge_map_service.py",
+    "Clarion-Backend/services/pipeline_observability.py",
+    "Clarion-Backend/services/processing_pipeline.py",
+    "Clarion-Backend/services/relation_dataset_service.py",
+    "Clarion-Backend/services/retrieval_service.py",
+    "Clarion-Backend/services/summary_service.py",
+    "Clarion-Backend/tests/conftest.py",
+    "Clarion-Backend/tests/test_annotation_ui.py",
+    "Clarion-Backend/tests/test_api.py",
+    "Clarion-Backend/tests/test_chunking_service.py",
+    "Clarion-Backend/tests/test_document_intelligence_overhaul.py",
+    "Clarion-Backend/tests/test_embedding_service.py",
+    "Clarion-Backend/tests/test_graph.py",
+    "Clarion-Backend/tests/test_knowledge_map_service.py",
+    "Clarion-Backend/tests/test_m3_fallback_quality.py",
+    "Clarion-Backend/tests/test_relation_dataset_service.py",
+    "Clarion-Backend/utils/config.py",
+    "Clarion-Backend/utils/file_handler.py",
+    "Clarion-Backend/utils/sqlite.py",
+    "PROJECT.md",
+    "README.md",
+    "frontend/app.js",
+    "frontend/index.html",
+    "frontend/styles.css",
+    "scripts/verify_frontend_e2e_contracts.py"
+  ],
+  "deleted_tracked_paths": [
+    "GATE_STATUS.md",
+    "appendix_report.md"
+  ],
+  "untracked_paths": [
+    {
+      "path": ".github/workflows/backend-regression.yml",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "CLARION_CURRENT_STATUS.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "Clarion-Backend/scripts/run_backend_tests.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "Clarion-Backend/scripts/validate_bge_segmentation.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "Clarion-Backend/services/provenance_migrations.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "Clarion-Backend/services/source_provenance.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "Clarion-Backend/services/token_budget_service.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_adversarial_normalization.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_adversarial_stress_r2_2.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_challenger1_m1_adversarial.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_challenger2_m1_adversarial.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_challenger2_m1_benchmarks.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_dataset_factory.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_e2e_pipeline_orchestration.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_embedding_segments.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_frontend_duration_format.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_live_ollama_dataset.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_m1_algorithmic_fixes.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_pipeline_status.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_provider_token_preflight.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_source_provenance_chain.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_text_metrics.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/tests/test_token_budget_service.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "Clarion-Backend/utils/text_metrics.py",
+      "category": "Essential application source or CI configuration"
+    },
+    {
+      "path": "FAISS_TEST_ENVIRONMENT_DIAGNOSIS.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "docs/AI_Book.pdf",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/DAA FINAL.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "docs/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "\"docs/UNIT II â€” SELF MANAGEMENT SKILLS.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/UNIT III â€” ENTREPRENEURSHIP SKILLS.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/UNIT III â€” SOFTWARE & AI WORKFLOW.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/UNIT IV Information Retrieval Overview.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/UNIT IV â€” NEGOTIATION SKILLS.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/UNIT IV â€” STORYTELLING, BRANDING & ETHICS.pptx.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/Unit-2 Data exploration and Vizualization.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/Unit-3 Vector Calculus.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "\"docs/Unit-4 Advanced OLAP Concepts.pptx.pdf\"",
+      "category": "Raw source document corpus"
+    },
+    {
+      "path": "docs/archive/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "docs/archive/packages/CLARION_DOCUMENTATION_CONSOLIDATION_ZIP_INTEGRITY.txt",
+      "category": "Historical archive integrity and checksum evidence"
+    },
+    {
+      "path": "docs/archive/packages/Clarion_Clean_Repository_Documentation_and_Verification_2026-11-11.zip.sha256",
+      "category": "Historical archive integrity and checksum evidence"
+    },
+    {
+      "path": "docs/archive/packages/README.md",
+      "category": "Historical archive integrity and checksum evidence"
+    },
+    {
+      "path": "reports/README.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/CHUNKING_ALGORITHM_READINESS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/Clarion_Software_Readiness_Work_2026-11-12.zip.sha256",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/DEPENDENCY_MODEL_MANIFEST.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/FINAL_REPOSITORY_STRUCTURE.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/FULL_APPLICATION_READINESS_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/LIVE_APPLICATION_E2E_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/LIVE_BROWSER_E2E_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/MODEL_COMPATIBILITY_AND_SELECTION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/MODEL_SELECTION_BENCHMARK.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/README.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/REPOSITORY_CLEANUP_INVENTORY.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/REPOSITORY_CLEANUP_LOG.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SECURITY_AND_OPERATIONAL_READINESS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SECURITY_AND_RECOVERY_VERIFICATION.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOFTWARE_FINAL_VERIFICATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOFTWARE_READINESS_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOFTWARE_RELEASE_READINESS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOURCE_CONFIGURATION_CHANGE_LOG.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOURCE_PROVENANCE_FINAL_VALIDATION.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOURCE_PROVENANCE_IMPLEMENTATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/SOURCE_PROVENANCE_INTEGRATION_TEST_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/TEST_RUNTIME_RECOVERY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/TOKEN_BUDGET_ARCHITECTURE.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/TOKEN_BUDGET_END_TO_END_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/TOKEN_BUDGET_FINAL_VALIDATION.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/current/TOKEN_BUDGET_PROVIDER_INTEGRATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/ABLATION_STUDY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/BACKEND_REGRESSION_FINAL_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/BACKEND_VERIFICATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/BGE_MODEL_VALIDATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/CHUNKING_EXPERIMENT_RESULTS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/CHUNKING_FORENSIC_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/DATABASE_MIGRATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/DATASET_GENERATION_RELIABILITY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/ENVIRONMENT_RECOVERY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/EXPERIMENTAL_RESULTS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/FINAL_AUDIT_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/FIX_LOG.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/FRONTEND_NOMENCLATURE_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/FRONTEND_TIMELINE_VERIFICATION.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/FULL_UPLOAD_PIPELINE_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/GATE_STATUS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/GRAPH_ARTIFACT_REGISTRY.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/LATENCY_VALIDATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/LLM_TEST_DETERMINISM_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/MANUSCRIPT_STATUS_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/MATHEMATICAL_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/OLLAMA_PERFORMANCE_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PAPER_CODE_CONSISTENCY.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PDF_RESEARCH_EVIDENCE.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PDF_SOURCE_REGISTER.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PIPELINE_TELEMETRY_SCHEMA.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PIPELINE_TIMELINE_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/POST_AUDIT_FINDINGS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PROCESSING_PIPELINE_INTEGRATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/PROVENANCE_AND_RETRIEVAL_VALIDATION.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/README.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/RESEARCH_QUESTION_AND_HYPOTHESIS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/RESEARCH_VALIDATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/RETRIEVAL_EVALUATION_DATASET.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/SEGMENTATION_INTEGRATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/SUBMISSION_READINESS_CHECKLIST.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/TEST_INFRA.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/TEST_READY.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/TOKEN_LENGTH_VALIDATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/WORKTREE_RECOVERY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/appendix_report.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/recovery/GATE_STATUS.root-original.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/recovery/VERIFICATION_PRESNAPSHOT.json",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/recovery/WORKTREE_RECOVERY_BACKUP.patch",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "reports/historical/recovery/appendix_report.root-original.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/FINAL_EVIDENCE_INDEX.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research/annotation/ANNOTATION_PROTOCOL.md",
+      "category": "Essential research protocol"
+    },
+    {
+      "path": "research/annotation/README.md",
+      "category": "Essential research protocol"
+    },
+    {
+      "path": "research/data/README.md",
+      "category": "Raw or processed research dataset and source register"
+    },
+    {
+      "path": "research/data/page_extraction_statistics.csv",
+      "category": "Raw or processed research dataset and source register"
+    },
+    {
+      "path": "research/data/pdf_source_register.csv",
+      "category": "Raw or processed research dataset and source register"
+    },
+    {
+      "path": "research/data/research_evidence.csv",
+      "category": "Raw or processed research dataset and source register"
+    },
+    {
+      "path": "research/data/research_evidence.json",
+      "category": "Raw or processed research dataset and source register"
+    },
+    {
+      "path": "research/experiments/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research/figures/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research/manuscript/clarion_research_draft.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/protocols/RESEARCH_QUESTIONS.md",
+      "category": "Essential research protocol"
+    },
+    {
+      "path": "research/protocols/RETRIEVAL_EVALUATION_PROTOCOL.md",
+      "category": "Essential research protocol"
+    },
+    {
+      "path": "research/references.bib",
+      "category": "Research reference bibliography"
+    },
+    {
+      "path": "research/reports/ANNOTATION_DATASET_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/CHUNKING_EXPERIMENT_RESULTS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/CHUNKING_FORENSIC_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/INTER_ANNOTATOR_AGREEMENT_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/PDF_EXTRACTION_AUDIT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/PDF_SOURCE_REGISTER.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/PERFORMANCE_EVALUATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/PROVENANCE_INTEGRITY_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/PUBLICATION_READINESS_REVIEW.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/RELATION_EVALUATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/REPOSITORY_STRUCTURE.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/RESEARCH_CONTRIBUTION_AND_NOVELTY.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/RESEARCH_VALIDATION_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/RETRIEVAL_EVALUATION_RESULTS.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/reports/STATISTICAL_ANALYSIS_REPORT.md",
+      "category": "Research-authored manuscript/report retained untouched"
+    },
+    {
+      "path": "research/results/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research/scripts/build_source_register.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research/tables/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/baseline_untracked/CLARION_CURRENT_STATUS.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/baseline_untracked/gitignore_at_HEAD",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/file-manifest.csv",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/git-status.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/research-pass-gitignore.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/2026-11-11_research-validation-presnapshot/tracked-worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/README.md",
+      "category": "Developer documentation or repository guidance"
+    },
+    {
+      "path": "research_artifacts/annotation/RELATION_ANNOTATION_PROTOCOL.md",
+      "category": "Research annotation protocol or template"
+    },
+    {
+      "path": "research_artifacts/annotation/annotation_template.csv",
+      "category": "Research annotation protocol or template"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/document-id.txt",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/evidence/graph-output-cytoscape.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/evidence/relation-dataset-snapshot.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/knowledge-map.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/live-demo-verification.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/metrics.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/query-response.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/retained-source-copy.pdf",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/source-hash-check.json",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/windows-collection.txt",
+      "category": "Raw live-demo validation evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-final-freeze-2026-11-12/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-final-freeze-2026-11-12/git-status.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-final-freeze-2026-11-12/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-final-freeze-2026-11-12/manifest.json",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-final-freeze-2026-11-12/tracked-worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-frozen-presnapshot-2026-11-11/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-frozen-presnapshot-2026-11-11/git_status_porcelain_z.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-frozen-presnapshot-2026-11-11/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-frozen-presnapshot-2026-11-11/tracked_worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-frozen-presnapshot-2026-11-11/untracked_manifest.json",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-provenance-presnapshot-2026-11-12/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-provenance-presnapshot-2026-11-12/git-status.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-provenance-presnapshot-2026-11-12/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-provenance-presnapshot-2026-11-12/manifest.json",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-provenance-presnapshot-2026-11-12/tracked-worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-11/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-11/git_status_porcelain_z.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-11/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-11/tracked_worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-11/untracked_manifest.json",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-12/README.md",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-12/git-status.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-12/head.txt",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-12/tracked-worktree.patch",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/engineering-readiness-presnapshot-2026-11-12/untracked-sha256.csv",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/figures/chunking_config_sensitivity_daa.png",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/figures/embedding_segment_token_lengths.png",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/figures/pdf_chunk_counts.png",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/isolated-provenance-e2e-2026-11-12/data/vectorstore/a9f7ddf8-4a31-4cb3-afda-951cc7d67e56.4505ebb96c105c4c.index",
+      "category": "Historical isolated provenance validation evidence"
+    },
+    {
+      "path": "research_artifacts/isolated-provenance-e2e-2026-11-12/data/vectorstore/a9f7ddf8-4a31-4cb3-afda-951cc7d67e56.4505ebb96c105c4c_meta.json",
+      "category": "Historical isolated provenance validation evidence"
+    },
+    {
+      "path": "research_artifacts/isolated-provenance-e2e-2026-11-12/data/vectorstore/a9f7ddf8-4a31-4cb3-afda-951cc7d67e56.85006730f5a4ee1b.index",
+      "category": "Historical isolated provenance validation evidence"
+    },
+    {
+      "path": "research_artifacts/isolated-provenance-e2e-2026-11-12/data/vectorstore/a9f7ddf8-4a31-4cb3-afda-951cc7d67e56.85006730f5a4ee1b_meta.json",
+      "category": "Historical isolated provenance validation evidence"
+    },
+    {
+      "path": "research_artifacts/isolated-provenance-e2e-2026-11-12/isolated_provenance_e2e_manifest.json",
+      "category": "Historical isolated provenance validation evidence"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/processing_results.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/126ccd93-6167-46a8-b3f9-b10f55838277.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/126ccd93-6167-46a8-b3f9-b10f55838277_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/150a3d7a-5718-4bea-9748-0e7ecf61629e.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/150a3d7a-5718-4bea-9748-0e7ecf61629e_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/30d609f4-f8dc-4b21-ae07-bd0054f3172e.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/30d609f4-f8dc-4b21-ae07-bd0054f3172e_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/4b87e76f-a836-4466-b1e0-c4459315e854.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/4b87e76f-a836-4466-b1e0-c4459315e854_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/8c5aa0ac-73d5-409d-a221-ccff5d1b2eef.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/8c5aa0ac-73d5-409d-a221-ccff5d1b2eef_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/a647cea7-d933-45b6-a84e-d577f0e802f1.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/a647cea7-d933-45b6-a84e-d577f0e802f1_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/c424254b-8d29-4fed-a9a3-302419da378c.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/c424254b-8d29-4fed-a9a3-302419da378c_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/d1831fd7-c5cb-4b3f-a90b-a7f5b53d1e26.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/d1831fd7-c5cb-4b3f-a90b-a7f5b53d1e26_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/f31ca741-9b8a-4460-9b52-cf772b42ca65.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/f31ca741-9b8a-4460-9b52-cf772b42ca65_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/f49d6f70-6bb3-43c8-becd-bb479486eb41.index",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/isolated_pdf_index_2026-11-11/vectorstore/f49d6f70-6bb3-43c8-becd-bb479486eb41_meta.json",
+      "category": "Processed isolated document-index validation output"
+    },
+    {
+      "path": "research_artifacts/processed/archive_content_inventory.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/archive_content_inventory_post_cleanup.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/backend-validation-requirements-2026-11-12.txt",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/backup_restore_rehearsal_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/cache_cleanup_manifest.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/chunking_configuration_sensitivity.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/chunking_configuration_sensitivity.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/chunking_section_counts.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/chunking_section_counts.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/default-database-probe-rollback-2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/document-metrics-spec-2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/embedding_segment_token_lengths.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/final-engineering-handoff-2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/final-uncommitted-2026-11-12.patch",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/final_freeze_inventory_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/final_gate_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/generation_model_smoke_2026-11-11.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/generation_model_smoke_2026-11-11.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/isolated_pdf_index_results.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/knowledge-graph-labels-template-2026-11-12.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/linux-test-environment-2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/measurement-collection-schema-2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_chunk_counts.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_chunk_counts.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_image_object_counts.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_page_extraction.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_page_extraction_review.md",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/pdf_source_register.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/relocation_reconciliation_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/repository_cleanup_inventory.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/repository_inventory_post_cleanup.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/repository_inventory_pre_cleanup.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/repository_relocation_map.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/research_evaluation_audit_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/research_evidence.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/research_evidence.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/retrieval-qrels-template-2026-11-12.csv",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/security_review_2026-11-12.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/processed/software_dependency_model_manifest_2026-11-11.json",
+      "category": "Processed evidence or machine-readable technical specification"
+    },
+    {
+      "path": "research_artifacts/raw/ai_book_pages/ai-book-0001.png",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/ai_book_pages/ai-book-0002.png",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/backend-test-linux-py312-pip-freeze-2026-11-12.txt",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/clarion_extraction.json",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/ir_pages/ir-39.png",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/ir_pages/ir-40.png",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/pdf_extraction.json",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/raw/windows-asyncio-socketpair-repro-2026-11-12.json",
+      "category": "Historical/raw experimental or validation evidence"
+    },
+    {
+      "path": "research_artifacts/scripts/audit_live_demo_run.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/benchmark_generation_models.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/build_final_engineering_handoff.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/build_software_manifest.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/build_software_readiness_package.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/capture_backend_suite.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/capture_blocker_resolution_snapshot.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/check_tracked_diff_hash.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/complete_presnapshot.py",
+      "category": "Recovery material and historical evidence"
+    },
+    {
+      "path": "research_artifacts/scripts/count_pdf_image_objects.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/dedupe_cleanup_log.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/extract_with_clarion_parser.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/extract_with_pypdf_comparison.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/final_artifact_check.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/final_doc_adjustments.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/final_report_edits.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/finalize_status.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/fix_cleanup_manifest_note.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/generate_chunk_reports.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/generate_pdf_reports.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/generate_protocol_reports.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/generate_tables.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/inspect_annotations_readonly.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/inspect_relevant_pdf_text.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/inventory_repository.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/organize_repository_reports.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/post_cleanup_status_update.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/run_chunk_audit.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/run_isolated_backup_restore_rehearsal.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/run_isolated_pdf_index.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/run_isolated_provenance_e2e.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/scan_metadata_citations.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/scripts/summarize_page_extraction_review.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "research_artifacts/tables/README.md",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/tables/chunking_configuration_table.csv",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/tables/index_alignment_table.csv",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "research_artifacts/tables/pdf_corpus_processing_table.csv",
+      "category": "Figures or tables"
+    },
+    {
+      "path": "scripts/adversarial_frontend_challenge.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/adversarial_m5_challenger_verification.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/generate_graph_artifact_registry.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/run_all_e2e_tests.sh",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/verify_challenger_m1_adversarial.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/verify_challenger_m2_adversarial.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/verify_challenger_m5_adversarial.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/verify_e2e_requirements_matrix.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "scripts/verify_startup_dom_invariants.py",
+      "category": "Reproducibility or validation script"
+    },
+    {
+      "path": "tests/e2e/__init__.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/conftest.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/run_e2e_suite.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/test_helpers.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/__init__.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f01_genuine_metrics.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f02_no_synthetic_row.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f03_telemetry_schema.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f04_duration_formatting.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f05_semantic_labels.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f06_frontend_invariants.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f07_chunk_batching.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f08_provenance.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f09_ollama_parameters.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f10_checkpoints.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f11_retries_validation.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f12_export_gate.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f13_attempt_telemetry.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f14_baseline_regression.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f15_database_safety.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f16_model_transparency.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier1_feature_coverage/test_t1_f17_deliverables_readiness.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b01_metrics_boundaries.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b02_synthetic_row_guards.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b03_schema_corrupted.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b04_subsecond_limits.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b05_disambiguation_limits.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b06_frontend_dom_limits.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b07_chunk_limits.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b08_provenance_boundaries.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b09_reasoning_edge_cases.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b10_checkpoint_recovery.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b11_retry_exhaustion.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b12_export_gate_corner.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b13_telemetry_missing.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b14_regression_boundaries.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b15_db_concurrency_locks.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b16_mock_leakage_guards.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier2_boundary_corner/test_t2_b17_deliverable_validation.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x01_ingest_metrics_passthrough.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x02_chunking_provenance.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x03_mapping_graph_disambiguation.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x04_ollama_checkpoint_resume.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x05_export_gate_telemetry.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x06_db_safety_regression.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x07_frontend_timeline_cold_recovery.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x08_format_duration_pipeline_poll.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x09_retry_backoff_checkpoint_sync.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x10_model_switch_reasoning_flags.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x11_gold_export_partial_state.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x12_statistics_attempt_correlation.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x13_degraded_pipeline_ui_conformance.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x14_large_document_chunk_split_export.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x15_rag_audit_evaluation_alignment.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x16_multi_tenant_isolation_sessions.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier3_cross_feature/test_t3_x17_deliverables_git_integrity.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s01_academic_paper_pipeline.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s02_technical_slides_pipeline.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s03_textbook_chapter_pipeline.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s04_dataset_factory_resilience.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s05_gold_dataset_export_audit.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s06_concurrent_uploads.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s07_cold_recovery_pipeline.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s08_adversarial_corrupt_ingest.py",
+      "category": "Essential test code"
+    },
+    {
+      "path": "tests/e2e/tier4_real_world_scenarios/test_t4_s09_full_publication_audit.py",
+      "category": "Essential test code"
+    }
+  ],
+  "untracked_category_counts": {
+    "Essential application source or CI configuration": 7,
+    "Developer documentation or repository guidance": 11,
+    "Essential test code": 81,
+    "Raw source document corpus": 11,
+    "Historical archive integrity and checksum evidence": 3,
+    "Research-authored manuscript/report retained untouched": 88,
+    "Essential research protocol": 4,
+    "Raw or processed research dataset and source register": 5,
+    "Research reference bibliography": 1,
+    "Reproducibility or validation script": 42,
+    "Recovery material and historical evidence": 34,
+    "Research annotation protocol or template": 2,
+    "Raw live-demo validation evidence": 10,
+    "Figures or tables": 7,
+    "Historical isolated provenance validation evidence": 5,
+    "Processed isolated document-index validation output": 21,
+    "Processed evidence or machine-readable technical specification": 39,
+    "Historical/raw experimental or validation evidence": 8
+  },
+  "unresolved_untracked_paths": [],
+  "ignored_runtime_policy": [
+    ".gitignore now excludes isolated demo runtime data, pytest temp outputs and logs; local databases and vector indexes remain on disk for reproducibility but are not Git candidates."
+  ],
+  "recovery_evidence": {
+    "snapshot_directory": "research_artifacts/engineering-final-blocker-resolution-2026-11-12/",
+    "previous_manifest_verification": "research_artifacts/processed/final_freeze_inventory_2026-11-12.json",
+    "historical_snapshot_preserved": true
+  },
+  "data_integrity": {
+    "run_id": "clarion-final-demo-2026-11-12",
+    "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+    "source_document": "docs/Unit-4 Advanced OLAP Concepts.pptx.pdf",
+    "independent_pdf_inspection": {
+      "physical_pages": 31,
+      "extracted_pages": 31,
+      "text_bearing_pages": 31,
+      "raw_whitespace_words": 1496
+    },
+    "document_status": "analyzed",
+    "api_counts": {
+      "physical_pages": 31,
+      "extracted_pages": 31,
+      "text_bearing_pages": 31,
+      "empty_text_pages": 0,
+      "indexed_pages": 31,
+      "indexed_page_numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "raw_words": 1496,
+      "normalized_words": 1600,
+      "candidate_raw_chunks": 10,
+      "retained_chunks": 6,
+      "rejected_chunks": null,
+      "embedding_segments": 8,
+      "mapped_vectors": 8,
+      "faiss_vectors": 8
+    },
+    "database_retained_chunks": 6,
+    "database_embedding_segments": 8,
+    "knowledge_map": {
+      "concepts": 5,
+      "candidate_relations": 1,
+      "evidence_backed_relations": 1,
+      "duplicate_concept_names": 0,
+      "duplicate_directed_relation_pairs": 0
+    },
+    "graph": {
+      "nodes": 11,
+      "edges": 11,
+      "orphan_edges": []
+    },
+    "retrieval": {
+      "results": 5,
+      "generated_answer": true,
+      "fallback_used": false,
+      "results_with_page_citations": 5
+    },
+    "reconciliation": {
+      "document_id_matches": true,
+      "physical_pages_api_db_independent": [
+        31,
+        31,
+        31
+      ],
+      "extracted_pages_api_independent": [
+        31,
+        31
+      ],
+      "text_bearing_pages_api_independent": [
+        31,
+        31
+      ],
+      "raw_words_api_db_independent": [
+        1496,
+        1496,
+        1496
+      ],
+      "normalized_words_api_db": [
+        1600,
+        1600
+      ],
+      "retained_chunks_api_db": [
+        6,
+        6
+      ],
+      "segments_api_db": [
+        8,
+        8
+      ],
+      "vectors_api": [
+        8,
+        8
+      ],
+      "source_hash_matches_record": true,
+      "retrieval_results_have_document_and_page_provenance": true
+    },
+    "limitations": [
+      "Browser automation did not reach page rendering: Chromium and Edge exited during process startup in this Windows session; no screenshot or frontend interaction is claimed as verified.",
+      "Only one PDF was run through live processing in this session; slide PDF behavior is shown, while long-text, table-heavy, and image-only/low-text documents remain for the next validation pass.",
+      "Rejected chunk count is not exposed by the current API; it is null, not inferred.",
+      "The dataset-export mirror was copied into this isolated run and the uniquely named workspace mirror was removed; set CLARION_DISABLE_WORKSPACE_DATASET_MIRROR=1 for isolated runs."
+    ],
+    "all_reconciliations_pass": true
+  },
+  "test_results": {
+    "linux_full_suite": {
+      "status": "passed",
+      "result": "327 passed, 2 skipped",
+      "scope_note": "Fresh Linux run covered the implementation changes before the final opt-out guard test was added; the latest guard test is included in the following Windows full-suite run.",
+      "log": "research_artifacts/raw/backend-full-suite-linux-py312-final-2026-11-12.log"
+    },
+    "windows_full_suite_latest": {
+      "status": "passed",
+      "result": "328 passed, 2 skipped",
+      "exit_code": 0,
+      "collected_test_functions": 329
+    },
+    "focused_windows_regression": {
+      "status": "passed",
+      "result": "39 passed",
+      "scope": [
+        "test_relation_dataset_service.py",
+        "test_text_metrics.py",
+        "test_graph.py",
+        "test_knowledge_map_service.py",
+        "test_api.py"
+      ]
+    }
+  },
+  "gates": {
+    "repository_integrity": "PASS WITH PRESERVED WORKTREE CHANGES: all non-ignored untracked paths categorized; two tracked deletions reconcile to preserved relocated originals and recovery copies; 88 existing researcher-authored report/manuscript files left untouched.",
+    "engineering_regression": "PASS: full Linux suite passed for implementation; latest full Windows suite passed after the final guard change.",
+    "document_statistics_correctness": "PASS FOR ONE REAL PDF: independent PDF metadata/text, API and database agree; frontend display not browser-verified.",
+    "mind_map_correctness": "PARTIAL: live model generated five concepts and one evidence-backed candidate relation; graph has 11 nodes, 11 edges, no orphan edges, no duplicate concept names or directed relation pairs. Panel UX not browser-verified.",
+    "frontend_demonstration_readiness": "PARTIAL: live backend workflow and API path work; browser process exits before page rendering, so screenshots and frontend interactions are unverified.",
+    "research_measurement_readiness": "PARTIAL: word-count spec, metrics API, schemas, annotation templates and live audit script exist; multi-document and stage-duration coverage still required.",
+    "research_evaluation_validity": "BLOCKED: no human-verified retrieval qrels or graph gold labels; no quality metrics are claimed."
+  },
+  "known_unreconciled_items": [
+    "Browser screenshot/interaction evidence is unavailable because both Chromium and Edge exited during startup.",
+    "The completed live analysis wrote a unique dataset mirror under workspace data; its byte-identical copy is preserved under the isolated demo evidence directory and the workspace copy was removed.",
+    "Two probe-created default DB audit rows and empty null-only migration schema were reversed exactly; document/chunk counts were preserved. See research_artifacts/processed/default-database-probe-rollback-2026-11-12.json."
+  ],
+  "evidence_paths": [
+    "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/live-demo-verification.json",
+    "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/query-response.json",
+    "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/knowledge-map.json",
+    "research_artifacts/demo_runs/clarion-final-demo-2026-11-12/evidence/graph-output-cytoscape.json",
+    "research_artifacts/processed/document-metrics-spec-2026-11-12.json",
+    "research_artifacts/processed/measurement-collection-schema-2026-11-12.json"
+  ]
+}

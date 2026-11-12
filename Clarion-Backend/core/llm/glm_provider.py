@@ -106,6 +106,9 @@ class GLMProvider(BaseLLMProvider):
         """
         if not self._client:
             self._initialize_client()
+
+        effective_max_tokens = max_tokens or self.max_tokens
+        budget_metrics = self.preflight_request(prompt, system_message, effective_max_tokens)
         
         # Build messages
         messages = []
@@ -118,7 +121,7 @@ class GLMProvider(BaseLLMProvider):
             "model": self.model or self.DEFAULT_MODEL,
             "messages": messages,
             "temperature": temperature or self.temperature,
-            "max_tokens": max_tokens or self.max_tokens,
+            "max_tokens": effective_max_tokens,
         }
         
         # Add optional parameters
@@ -151,13 +154,14 @@ class GLMProvider(BaseLLMProvider):
             
             # Build response
             choice = data["choices"][0]
-            return LLMResponse(
+            return self.record_response_usage(LLMResponse(
                 content=choice["message"]["content"],
                 usage=usage,
                 model=data.get("model", self.model),
                 finish_reason=choice.get("finish_reason", "stop"),
-                response_time_ms=response_time
-            )
+                response_time_ms=response_time,
+                metadata={"token_budget": budget_metrics.__dict__},
+            ))
             
         except httpx.HTTPStatusError as e:
             logger.error(f"GLM API error: {e.response.status_code} - {e.response.text}")

@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-12",
+  "scope": "Static review of local-first Clarion backend routes, upload handling, configuration, and concurrency controls",
+  "classification": "RESEARCH LOCAL USE ONLY; NOT READY FOR PUBLIC OR MULTI-USER EXPOSURE",
+  "findings": {
+    "authentication_authorization": {"status": "absent", "detail": "No auth/authz middleware or route dependencies were found."},
+    "rate_limiting": {"status": "absent"},
+    "network_binding": {"status": "risk", "detail": "The main entry point binds 0.0.0.0; unauthenticated endpoints must remain on a trusted network."},
+    "cors": {"status": "restricted_by_default_but_review", "detail": "Default origins are local; methods and headers are wildcard; credentials are disabled."},
+    "upload_limits": {"status": "mitigated", "detail": "Configured 50 MB cap is read in bounded chunks and rejects after limit+1 bytes; PDF signature and DOCX archive structure are checked."},
+    "filename_path_handling": {"status": "reviewed", "detail": "Filename is metadata; no user filename path construction was observed in the reviewed upload flow."},
+    "resource_controls": {"status": "partial", "detail": "Background concurrency semaphore defaults to 3; no API rate limit found."},
+    "diagnostic_disclosure": {"status": "risk", "detail": "Unauthenticated runtime/storage diagnostic routes can reveal environment paths."}
+  },
+  "decision": "Do not treat the application as production-ready or expose it publicly until authentication, authorization, rate limiting, binding policy, and diagnostic disclosure are addressed.",
+  "evidence_scope": "Code inspection only; no penetration test or public deployment test was performed."
+}

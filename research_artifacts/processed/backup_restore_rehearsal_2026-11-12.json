@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "scope": "isolated SQLite and FAISS files only",
+  "production_data_accessed": false,
+  "database_integrity": "ok",
+  "database_backup_sha256": "105f8bdefcae65d2e92412d28ad4886140ab53f12df50048a0e1f68aeb181c6c",
+  "database_restore_sha256": "105f8bdefcae65d2e92412d28ad4886140ab53f12df50048a0e1f68aeb181c6c",
+  "mapped_vector_ids": [
+    "backup-restore-chunk-0"
+  ],
+  "mapped_vector_count": 1,
+  "faiss_vector_count": 1,
+  "faiss_dimension": 1024,
+  "retrieval_top1_vector_id": "backup-restore-chunk-0",
+  "interrupted_index_without_metadata_rejected": true,
+  "interrupted_recovery_action": "rebuild index and metadata from durable segments and vector map",
+  "artifact_hashes": {
+    "Clarion-Backend\\.venv-validation\\recovery-rehearsal-final-2026-11-12\\backup\\clarion.db": "105f8bdefcae65d2e92412d28ad4886140ab53f12df50048a0e1f68aeb181c6c",
+    "Clarion-Backend\\.venv-validation\\recovery-rehearsal-final-2026-11-12\\restored\\data\\clarion.db": "105f8bdefcae65d2e92412d28ad4886140ab53f12df50048a0e1f68aeb181c6c",
+    "Clarion-Backend\\.venv-validation\\recovery-rehearsal-final-2026-11-12\\restored\\data\\vectorstore\\backup-restore-doc.1e38a7b6280d476c.index": "44515533fb128db7592f773948dd7d6477bb3d60a9599415d09972a52543b361",
+    "Clarion-Backend\\.venv-validation\\recovery-rehearsal-final-2026-11-12\\restored\\data\\vectorstore\\backup-restore-doc.1e38a7b6280d476c_meta.json": "cdb0c23d3c5db071f9c021c89a97cefa67fc3060c168daa81ee5e0a278ae3812"
+  },
+  "isolated_directory": "Clarion-Backend\\.venv-validation\\recovery-rehearsal-final-2026-11-12"
+}

@@ -115,14 +115,17 @@ def sample_chunks(isolated_settings):
 
 
 @pytest.fixture(autouse=True)
-def _disable_dataset_mirror(monkeypatch):
-    """Keep dataset snapshot mirrors inside test storage.
+def _isolate_external_services(monkeypatch):
+    """Keep deterministic tests independent of local services and workspace data.
 
-    The production mirror writes to the repo-level data/datasets folder;
-    tests must never touch the real repository tree.
+    Unit/integration tests exercise deterministic fallback paths by default.
+    Live-provider validation is deliberately performed by a separately invoked
+    workflow, so a developer's running Ollama instance cannot alter metadata.
     """
     from services.relation_dataset_service import RelationDatasetService
+    from services.knowledge_map_service import LLMInterface
 
     monkeypatch.setattr(
         RelationDatasetService, "_workspace_dataset_dir", lambda self: None
     )
+    monkeypatch.setattr(LLMInterface, "_is_service_available", lambda self: False)

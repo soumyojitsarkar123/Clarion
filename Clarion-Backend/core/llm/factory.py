@@ -157,6 +157,11 @@ class LLMFactory:
                 ),
             )
         )
+        common_budget = {
+            "tokenizer_name": settings.llm_tokenizer_name,
+            "token_safety_tokens": settings.llm_token_safety_tokens,
+            "context_window": settings.llm_context_window,
+        }
 
         if provider_type == "ollama":
             config = {
@@ -166,6 +171,8 @@ class LLMFactory:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "timeout": timeout,
+                "num_ctx": settings.llm_context_window,
+                **common_budget,
             }
         elif provider_type == "openai":
             config = {
@@ -174,6 +181,7 @@ class LLMFactory:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "timeout": timeout,
+                **common_budget,
             }
         elif provider_type == "glm":
             config = {
@@ -183,6 +191,7 @@ class LLMFactory:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "timeout": timeout,
+                **common_budget,
             }
         elif provider_type == "kimi":
             config = {
@@ -191,6 +200,7 @@ class LLMFactory:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "timeout": timeout,
+                **common_budget,
             }
             api_base = os.getenv("KIMI_API_BASE")
             if api_base:

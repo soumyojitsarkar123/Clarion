@@ -1,0 +1,39 @@
+{
+  "classification": "VERIFIED PASS for isolated extraction, BGE embedding, FAISS mapping, and source-coordinate persistence",
+  "document_id": "a9f7ddf8-4a31-4cb3-afda-951cc7d67e56",
+  "filename": "DAA FINAL.pdf",
+  "source_pdf_sha256": "de44cb33892fea9906fe119d0fad697b51aee68c4f13949af7b18c8a3b7e3efe",
+  "page_count": 87,
+  "pages_with_extracted_text": 87,
+  "normalized_text_characters": 149950,
+  "extraction_version": "clarion-extraction-v2",
+  "normalization_version": "clarion-normalization-offset-map-v2",
+  "chunks": 44,
+  "segments_and_vectors": 100,
+  "segments_with_source_spans": 100,
+  "page_split_intervals_validated": true,
+  "model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09",
+  "model_revision": "d4aa6901d3a41ba39fb536a557fa166f842b0e09",
+  "faiss_index_path": "D:\\Clarion\\research_artifacts\\isolated-provenance-e2e-2026-11-12\\data\\vectorstore\\a9f7ddf8-4a31-4cb3-afda-951cc7d67e56.4505ebb96c105c4c.index",
+  "query": "PRIM unique here Prim Kruskal PRIM KRUSKAL Vertex based grow tree Edge based cheapest safe edge Better DENSE graphs Better",
+  "retrieved_vector_id": "30f451b8-868d-4a34-9b04-3fe52c65a77d:seg:0",
+  "retrieved_source_intervals": [
+    {
+      "source_start": 82802,
+      "source_end": 83537,
+      "mapping": "combined_source_span",
+      "page_number": 47,
+      "page_char_start": 1173,
+      "page_char_end": 1908
+    },
+    {
+      "source_start": 83539,
+      "source_end": 85149,
+      "mapping": "combined_source_span",
+      "page_number": 48,
+      "page_char_start": 0,
+      "page_char_end": 1610
+    }
+  ],
+  "database_path": "D:\\Clarion\\research_artifacts\\isolated-provenance-e2e-2026-11-12\\data\\clarion.db"
+}

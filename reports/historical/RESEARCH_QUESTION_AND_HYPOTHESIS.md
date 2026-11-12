@@ -1,0 +1,11 @@
+# Research Questions and Hypotheses
+
+| Question and hypothesis | Independent/dependent variables | Baseline, dataset, metrics | Procedure/statistics | Status and limits |
+|---|---|---|---|---|
+| RQ1: tokenizer-aware segmentation prevents over-limit embedding inputs while preserving source chunks. IV: segmenter vs legacy direct input. DV: token-limit violations, span continuity, mapped coverage. | Same input text; input length and segmenter state | Baseline direct BGE input; current readable PDFs; tokens, exact segment spans | Paired same-text run; tokenizer determinism; report every violation | **PARTIALLY VERIFIED**: all 170 current segments <=512; no retrieval effect or independent full-text reference measured. |
+| RQ2: hybrid retrieval improves ranking over sparse and dense alone. IV: BM25/dense/hybrid/rerank. DV: per-query relevance. | Same corpus, frozen queries, labels, model versions | No valid retrieval dataset; P@k, Recall@k, MRR; nDCG only with graded labels | Document-held-out test split, paired query-level comparison, cluster uncertainty by source document | **BLOCKED**: no independent query judgments. |
+| RQ3: graph augmentation increases recall without unacceptable precision loss. IV: graph expansion on/off. DV: evidence retrieval ranking and support. | Same base retriever and query split | None yet; P@k, Recall@k, MRR | Paired test on frozen query set; source document unit | **BLOCKED**: no benchmark. |
+| RQ4: relationship validation reduces unsupported semantic edges. IV: validation/filter threshold. DV: precision, recall, F1, ambiguity. | Same candidate relations and blind human labels | Backend relation DB; precision/recall/F1, kappa on double-labelled overlap | Two independent annotators; adjudication separate; report confusion matrix/class counts | **BLOCKED**: 1,562 candidates, all unlabeled. |
+| RQ5: what is pipeline component cost? IV: component, doc size, cold/warm state. DV: latency, throughput, memory. | Same machine/model/settings | Corpus and repeat runs; median/p95, tokens/sec, throughput | Monotonic clocks, repeated trials, separate warm/cold, per-document analysis | **NOT EVALUATED**: indexing run not instrumented as benchmark. |
+
+These are testable candidates, not novelty claims or results.

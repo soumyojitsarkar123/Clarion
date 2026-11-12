@@ -1013,15 +1013,21 @@ class BackgroundService:
 
             job = self._repository.get(job_id)
             if job:
-                status = "completed"
-                if batch.sample_count == 0 and batch.generation_mode in {"llm_unavailable", "llm_required"}:
-                    status = "skipped"
-                job.metadata["dataset_generation_status"] = status
+                batch_status = getattr(batch, "status", "completed")
+                job.metadata["dataset_generation_status"] = batch_status
                 job.metadata["dataset_sample_count"] = batch.sample_count
                 job.metadata["dataset_generation_mode"] = batch.generation_mode
-                if latest_export and batch.sample_count > 0:
+                job.metadata["dataset_selected_chunks"] = batch.selected_chunk_count
+                job.metadata["dataset_completed_chunks"] = getattr(batch, "completed_chunk_count", 0)
+
+                if batch_status == "completed" and latest_export and batch.sample_count > 0:
                     job.metadata["dataset_export_path"] = latest_export.get("export_path")
                     job.metadata["dataset_jsonl_path"] = latest_export.get("jsonl_path")
+                elif batch_status == "partially_completed":
+                    job.metadata["dataset_export_refused"] = True
+                    job.metadata["dataset_export_refusal_reason"] = (
+                        "Dataset partially completed; export refused under require_llm_for_export=True"
+                    )
                 self._repository.update(job)
         except Exception as error:
             logger.warning("Background dataset generation failed for %s: %s", document_id, error)

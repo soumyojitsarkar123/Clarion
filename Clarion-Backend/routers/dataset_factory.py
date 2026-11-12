@@ -35,6 +35,9 @@ class DatasetFactoryConfigUpdate(BaseModel):
     llm_sample_rate: Optional[float] = None
     batch_size: Optional[int] = None
     generation_interval_hours: Optional[float] = None
+    chunk_timeout_seconds: Optional[float] = None
+    max_retries: Optional[int] = None
+    require_llm_for_export: Optional[bool] = None
 
 
 @router.post("/generate", response_model=DatasetFactoryResponse)
@@ -139,6 +142,19 @@ async def update_dataset_factory_config(config_update: DatasetFactoryConfigUpdat
             )
             updated_fields.append("generation_interval_hours")
 
+        if config_update.chunk_timeout_seconds is not None:
+            settings.dataset_chunk_timeout_seconds = config_update.chunk_timeout_seconds
+            updated_fields.append("chunk_timeout_seconds")
+
+        if config_update.max_retries is not None:
+            settings.dataset_max_retries_per_chunk = config_update.max_retries
+            updated_fields.append("max_retries")
+
+        if config_update.require_llm_for_export is not None:
+            settings.dataset_require_llm_for_export = config_update.require_llm_for_export
+            factory.require_llm_for_export = config_update.require_llm_for_export
+            updated_fields.append("require_llm_for_export")
+
         message = f"Updated dataset factory configuration: {', '.join(updated_fields)}"
         logger.info(message)
 
@@ -149,6 +165,66 @@ async def update_dataset_factory_config(config_update: DatasetFactoryConfigUpdat
     except Exception as e:
         logger.error(f"Error updating dataset factory configuration: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/attempts")
+async def get_generation_attempts(
+    document_id: Optional[str] = None,
+    generation_id: Optional[str] = None,
+    chunk_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """
+    Retrieve granular attempt telemetry records.
+    """
+    try:
+        factory = get_dataset_factory()
+        return factory.get_generation_attempts(
+            document_id=document_id,
+            generation_id=generation_id,
+            chunk_id=chunk_id,
+            status=status,
+            limit=limit,
+            offset=offset,
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving generation attempts: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/checkpoints/{document_id}")
+async def get_document_checkpoints(document_id: str):
+    """
+    Retrieve chunk-level checkpoint states and progress summary for a document.
+    """
+    try:
+        factory = get_dataset_factory()
+        summary = factory.get_checkpoint_summary(document_id)
+        if summary.get("total_chunks", 0) == 0:
+            # Check if document exists
+            doc = factory.document_service.get_document(document_id)
+            if not doc:
+                raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+        return summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving checkpoints for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/export/{document_id}")
+async def export_document_dataset(document_id: str):
+    """
+    Export the dataset for a specific document, enforcing strict gold-export research data integrity gates.
+    Under require_llm_for_export=True, refuses export (HTTP 409 Conflict) if:
+    - Generation is incomplete (partially_completed, failed, or completed < total)
+    - Any sample was generated heuristically (deterministic fallback)
+    """
+    factory = get_dataset_factory()
+    return factory.export_document_dataset_strict(document_id)
 
 
 @router.post("/clear-cache", response_model=DatasetFactoryResponse)

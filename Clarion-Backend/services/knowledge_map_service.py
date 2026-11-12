@@ -21,6 +21,7 @@ from models.knowledge_map import (
     Subtopic,
 )
 from utils.config import settings
+from services.token_budget_service import TokenBudgetService, TokenBudgetExceeded
 from utils.sqlite import connect as sqlite_connect
 from core.evaluation.evidence_verifier import (
     EvidenceVerifier,
@@ -185,9 +186,21 @@ class LLMInterface:
         self.provider = settings.llm_provider
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
+        provider_output_cap = 800 if self.provider == "ollama" else self.max_tokens
+        self.generation_token_limit = min(
+            self.max_tokens, settings.llm_reserved_output_tokens, provider_output_cap
+        )
         self._client = None
         self._available = None
         self.last_error = None
+        self.last_token_metrics = {}
+        self._tokenizer = self._load_configured_tokenizer()
+        self.token_budget = TokenBudgetService(
+            context_limit=settings.llm_context_window,
+            reserved_output_tokens=self.generation_token_limit,
+            safety_tokens=settings.llm_token_safety_tokens,
+            tokenizer=self._tokenizer,
+        )
 
         # Configure based on provider
         if self.provider == "ollama":
@@ -211,12 +224,32 @@ class LLMInterface:
             self.api_base = settings.ollama_api_base
             self.api_key = "ollama"
 
+    @staticmethod
+    def _load_configured_tokenizer():
+        """Load only an explicitly configured tokenizer from the local cache."""
+        tokenizer_name = settings.llm_tokenizer_name
+        if not tokenizer_name:
+            return None
+        try:
+            from transformers import AutoTokenizer
+            return AutoTokenizer.from_pretrained(
+                tokenizer_name, use_fast=True, local_files_only=True
+            )
+        except Exception as exc:
+            logger.warning("Configured LLM tokenizer unavailable in local cache (%s): %s", tokenizer_name, exc)
+            return None
+
     def _get_client(self):
         """Get or create OpenAI-compatible client."""
         if self._client is None:
             from openai import OpenAI
 
-            self._client = OpenAI(api_key=self.api_key, base_url=self.api_base)
+            self._client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base,
+                max_retries=0,
+                timeout=float(settings.ollama_request_timeout_seconds),
+            )
         return self._client
 
     def _get_ollama_base_url(self) -> str:
@@ -308,6 +341,21 @@ class LLMInterface:
     def _call_api(self, prompt: str) -> str:
         """Call the configured LLM API."""
         try:
+            budget = self.token_budget.require_fits(prompt)
+            self.last_token_metrics = {
+                "model": self.model,
+                "configured_context_tokens": budget.context_limit,
+                "input_tokens_preflight": budget.input_tokens,
+                "preflight_exact": budget.exact,
+                "preflight_method": budget.counting_method,
+                "reserved_output_tokens": budget.reserved_output_tokens,
+                "safety_tokens": budget.safety_tokens,
+                "provider_prompt_tokens": None,
+                "provider_output_tokens": None,
+                "provider_usage_available": False,
+                "truncated": False,
+                "request_rejected": False,
+            }
             client = self._get_client()
 
             if self.provider == "gemini":
@@ -321,13 +369,24 @@ class LLMInterface:
                         "contents": [{"parts": [{"text": prompt}]}],
                         "generationConfig": {
                             "temperature": self.temperature,
-                            "maxOutputTokens": self.max_tokens,
+                            "maxOutputTokens": self.generation_token_limit,
                         },
                     },
                     timeout=30,
                 )
                 if response.status_code == 200:
                     result = response.json()
+                    usage = result.get("usageMetadata", {})
+                    finish_reason = result.get("candidates", [{}])[0].get("finishReason")
+                    self.last_token_metrics.update({
+                        "provider_prompt_tokens": usage.get("promptTokenCount"),
+                        "provider_output_tokens": usage.get("candidatesTokenCount"),
+                        "provider_usage_available": bool(usage),
+                        "truncated": finish_reason == "MAX_TOKENS",
+                        "finish_reason": finish_reason,
+                    })
+                    if self.last_token_metrics["truncated"]:
+                        raise RuntimeError("Provider stopped at its output token limit")
                     return (
                         result.get("candidates", [{}])[0]
                         .get("content", {})
@@ -336,29 +395,117 @@ class LLMInterface:
                     )
                 else:
                     raise Exception(f"Gemini API error: {response.text}")
-            else:
-                timeout = (
-                    settings.ollama_request_timeout_seconds
-                    if self.provider == "ollama"
-                    else 180
-                )
+            elif self.provider == "ollama":
+                import requests
+                url = f"{self._get_ollama_base_url()}/api/chat"
+                payload = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "think": False,
+                    "options": {
+                        "num_ctx": settings.llm_context_window,
+                        "temperature": self.temperature,
+                        "num_predict": self.generation_token_limit,
+                    },
+                }
+                timeout = settings.ollama_request_timeout_seconds
+                try:
+                    resp = requests.post(url, json=payload, timeout=timeout)
+                    if resp.status_code == 200:
+                        result = resp.json()
+                        content = result.get("message", {}).get("content", "")
+                        self.last_token_metrics.update({
+                            "provider_prompt_tokens": result.get("prompt_eval_count"),
+                            "provider_output_tokens": result.get("eval_count"),
+                            "provider_usage_available": result.get("prompt_eval_count") is not None or result.get("eval_count") is not None,
+                            "truncated": result.get("done_reason") == "length",
+                            "finish_reason": result.get("done_reason"),
+                        })
+                        if self.last_token_metrics["truncated"]:
+                            raise RuntimeError("Ollama stopped at its output token limit")
+                        if content:
+                            return content
+                except Exception as req_err:
+                    if self.last_token_metrics.get("truncated"):
+                        raise
+                    logger.debug(f"Native Ollama request failed, trying client fallback: {req_err}")
+
                 response = client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens,
+                    max_tokens=self.generation_token_limit,
+                    extra_body={"options": {"num_ctx": settings.llm_context_window}},
                     timeout=timeout,
                 )
+                msg = response.choices[0].message
+                usage = getattr(response, "usage", None)
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+                self.last_token_metrics.update({
+                    "provider_prompt_tokens": getattr(usage, "prompt_tokens", None),
+                    "provider_output_tokens": getattr(usage, "completion_tokens", None),
+                    "provider_usage_available": usage is not None,
+                    "truncated": finish_reason == "length",
+                    "finish_reason": finish_reason,
+                })
+                if self.last_token_metrics["truncated"]:
+                    raise RuntimeError("Provider stopped at its output token limit")
+                return getattr(msg, "content", None) or getattr(msg, "reasoning", "")
+            else:
+                response = client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=self.temperature,
+                    max_tokens=self.generation_token_limit,
+                    timeout=180,
+                )
+                usage = getattr(response, "usage", None)
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+                self.last_token_metrics.update({
+                    "provider_prompt_tokens": getattr(usage, "prompt_tokens", None),
+                    "provider_output_tokens": getattr(usage, "completion_tokens", None),
+                    "provider_usage_available": usage is not None,
+                    "truncated": finish_reason == "length",
+                    "finish_reason": finish_reason,
+                })
+                if self.last_token_metrics["truncated"]:
+                    raise RuntimeError("Provider stopped at its output token limit")
                 return response.choices[0].message.content or ""
 
+        except TokenBudgetExceeded as e:
+            failed_plan = self.token_budget.plan(prompt)
+            self.last_error = str(e)
+            self.last_token_metrics.update({
+                "model": self.model,
+                "configured_context_tokens": failed_plan.context_limit,
+                "input_tokens_preflight": failed_plan.input_tokens,
+                "preflight_exact": failed_plan.exact,
+                "preflight_method": failed_plan.counting_method,
+                "reserved_output_tokens": failed_plan.reserved_output_tokens,
+                "safety_tokens": failed_plan.safety_tokens,
+                "request_rejected": True,
+                "rejection_reason": str(e),
+                "truncated": False,
+            })
+            logger.warning("LLM request rejected by token budget: %s", e)
+            return "LLM unavailable: request exceeded configured token budget"
         except Exception as e:
             logger.warning(f"LLM call failed: {str(e)}, falling back to deterministic analysis")
             self.last_error = str(e)
+            if self.last_token_metrics:
+                self.last_token_metrics.setdefault("truncated", False)
+                self.last_token_metrics["provider_error"] = type(e).__name__
             return self._fallback_generate(prompt)
 
     def _fallback_generate(self, prompt: str) -> str:
         """Generate demo responses when Ollama is unavailable."""
-        if "Extract key concepts" in prompt:
+        if (
+            "Extract key concepts" in prompt
+            or "significant knowledge concepts" in prompt
+            or "concepts in this text" in prompt
+            or "most significant" in prompt
+        ):
             # Return empty so deterministic heuristic extraction can run on real text.
             return "[]"
         elif "relationship between" in prompt:
@@ -368,7 +515,7 @@ class LLMInterface:
         elif "main topics and their hierarchy" in prompt:
             return '{"main_topics": [], "subtopics": []}'
         else:
-            return "LLM unavailable. Running deterministic fallback analysis from extracted document text."
+            return "Deterministic analysis: No live LLM output available for this prompt."
 
     def generate(self, prompt: str) -> str:
         """
@@ -426,7 +573,16 @@ class LLMInterface:
     def _clean_concept_name(value: str) -> str:
         cleaned = re.sub(r"^[\-\*\d\.\)\s]+", "", (value or "").strip())
         cleaned = re.sub(r"\s+", " ", cleaned)
-        return cleaned[:120]
+        lowered = cleaned.lower()
+        if (
+            "llm unavailable" in lowered
+            or "fallback analysis" in lowered
+            or "deterministic" in lowered
+            or "prompt" in lowered
+            or len(cleaned) > 60
+        ):
+            return ""
+        return cleaned[:60]
 
     def _extract_concepts_from_text(self, response: str) -> List[Dict[str, str]]:
         """Fallback parser for non-JSON concept responses."""
@@ -434,6 +590,14 @@ class LLMInterface:
         for raw_line in (response or "").splitlines():
             line = raw_line.strip()
             if not line:
+                continue
+            lowered = line.lower()
+            if (
+                "llm unavailable" in lowered
+                or "fallback analysis" in lowered
+                or "deterministic" in lowered
+                or "prompt" in lowered
+            ):
                 continue
             line = re.sub(r"^[\-\*\d\.\)\s]+", "", line)
             if ":" in line:
@@ -814,7 +978,7 @@ class KnowledgeMapService:
         concepts = []
         seen_names = set()
 
-        chunks_to_process = self._sample_representative_chunks(chunks, max_samples=10)
+        chunks_to_process = self._sample_representative_chunks(chunks, max_samples=2)
 
         for chunk in chunks_to_process:
             try:
@@ -840,13 +1004,24 @@ class KnowledgeMapService:
                 logger.warning(f"Error extracting concepts from chunk: {str(e)}")
                 continue
 
-        if not concepts:
-            concepts = self._extract_concepts_heuristic(chunks, seen_names=seen_names)
-            if concepts:
-                logger.info(
-                    "Fell back to heuristic concept extraction for %d concepts",
-                    len(concepts),
-                )
+        # Ensure only clean, non-error concepts survive
+        valid_concepts = []
+        for c in concepts:
+            c_name_clean = self.llm._clean_concept_name(c.name)
+            if c_name_clean and len(c_name_clean) >= 3:
+                c.name = c_name_clean
+                valid_concepts.append(c)
+        concepts = valid_concepts
+
+        if len(concepts) < 3:
+            heuristic_concepts = self._extract_concepts_heuristic(chunks, seen_names=seen_names)
+            for hc in heuristic_concepts:
+                if hc.name.lower() not in seen_names:
+                    seen_names.add(hc.name.lower())
+                    concepts.append(hc)
+                if len(concepts) >= 12:
+                    break
+            logger.info("Extracted %d concepts (with heuristic augmentation)", len(concepts))
 
         return concepts
 
@@ -1168,7 +1343,7 @@ class KnowledgeMapService:
                         id=str(uuid.uuid4()),
                         from_concept=a,
                         to_concept=b,
-                        relation_type=RelationType.EXPLANATION,
+                        relation_type=inferred_rel_type or RelationType.EXPLANATION,
                         description=f"Candidate semantic relation inferred from sentence co-occurrence and lexical support ({inferred_rel_type.value}).",
                         confidence=confidence,
                         evidence_text=single_sentence_evidence,

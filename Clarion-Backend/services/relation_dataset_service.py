@@ -11,6 +11,7 @@ import json
 import asyncio
 import logging
 import re
+import os
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pathlib import Path
@@ -798,6 +799,8 @@ class RelationDatasetService:
 
     def _workspace_dataset_dir(self) -> Optional[Path]:
         """Return the repo-level data/datasets directory when running from this workspace."""
+        if os.getenv("CLARION_DISABLE_WORKSPACE_DATASET_MIRROR", "").strip().lower() in {"1", "true", "yes"}:
+            return None
         try:
             repo_root = Path(__file__).resolve().parents[2]
             return repo_root / "data" / "datasets"

@@ -1,0 +1,95 @@
+ M .gitignore
+ M Clarion-Backend/.env.example
+ M Clarion-Backend/core/llm/base.py
+ M Clarion-Backend/core/llm/ollama_provider.py
+ M Clarion-Backend/models/response.py
+ M Clarion-Backend/reports/ENGINEERING_VALIDATION_REPORT.md
+ M Clarion-Backend/reports/RESEARCH_EXPERIMENT_REPORT.md
+ M Clarion-Backend/routers/dataset_factory.py
+ M Clarion-Backend/routers/query.py
+ M Clarion-Backend/routers/system.py
+ M Clarion-Backend/routers/upload.py
+ M Clarion-Backend/services/background_service.py
+ M Clarion-Backend/services/chunking_service.py
+ M Clarion-Backend/services/dataset_factory_service.py
+ M Clarion-Backend/services/embedding_service.py
+ M Clarion-Backend/services/knowledge_map_service.py
+ M Clarion-Backend/services/pipeline_observability.py
+ M Clarion-Backend/services/processing_pipeline.py
+ M Clarion-Backend/services/retrieval_service.py
+ M Clarion-Backend/services/summary_service.py
+ M Clarion-Backend/tests/conftest.py
+ M Clarion-Backend/tests/test_annotation_ui.py
+ M Clarion-Backend/tests/test_api.py
+ M Clarion-Backend/tests/test_chunking_service.py
+ M Clarion-Backend/tests/test_document_intelligence_overhaul.py
+ M Clarion-Backend/tests/test_m3_fallback_quality.py
+ M Clarion-Backend/utils/config.py
+ M Clarion-Backend/utils/file_handler.py
+ M Clarion-Backend/utils/sqlite.py
+ D GATE_STATUS.md
+ M PROJECT.md
+ M README.md
+ D appendix_report.md
+ D data/benchmarks/CANONICAL_BENCHMARK_REGISTRY.json
+ D data/benchmarks/bench_08cb7efa7e08.json
+ D data/benchmarks/bench_7138429ad4e2.json
+ D data/benchmarks/bench_e5d6d79f572f.json
+ D docs/AI_BOOK_BASELINE.md
+ D docs/AI_BOOK_MILESTONE2_TELEMETRY.json
+ D docs/AI_BOOK_MILESTONE2_TELEMETRY.md
+ D docs/milestone2_acceptance_report.md
+ D docs/milestone4_1_acceptance_report.md
+ D docs/milestone4_acceptance_report.md
+ M frontend/app.js
+ M frontend/index.html
+ M frontend/styles.css
+ M scripts/verify_frontend_e2e_contracts.py
+?? .claude/
+?? CLARION_CURRENT_STATUS.md
+?? Clarion-Backend/scripts/
+?? Clarion-Backend/services/token_budget_service.py
+?? Clarion-Backend/tests/test_adversarial_normalization.py
+?? Clarion-Backend/tests/test_adversarial_stress_r2_2.py
+?? Clarion-Backend/tests/test_challenger1_m1_adversarial.py
+?? Clarion-Backend/tests/test_challenger2_m1_adversarial.py
+?? Clarion-Backend/tests/test_challenger2_m1_benchmarks.py
+?? Clarion-Backend/tests/test_dataset_factory.py
+?? Clarion-Backend/tests/test_e2e_pipeline_orchestration.py
+?? Clarion-Backend/tests/test_embedding_segments.py
+?? Clarion-Backend/tests/test_frontend_duration_format.py
+?? Clarion-Backend/tests/test_live_ollama_dataset.py
+?? Clarion-Backend/tests/test_m1_algorithmic_fixes.py
+?? Clarion-Backend/tests/test_pipeline_status.py
+?? Clarion-Backend/tests/test_token_budget_service.py
+?? data/backups_m4_1/
+?? data/clarion.db-shm
+?? data/clarion.db-wal
+?? data/relation_dataset.db-shm
+?? data/relation_dataset.db-wal
+?? docs/AI_Book.pdf
+?? "docs/DAA FINAL.pdf"
+?? docs/README.md
+?? "docs/UNIT II \342\200\224 SELF MANAGEMENT SKILLS.pdf"
+?? "docs/UNIT III \342\200\224 ENTREPRENEURSHIP SKILLS.pdf"
+?? "docs/UNIT III \342\200\224 SOFTWARE & AI WORKFLOW.pdf"
+?? "docs/UNIT IV Information Retrieval Overview.pdf"
+?? "docs/UNIT IV \342\200\224 NEGOTIATION SKILLS.pdf"
+?? "docs/UNIT IV \342\200\224 STORYTELLING, BRANDING & ETHICS.pptx.pdf"
+?? "docs/Unit-2 Data exploration and Vizualization.pdf"
+?? "docs/Unit-3 Vector Calculus.pdf"
+?? "docs/Unit-4 Advanced OLAP Concepts.pptx.pdf"
+?? docs/archive/
+?? reports/
+?? research/
+?? research_artifacts/
+?? scripts/adversarial_frontend_challenge.py
+?? scripts/adversarial_m5_challenger_verification.py
+?? scripts/generate_graph_artifact_registry.py
+?? scripts/run_all_e2e_tests.sh
+?? scripts/verify_challenger_m1_adversarial.py
+?? scripts/verify_challenger_m2_adversarial.py
+?? scripts/verify_challenger_m5_adversarial.py
+?? scripts/verify_e2e_requirements_matrix.py
+?? scripts/verify_startup_dom_invariants.py
+?? tests/

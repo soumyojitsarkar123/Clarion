@@ -13,6 +13,7 @@ import logging
 from models.chunk import Chunk
 from models.summary import StructuredSummary, SummarySection
 from .knowledge_map_service import LLMInterface
+from core.llm.base import sanitize_llm_text
 from utils.config import settings
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,8 @@ class SummaryService:
                 "chunk_count": len(chunks),
                 "section_count": len(sections),
                 "document_type": document_type,
+                "fallback_used": not llm_summary_accepted,
+                "analysis_mode": "llm" if llm_summary_accepted else "deterministic_fallback",
                 "llm_summary_accepted": llm_summary_accepted,
                 "llm_last_error": self.llm.last_error,
             }
@@ -195,7 +198,30 @@ class SummaryService:
         sections: Sequence[SummarySection],
         document_type: str = "unknown",
     ) -> Dict[str, Any]:
-        """Generate a concise overall summary, falling back to deterministic extraction."""
+        """Generate a concise overall summary, calling live LLM when available, falling back to deterministic extraction."""
+        if not self._prefer_deterministic and self.llm._is_service_available():
+            try:
+                excerpts = []
+                for c in chunks[:5]:
+                    content_clean = self._clean_sentence(c.content[:400])
+                    if content_clean:
+                        excerpts.append(content_clean)
+                context_str = "\n".join(excerpts)
+                prompt = (
+                    f"Provide a concise, factual executive summary (2-3 sentences) for the document titled '{title}'.\n"
+                    f"Rely strictly on this document text:\n{context_str}\n\n"
+                    f"Write only the 2-3 sentence executive summary with no preamble or labels."
+                )
+                response = self.llm.generate(prompt)
+                clean_text = sanitize_llm_text(response).strip()
+                if clean_text and len(clean_text) >= 40 and not clean_text.lower().startswith("llm unavailable"):
+                    return {
+                        "text": clean_text,
+                        "llm_used": True,
+                    }
+            except Exception as e:
+                logger.warning(f"LLM overall summary generation failed, falling back: {e}")
+
         return {
             "text": self._build_fallback_overall_summary(
                 title=title, chunks=chunks, sections=sections, document_type=document_type
@@ -291,6 +317,92 @@ class SummaryService:
         sampled_indices = sorted(list({int(round(i * step)) for i in range(max_samples)}))
         return [body_chunks[idx] for idx in sampled_indices]
 
+    def _clean_document_title(self, title: str) -> str:
+        """Extract a readable, clean document title without file extensions or noise."""
+        if not title:
+            return ""
+        cleaned = re.sub(r"\.(pdf|docx|txt|md|html)$", "", str(title), flags=re.IGNORECASE)
+        cleaned = cleaned.replace("_", " ").replace("-", " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if not cleaned or cleaned.lower() in {"untitled", "document", "summary", "unknown", "sample"}:
+            return ""
+        return cleaned[:100].strip()
+
+    def _is_question_or_exam_stem(self, sentence: str) -> bool:
+        """Identify questions, interrogative stems, and exam prompts that should not appear in declarative summaries."""
+        if not sentence:
+            return True
+        cleaned = sentence.strip()
+        if "?" in cleaned:
+            return True
+
+        # Strip leading numbering/labels like "1.", "Q1.", "Q 1:", "(a)", "Part A:"
+        stripped = re.sub(
+            r"^(?:q(?:uestion)?\s*\.?\s*\d+|[a-z\d]+[\.\)]|\([a-z\d]+\)|part\s+[a-z\d]+[:.-]?)\s*[:.-]?\s*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        ).strip()
+        lowered = stripped.lower()
+
+        question_stems = (
+            "what is", "what are", "what do", "what does", "what will", "what would",
+            "how is", "how are", "how do", "how does", "how can", "how to",
+            "why is", "why are", "why do", "why does", "why should",
+            "which of", "which is", "which are",
+            "when is", "when does", "where is", "where does",
+            "state the", "state whether", "state and", "state if",
+            "explain the", "explain how", "explain why", "explain what", "explain in",
+            "describe the", "describe how", "describe why",
+            "discuss the", "discuss how",
+            "define the", "define ",
+            "differentiate between", "distinguish between", "compare and contrast", "compare the",
+            "write short note", "write short notes", "write a short note",
+            "calculate the", "find the", "determine the", "compute the",
+            "show that", "prove that", "derive the", "derive an",
+            "give the", "give reasons", "give an example", "give two",
+            "illustrate with", "draw a", "draw the", "sketch the",
+            "list the", "name the", "mention the", "enumerate ",
+        )
+        return any(lowered.startswith(stem) for stem in question_stems)
+
+    def _is_bare_formula(self, sentence: str) -> bool:
+        """Identify bare formulas lacking declarative explanatory text."""
+        cleaned = sentence.strip()
+        words = re.findall(r"[A-Za-z][A-Za-z'-]+", cleaned)
+        if len(words) < 5 and any(op in cleaned for op in ["=", "×", "÷", "+", "->", "→"]):
+            return True
+        if "=" in cleaned:
+            explanatory_indicators = [
+                "which", "where", "means", "indicates", "measures", "defines",
+                "calculated as", "expressed as", "given by", "represents", "denotes"
+            ]
+            lowered = cleaned.lower()
+            if not any(ind in lowered for ind in explanatory_indicators) and len(words) < 8:
+                return True
+        return False
+
+    def _formulate_lead_sentence(
+        self,
+        title: str,
+        topics: Sequence[str],
+        document_kind: str = "unknown",
+    ) -> str:
+        """Formulate a natural context lead sentence from cleaned title and prominent domain concepts."""
+        cleaned_title = self._clean_document_title(title)
+        clean_topics = [t for t in topics if self._clean_topic_phrase(t)]
+        
+        topic_clause = self._join_phrases(clean_topics[:3]).lower() if clean_topics else ""
+        
+        if cleaned_title and topic_clause:
+            return f"This document examines {cleaned_title}, focusing on core principles across {topic_clause}."
+        elif cleaned_title:
+            return f"This document provides a technical overview of {cleaned_title} and its primary subject areas."
+        elif topic_clause:
+            return f"This document examines core principles and architectural mechanisms across {topic_clause}."
+        else:
+            return "This document presents foundational concepts and technical analyses across the subject matter."
+
     def _build_fallback_overall_summary(
         self,
         title: str,
@@ -298,118 +410,132 @@ class SummaryService:
         sections: Sequence[SummarySection],
         document_type: str = "unknown",
     ) -> str:
-        """Build a deterministic overall summary grounded in the cleanest extracted body text."""
+        """Build an authentic executive summary grounded in the document text without template boilerplate."""
         profile = self._build_document_profile(title=title, chunks=chunks, sections=sections)
         topics = profile["topics"]
-        sample_sentences = profile["sample_sentences"]
         doc_kind = document_type if document_type != "unknown" else profile["document_kind"]
 
-        summary_parts: List[str] = []
-        if doc_kind == "assessment":
-            if topics:
-                summary_parts.append(
-                    f"Deterministic fallback analysis: This document is an assessment-style document focused on {self._join_phrases(topics[:4]).lower()}."
-                )
-            else:
-                summary_parts.append(
-                    "Deterministic fallback analysis: This document is an assessment-style document built around the uploaded subject matter."
-                )
-            action_topics = self._join_phrases(topics[:3]).lower() if topics else "the main concepts"
-            summary_parts.append(
-                f"It presents question-driven material that asks the reader to interpret, compare, and apply {action_topics}."
-            )
-        elif doc_kind == "textbook":
-            summary_parts.append(
-                f"Deterministic fallback analysis: This document is a comprehensive textbook focused on {self._join_phrases(topics[:4]).lower() if topics else 'the subject matter'}."
-            )
-            if topics:
-                summary_parts.append(
-                    f"The main themes developed across the chapters include {self._join_phrases(topics[:5]).lower()}."
-                )
-        elif doc_kind == "academic_paper":
-            summary_parts.append(
-                f"Deterministic fallback analysis: This document is an academic paper focused on {self._join_phrases(topics[:4]).lower() if topics else 'the research topic'}."
-            )
-            if topics:
-                summary_parts.append(
-                    f"Key research themes include {self._join_phrases(topics[:5]).lower()}."
-                )
-        elif doc_kind == "technical_documentation":
-            summary_parts.append(
-                f"Deterministic fallback analysis: This document provides technical documentation focused on {self._join_phrases(topics[:4]).lower() if topics else 'the technical system'}."
-            )
-            if topics:
-                summary_parts.append(
-                    f"Covers implementation, configuration, and interfaces for {self._join_phrases(topics[:5]).lower()}."
-                )
-        elif doc_kind == "report":
-            summary_parts.append(
-                f"Deterministic fallback analysis: This document is a report focused on {self._join_phrases(topics[:4]).lower() if topics else 'the documented findings'}."
-            )
-            if topics:
-                summary_parts.append(
-                    f"Major findings and topics covered include {self._join_phrases(topics[:5]).lower()}."
-                )
-        elif doc_kind == "notes":
-            summary_parts.append(
-                f"Deterministic fallback analysis: This document contains reference notes focused on {self._join_phrases(topics[:4]).lower() if topics else 'the recorded topics'}."
-            )
-        else:
-            cleaned_title = self._clean_title(title) or "the uploaded material"
-            if topics:
-                summary_parts.append(
-                    f"Deterministic fallback analysis: This document focuses on {self._join_phrases(topics[:4]).lower()}."
-                )
-            else:
-                summary_parts.append(
-                    f"Deterministic fallback analysis: This document presents material related to {cleaned_title.lower()}."
-                )
-            if topics:
-                summary_parts.append(
-                    f"The main themes include {self._join_phrases(topics[:5]).lower()}."
-                )
-
-        if sample_sentences:
-            supporting = self._rewrite_sentence_for_summary(sample_sentences[0], topics)
-            if supporting:
-                summary_parts.append(supporting)
-
-        if not summary_parts:
-            summary_parts.append(
-                "Deterministic fallback analysis: This document contains extracted text, but a high-quality summary could not be formed from the current content."
-            )
-
-        summary_text = " ".join(
-            [self._clean_sentence(part) for part in summary_parts if part and part.strip()]
+        lead_sentence = self._formulate_lead_sentence(
+            title=title, topics=topics, document_kind=doc_kind
         )
+
+        representative_chunks = self._sample_representative_chunks(chunks, max_samples=25)
+        clean_chunk_texts: List[str] = []
+        for chunk in representative_chunks:
+            cleaned = self._prepare_text_for_analysis(chunk.content)
+            if cleaned:
+                clean_chunk_texts.append(cleaned)
+        combined_text = "\n".join(clean_chunk_texts)
+
+        raw_candidates = self._extract_candidate_sentences(combined_text, prefer_low_digits=True)
+
+        scored_candidates: List[tuple[float, str]] = []
+        lead_word_set = {
+            w.lower()
+            for w in re.findall(r"[A-Za-z][A-Za-z'-]+", lead_sentence)
+            if w.lower() not in _STOPWORDS
+        }
+        topic_lower_set = {t.lower() for t in topics}
+
+        for raw_s in raw_candidates:
+            s = self._clean_sentence(raw_s)
+            if not s or len(s) < 20 or len(s) > 240:
+                continue
+            if self._is_question_or_exam_stem(s):
+                continue
+            if self._looks_like_instruction(s.lower()):
+                continue
+            if self._is_bare_formula(s):
+                continue
+            if self._is_roster_sentence(s) or self._looks_like_acknowledgment(s.lower()):
+                continue
+            if "deterministic fallback" in s.lower() or "llm unavailable" in s.lower():
+                continue
+
+            words = re.findall(r"[A-Za-z][A-Za-z'-]+", s)
+            if len(words) < 7 or len(words) > 40:
+                continue
+
+            if not (s[0].isupper() or s[0].isdigit()):
+                continue
+
+            if not s.endswith((".", "!", ";")):
+                s = f"{s}."
+
+            content_words = [w.lower() for w in words if w.lower() not in _STOPWORDS]
+            unique_content = set(content_words)
+            if len(unique_content) < 5:
+                continue
+
+            concept_density = sum(1 for w in unique_content if w in topic_lower_set)
+            length_bonus = 2.0 if 12 <= len(words) <= 28 else 0.5
+            digit_penalty = sum(c.isdigit() for c in s) * 0.1
+            score = len(unique_content) + (concept_density * 2.5) + length_bonus - digit_penalty
+
+            scored_candidates.append((score, s))
+
+        scored_candidates.sort(key=lambda item: item[0], reverse=True)
+
+        selected_sentences: List[str] = []
+        seen_word_sets: List[set[str]] = [lead_word_set] if lead_word_set else []
+
+        for _, s in scored_candidates:
+            words = {
+                w.lower()
+                for w in re.findall(r"[A-Za-z][A-Za-z'-]+", s)
+                if w.lower() not in _STOPWORDS
+            }
+            if any(self._jaccard_similarity(words, existing) > 0.45 for existing in seen_word_sets):
+                continue
+            selected_sentences.append(s)
+            seen_word_sets.append(words)
+            if len(selected_sentences) >= 3:
+                break
+
+        summary_parts = [lead_sentence] + selected_sentences
+        summary_text = " ".join([p.strip() for p in summary_parts if p.strip()])
         return self._clean_sentence(summary_text)
 
     def _build_fallback_section_summary(self, text: str, title: Optional[str] = None) -> str:
         """Produce an extractive section summary when the LLM output is missing or invalid."""
         sentences = self._extract_candidate_sentences(text)
-        chosen = self._select_informative_sentences(sentences, limit=2)
+        clean_candidates: List[str] = [
+            s for s in sentences
+            if not self._is_question_or_exam_stem(s)
+            and not self._looks_like_instruction(s.lower())
+            and not self._is_bare_formula(s)
+            and not self._is_roster_sentence(s)
+            and not self._looks_like_acknowledgment(s.lower())
+        ]
+        chosen = self._select_informative_sentences(clean_candidates or sentences, limit=2)
         if chosen:
             return self._clean_sentence(" ".join(chosen))
 
         title_hint = self._clean_title(title or "")
         if title_hint:
-            return f"This section focuses on {title_hint.lower()}."
-        return "This section contains supporting information from the uploaded document."
+            return f"This section discusses {title_hint.lower()} and its associated principles."
+        return "This section contains supporting technical details from the document."
 
     def _build_fallback_key_points(self, text: str) -> List[str]:
-        """Extract deterministic bullet points from the section text."""
+        """Extract authentic, informative bullet points directly from the section text."""
         points: List[str] = []
-        keywords = [self._display_keyword(keyword).lower() for keyword in self._extract_keywords(text, limit=5)]
-        if keywords:
-            points.append(f"Covers {self._join_phrases(keywords[:3]).lower()}.")
-            if len(keywords) > 3:
-                points.append(f"Also touches on {self._join_phrases(keywords[3:5]).lower()}.")
-
         sentences = self._extract_candidate_sentences(text, prefer_low_digits=True)
-        selected = self._select_informative_sentences(sentences, limit=2)
+        clean_candidates: List[str] = [
+            s for s in sentences
+            if not self._is_question_or_exam_stem(s)
+            and not self._looks_like_instruction(s.lower())
+            and not self._is_bare_formula(s)
+            and not self._is_roster_sentence(s)
+            and not self._looks_like_acknowledgment(s.lower())
+            and 6 <= len(s.split()) <= 40
+            and len(s) <= 220
+        ]
+        selected = self._select_informative_sentences(clean_candidates or sentences, limit=4)
         for sentence in selected:
-            if sentence.endswith("?"):
+            if sentence.endswith("?") or len(sentence.split()) < 4:
                 continue
+            if not sentence.endswith((".", "!")):
+                sentence = f"{sentence}."
             if sentence not in points:
                 points.append(sentence)
 
@@ -659,17 +785,14 @@ class SummaryService:
         sentence: str,
         topics: Sequence[str],
     ) -> str:
-        """Convert a strong source sentence into a safer summary sentence."""
+        """Convert a strong source sentence into a clean declarative summary sentence."""
         cleaned = self._clean_sentence(sentence)
         if not cleaned or self._looks_like_instruction(cleaned.lower()):
             return ""
-        if cleaned.endswith("?"):
+        if self._is_question_or_exam_stem(cleaned):
             return ""
         if len(cleaned) > 220:
             cleaned = cleaned[:217].rsplit(" ", 1)[0].strip() + "."
-        if topics and sum(topic.lower() in cleaned.lower() for topic in topics[:4]) == 0:
-            action_topics = self._join_phrases(topics[:3]).lower()
-            return f"It also discusses applications and examples related to {action_topics}."
         if not cleaned.endswith((".", "!", "?")):
             cleaned = f"{cleaned}."
         return cleaned
@@ -920,15 +1043,31 @@ class SummaryService:
         """Reject exam instructions and layout boilerplate from summaries."""
         instruction_markers = [
             "attempt ",
+            "attempt any",
             "answer any",
             "answer all",
             "each question",
             "question carries",
             "full marks",
+            "maximum marks",
+            "time allowed",
             "subject code",
             "page ",
             "part ",
+            "part -",
             "write short notes",
+            "instructions to candidates",
+            "roll no",
+            "total marks",
+            "marks for each",
+            "-mark questions",
+            "-mark question",
+            "mark question",
+            "mark questions",
+            "choose the correct",
+            "all questions carry",
+            "assume suitable data",
+            "figures to the right indicate",
         ]
         return any(marker in lowered_text for marker in instruction_markers)
 

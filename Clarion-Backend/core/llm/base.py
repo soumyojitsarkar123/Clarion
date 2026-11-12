@@ -3,12 +3,14 @@ Base LLM Provider - Abstract interface for LLM implementations.
 """
 
 import re
+import json
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from pydantic import BaseModel, Field
+from services.token_budget_service import TokenBudgetService, TokenBudgetExceeded
 
-THINK_TAG_REGEX = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
+THINK_TAG_REGEX = re.compile(r"<\s*think\b[^>]*>[\s\S]*?(?:<\s*/\s*think\s*>|$)", re.IGNORECASE)
 
 
 def sanitize_llm_text(text: Optional[str]) -> str:
@@ -119,6 +121,130 @@ class BaseLLMProvider(ABC):
         self.timeout = timeout
         self.additional_config = kwargs
         self._client = None
+        self.last_token_metrics = {}
+        self._budget_tokenizer = kwargs.get("tokenizer")
+
+    def preflight_request(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        *,
+        schema: Optional[Dict[str, Any]] = None,
+        runtime_context_limit: Optional[int] = None,
+    ):
+        """Enforce a model/provider budget before any provider request is sent.
+
+        Exact counts require an explicitly configured tokenizer matching the
+        served model. Otherwise UTF-8 bytes are an intentionally conservative
+        estimate and the returned metrics identify that limitation.
+        """
+        import os
+
+        info = self.get_model_info()
+        context_limit = int(
+            runtime_context_limit
+            or self.additional_config.get("context_window")
+            or info.context_window
+        )
+        if info.provider == ProviderType.OLLAMA:
+            # Ollama's API default is 4096 unless num_ctx is supplied.
+            context_limit = int(runtime_context_limit or self.additional_config.get("num_ctx", 4096))
+        output_reserve = int(max_tokens if max_tokens is not None else self.max_tokens)
+        safety = int(self.additional_config.get("token_safety_tokens", 256))
+
+        if self._budget_tokenizer is None:
+            tokenizer_name = self.additional_config.get("tokenizer_name") or os.getenv("LLM_TOKENIZER_NAME")
+            if tokenizer_name:
+                try:
+                    from transformers import AutoTokenizer
+                    self._budget_tokenizer = AutoTokenizer.from_pretrained(
+                        tokenizer_name, use_fast=True, local_files_only=True
+                    )
+                except Exception:
+                    # The estimate fallback remains explicit in metrics.
+                    self._budget_tokenizer = None
+
+        service = TokenBudgetService(
+            context_limit=context_limit,
+            reserved_output_tokens=output_reserve,
+            safety_tokens=safety,
+            tokenizer=self._budget_tokenizer,
+        )
+        messages = ([{"role": "system", "content": system_message}] if system_message else [])
+        user_content = prompt
+        if schema is not None:
+            user_content += "\nStructured output schema:\n" + json.dumps(
+                schema, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+        messages.append({"role": "user", "content": user_content})
+        template_used = False
+        material = None
+        apply_template = getattr(self._budget_tokenizer, "apply_chat_template", None)
+        if callable(apply_template):
+            try:
+                material = apply_template(messages, tokenize=False, add_generation_prompt=True)
+                template_used = True
+            except Exception:
+                material = None
+        if material is None:
+            # Canonical conservative serialization includes role labels, message
+            # boundaries, and structured-output schema in the counted payload.
+            material = json.dumps(
+                {"messages": messages, "structured_output_schema": schema},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            )
+        plan = service.plan(material)
+        exact_for_deployed_request = bool(plan.exact and template_used and schema is None)
+        if plan.exact and not template_used:
+            from dataclasses import replace
+            plan = replace(plan, exact=False, counting_method="configured_tokenizer_serialized_request_estimate")
+        special_overhead = None
+        if self._budget_tokenizer is not None:
+            try:
+                with_special = self._budget_tokenizer.encode(material, add_special_tokens=True, truncation=False)
+                without_special = self._budget_tokenizer.encode(material, add_special_tokens=False, truncation=False)
+                special_overhead = max(0, len(with_special) - len(without_special))
+            except Exception:
+                pass
+        self.last_token_metrics = {
+            "input_tokens": plan.input_tokens,
+            "actual_model_token_count": plan.input_tokens if exact_for_deployed_request else None,
+            "estimated_token_count": None if exact_for_deployed_request else plan.input_tokens,
+            "input_tokens_exact": exact_for_deployed_request,
+            "counting_method": plan.counting_method,
+            "utf8_byte_length": len(material.encode("utf-8")),
+            "special_token_overhead": special_overhead,
+            "chat_template_applied": template_used,
+            "structured_schema_included": schema is not None,
+            "context_limit": plan.context_limit,
+            "context_utilization": round(plan.input_tokens / plan.context_limit, 6),
+            "reserved_output_tokens": plan.reserved_output_tokens,
+            "safety_tokens": plan.safety_tokens,
+            "remaining_tokens": plan.remaining_tokens,
+            "budget_rejected": not plan.fits,
+        }
+        if not plan.fits:
+            service.require_fits(material)
+        return plan
+
+    def record_response_usage(self, response: "LLMResponse") -> "LLMResponse":
+        """Attach measured provider usage to the preflight budget metrics."""
+        usage = response.usage
+        finish_reason = str(response.finish_reason or "").casefold()
+        truncated = finish_reason in {"length", "max_tokens", "max tokens", "max_tokens_reached"}
+        self.last_token_metrics.update({
+            "actual_prompt_tokens": getattr(usage, "prompt_tokens", None),
+            "actual_output_tokens": getattr(usage, "completion_tokens", None),
+            "actual_total_tokens": getattr(usage, "total_tokens", None),
+            "provider_finish_reason": response.finish_reason,
+            "truncated": truncated,
+        })
+        response.metadata = dict(response.metadata or {})
+        response.metadata["token_budget"] = dict(self.last_token_metrics)
+        if truncated:
+            raise LLMProviderError("Provider stopped at its output token limit; response may be incomplete")
+        return response
 
     @abstractmethod
     def _initialize_client(self) -> None:

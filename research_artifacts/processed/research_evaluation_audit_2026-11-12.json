@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-12",
+  "status": "BLOCKED; NO RESEARCH QUALITY CLAIMS",
+  "baseline_controls": {"chunk_target_words": 512, "overlap_words": 50, "embedding_model": "BAAI/bge-large-en-v1.5", "interpretation": "Configuration values, not evidence of optimality."},
+  "evaluations": {
+    "annotation_dataset": {"status": "blocked", "evidence": "research/reports/ANNOTATION_DATASET_AUDIT.md", "reported_context": "1562 canonical candidate rows have is_valid=NULL; queue membership is not a human label; overlap is not independent annotation."},
+    "inter_annotator_agreement": {"status": "not evaluated", "evidence": "research/reports/INTER_ANNOTATOR_AGREEMENT_REPORT.md", "reason": "No independent annotations."},
+    "relation_quality": {"status": "blocked", "evidence": "research/reports/RELATION_EVALUATION_REPORT.md", "reason": "No gold labels."},
+    "retrieval_quality": {"status": "blocked", "evidence": "research/reports/RETRIEVAL_EVALUATION_REPORT.md", "reason": "No valid query relevance judgments (qrels)."},
+    "statistical_inference": {"status": "not claimed", "evidence": "research/reports/STATISTICAL_ANALYSIS_REPORT.md", "reason": "No inferential claims supported."}
+  },
+  "metrics": null,
+  "fabricated_metrics": false,
+  "manuscript_or_research_reports_modified": false
+}

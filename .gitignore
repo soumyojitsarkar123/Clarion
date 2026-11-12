@@ -136,3 +136,27 @@ README_GITHUB.md
 GITHUB_SETUP.md
 FRONTEND_IMPLEMENTATION_COMPLETE.md
 QUICK_REFERENCE.md
+
+# Local validation environments and pytest temp outputs
+Clarion-Backend/.venv-recovery/
+Clarion-Backend/.venv-validation/
+.pytest-tmp/
+.pytest-tmp-live-elevated/
+Clarion-Backend/.pytest-tmp/
+Clarion-Backend/.pytest-tmp-live-elevated/
+
+# Private/local runtime artifacts that must never enter a release commit.
+**/.claude/settings.local.json
+research_artifacts/engineering-final-blocker-resolution-2026-11-12/
+research_artifacts/demo_runs/*/data/
+research_artifacts/demo_runs/*/pytest-tmp/
+research_artifacts/demo_runs/*/logs/
+research_artifacts/demo_runs/*/browser-profile*/
+research_artifacts/demo_runs/*/chrome-profile*/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm

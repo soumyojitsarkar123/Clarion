@@ -103,3 +103,15 @@ def test_undersized_sections_are_merged(isolated_settings):
     assert len(chunks) == 1
     assert chunks[0].word_count >= 8
 
+
+def test_tail_chunk_overlap_deduplication(isolated_settings):
+    """Verify that merging an undersized remainder does not repeat overlap words."""
+    service = make_service(isolated_settings, chunk_size=10, overlap=3, min_size=6)
+    words = [f"token{i}" for i in range(12)]
+    chunks = service.chunk_document("doc-tail-dedup", " ".join(words))
+    assert len(chunks) == 1
+    content_tokens = chunks[0].content.split()
+    assert len(content_tokens) == 12
+    assert len(set(content_tokens)) == 12
+    assert content_tokens == words
+

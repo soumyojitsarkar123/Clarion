@@ -1,0 +1,361 @@
+{
+  "query": "What is OLAP and how does it support multidimensional analysis?",
+  "results": [
+    {
+      "chunk_id": "4d255eda-9adf-4e1f-a2a1-a2d1321aa098",
+      "content": "multidimensional queries for deeper insights.\n4. Data Scale: OLTP handles gigabytes of current data; OLAP manages terabytes of historical data for\ncomprehensive analysis.\nThese differences highlight the distinct purposes and functionalities of OLTP and OLAP systems.\n\n1. Integration layer: Consolidates data from heterogeneous operational sources. \n2. Storage layer: Maintains historical data in Star or Snowflake schemas.\n3. OLAP Server: Acts as the middle-tier engine for multidimensional logic.\n4. Client Frontend: Provides visualization, reporting, and dashboard capabilities. \n5. Metadata Repository: Stores definitions of cubes, dimensions, and hierarchies. THE OLAP ECOSYSTEM\n\n1. Data is viewed as a \"Cube\" consisting of dimensions and measures.\n2. Dimensions represent descriptive attributes like Time, Product, and Geography. \n3. Measures are quantitative values like Sales Amount, Cost, or Quantity.\n4. Concept hierarchies allow navigation through different levels of abstraction.",
+      "score": 0.7184060215668903,
+      "section_title": "Work Nature: OLTP tasks involve straightforward CRUD operations; OLAP requires complex",
+      "position_index": 152,
+      "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+      "document_name": "Unit-4 Advanced OLAP Concepts.pptx.pdf",
+      "page_references": [
+        4,
+        5,
+        6
+      ],
+      "source_intervals": [
+        {
+          "source_start": 1404,
+          "source_end": 1669,
+          "mapping": "combined_source_span",
+          "page_number": 4,
+          "page_char_start": 533,
+          "page_char_end": 798
+        },
+        {
+          "source_start": 1671,
+          "source_end": 2081,
+          "mapping": "combined_source_span",
+          "page_number": 5,
+          "page_char_start": 0,
+          "page_char_end": 410
+        },
+        {
+          "source_start": 2083,
+          "source_end": 2385,
+          "mapping": "combined_source_span",
+          "page_number": 6,
+          "page_char_start": 0,
+          "page_char_end": 302
+        }
+      ],
+      "segment_id": "4d255eda-9adf-4e1f-a2a1-a2d1321aa098:seg:0",
+      "raw_chunk_ids": [
+        "4d255eda-9adf-4e1f-a2a1-a2d1321aa098"
+      ],
+      "embedding_model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    },
+    {
+      "chunk_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+      "content": "ADVANCED OLAP CONCEPTS\nUNIT IV\n\nA comprehensive exploration of advanced Online Analytical Processing (OLAP)\narchitectures. An in-depth analysis of Data Cube technology and its implementation\nstrategies. Efficient methods for computing and materializing multidimensional data.\nExamination of indexing techniques specifically designed for high-dimensional data.\nEmphasis on performance optimization for complex decision support queries. OVERVIEW & SCOPE\n\n1. Growing volume of historical data requires sophisticated summarization tools. \n2. Standard relational databases struggle with complex, high-dimensional aggregations.\n3. Decision makers need sub-second response times for interactive exploration.\n4. Advanced OLAP facilitates hidden pattern discovery in multi-level hierarchies.\n\nOLTP VS. ADVANCED OLAP\nOLTP (Online Transaction Processing) focuses on daily transactions, while OLAP (Online Analytical Processing)\nsupports long-term strategic decision-making. Key differences include:\n1. Access Patterns: OLTP updates individual records; OLAP conducts extensive read scans of large datasets.\n2. Database Design: OLTP uses normalized E-R models for data integrity; OLAP prefers de-normalized schemas\nfor simpler data retrieval.",
+      "score": 0.714452354217314,
+      "section_title": "Ensures consistency across various business metrics and dimensions. EVOLUTION OF ANALYSIS",
+      "position_index": 0,
+      "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+      "document_name": "Unit-4 Advanced OLAP Concepts.pptx.pdf",
+      "page_references": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "source_intervals": [
+        {
+          "source_start": 0,
+          "source_end": 31,
+          "mapping": "combined_source_span",
+          "page_number": 1,
+          "page_char_start": 0,
+          "page_char_end": 31
+        },
+        {
+          "source_start": 33,
+          "source_end": 451,
+          "mapping": "combined_source_span",
+          "page_number": 2,
+          "page_char_start": 0,
+          "page_char_end": 418
+        },
+        {
+          "source_start": 453,
+          "source_end": 778,
+          "mapping": "combined_source_span",
+          "page_number": 3,
+          "page_char_start": 0,
+          "page_char_end": 325
+        },
+        {
+          "source_start": 871,
+          "source_end": 1314,
+          "mapping": "combined_source_span",
+          "page_number": 4,
+          "page_char_start": 0,
+          "page_char_end": 443
+        }
+      ],
+      "segment_id": "9293a6a7-7acc-4e1c-a20e-74b2380e2452:seg:0",
+      "raw_chunk_ids": [
+        "9293a6a7-7acc-4e1c-a20e-74b2380e2452",
+        "1b96703a-c8ca-4a3c-8c42-756ba002fef1"
+      ],
+      "embedding_model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    },
+    {
+      "chunk_id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+      "content": "s. \nRequires a separate storage engine outside the traditional RDBMS. MULTIDIMENSIONAL OLAP\n\n1. Combines the strengths of both ROLAP and MOLAP architectures.\n2. Summary data (high-level) is stored in MOLAP for fast access.\n3. Detailed data (low-level) is kept in ROLAP for massive scalability.\n4. Dynamically switches between storage modes based on query requirements.",
+      "score": 0.7054889737386929,
+      "section_title": "Enables users to analyze performance across multiple intersecting categories. MULTIDIMENSIONAL",
+      "position_index": 284,
+      "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+      "document_name": "Unit-4 Advanced OLAP Concepts.pptx.pdf",
+      "page_references": [
+        13,
+        14
+      ],
+      "source_intervals": [
+        {
+          "source_start": 5062,
+          "source_end": 5152,
+          "mapping": "combined_source_span",
+          "page_number": 13,
+          "page_char_start": 282,
+          "page_char_end": 372
+        },
+        {
+          "source_start": 5154,
+          "source_end": 5425,
+          "mapping": "combined_source_span",
+          "page_number": 14,
+          "page_char_start": 0,
+          "page_char_end": 271
+        }
+      ],
+      "segment_id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7:seg:1",
+      "raw_chunk_ids": [
+        "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+        "f40bf0de-7a10-45f9-bf1c-b85c66501e2f",
+        "d30b2fe5-5a40-4c5c-972f-4390ae63c7fb"
+      ],
+      "embedding_model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    },
+    {
+      "chunk_id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+      "content": "MODELING\n\n A Data Cube is a multidimensional representation of aggregated data values. \n1. Base Cuboid: The most detailed level of data in the multidimensional space.\n2. Apex Cuboid: The highest level of summarization, often representing \"All\". \n3. Intermediate Cuboids: Pre-calculated aggregates at various granularity levels. \n4. Cubes enable rapid \"Slice and Dice\" operations during interactive sessions. DATA CUBE TECHNOLOGY\n\n1. A lattice represents the hierarchy of all possible cuboids in a schema.\n2. For $n$ dimensions, there are $2^n$ possible cuboids to compute.\n3. Each path in the lattice represents a different drill-down or roll-up route.\n4. The size of the lattice grows exponentially with the number of dimensions. \n5. Visualization helps in determining which cuboids are worth pre-computing. THE CUBOID LATTICE\n\nRoll-Up: Moves up the concept hierarchy to a more generalized level. \nDrill-Down: Navigates from summary data to more detailed information. \nSlice: Selects a single dimension from the cube to create a 2 D view.\nDice: Selects a sub-cube by applying filters to multiple dimensions.\nThese operations are the building blocks of multidimensional exploration. CORE OPERATIONS:\nNAVIGATION\n\n1. Pivot: Rotates the data axes to provide an alternative perspective.\n2. Drill-Across: Executes queries that involve multiple fact tables.\n3. Drill-Through: Allows users to jump from OLAP cubes to underlying OLTP data. \n4. Ranking: Identifies top or bottom performers across various categories.\n\nANALYSIS\n\nRelational OLAP (ROLAP), Multidimensional OLAP (MOLAP), and Hybrid OLAP\n(HOLAP) are types of Online Analytical Processing systems. Additionally, there are\nspecialized servers and engines available. When considering architectural trade-offs,\nit's important to balance storage with performance. OLAP SERVER\nARCHITECTURES\n\n1. Implemented on top of traditional relational database management systems. \n2. Stores multidimensional data as a series of relational table structures.\n3. Highly scalable and can handle very large volumes of detailed data.\n4. Query performance can be slower due to complex JOIN operations.\n\nUses specialized data structures (arrays) for direct multidimensional storage. \nOffers exceptionally fast performance for pre-computed aggregations. \nOptimized for rapid slicing, dicing, and navigational operations.\nLimited scalability compared to ROLAP for massive detailed dataset",
+      "score": 0.6829340213305347,
+      "section_title": "Enables users to analyze performance across multiple intersecting categories. MULTIDIMENSIONAL",
+      "position_index": 284,
+      "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+      "document_name": "Unit-4 Advanced OLAP Concepts.pptx.pdf",
+      "page_references": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "source_intervals": [
+        {
+          "source_start": 2483,
+          "source_end": 2491,
+          "mapping": "combined_source_span",
+          "page_number": 6,
+          "page_char_start": 400,
+          "page_char_end": 408
+        },
+        {
+          "source_start": 2493,
+          "source_end": 2908,
+          "mapping": "combined_source_span",
+          "page_number": 7,
+          "page_char_start": 0,
+          "page_char_end": 415
+        },
+        {
+          "source_start": 2910,
+          "source_end": 3301,
+          "mapping": "combined_source_span",
+          "page_number": 8,
+          "page_char_start": 0,
+          "page_char_end": 391
+        },
+        {
+          "source_start": 3303,
+          "source_end": 3682,
+          "mapping": "combined_source_span",
+          "page_number": 9,
+          "page_char_start": 0,
+          "page_char_end": 379
+        },
+        {
+          "source_start": 3684,
+          "source_end": 3975,
+          "mapping": "combined_source_span",
+          "page_number": 10,
+          "page_char_start": 0,
+          "page_char_end": 291
+        },
+        {
+          "source_start": 4071,
+          "source_end": 4079,
+          "mapping": "combined_source_span",
+          "page_number": 10,
+          "page_char_start": 387,
+          "page_char_end": 395
+        },
+        {
+          "source_start": 4081,
+          "source_end": 4398,
+          "mapping": "combined_source_span",
+          "page_number": 11,
+          "page_char_start": 0,
+          "page_char_end": 317
+        },
+        {
+          "source_start": 4400,
+          "source_end": 4687,
+          "mapping": "combined_source_span",
+          "page_number": 12,
+          "page_char_start": 0,
+          "page_char_end": 287
+        },
+        {
+          "source_start": 4780,
+          "source_end": 5062,
+          "mapping": "exact",
+          "page_number": 13,
+          "page_char_start": 0,
+          "page_char_end": 282
+        }
+      ],
+      "segment_id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7:seg:0",
+      "raw_chunk_ids": [
+        "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+        "f40bf0de-7a10-45f9-bf1c-b85c66501e2f",
+        "d30b2fe5-5a40-4c5c-972f-4390ae63c7fb"
+      ],
+      "embedding_model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    },
+    {
+      "chunk_id": "b1fa2f53-db0c-4f35-b792-25a77374a25e",
+      "content": "1. Stores the relationship between fact table rows and dimension table rows. \n2. Significantly speeds up the performance of Star Schema JOIN operations. \n3. Pre-calculates the physical locations of matching records in advance.\n4. Can be expanded to \"Multi-table Join Indexes\" for complex Snowflake models. \n5. Essential for ROLAP systems to compete with the speed of MOLAP. JOIN INDEXING TECHNIQUES\n\nMaterialized views act as physically stored results of aggregation queries. View\nSelection: Determining the optimal set of views to store physically. Incremental\nMaintenance: Updating only the changed parts of the view.\nFull Refresh: Re-calculating the entire view after a large data load. Maintenance is\nscheduled during \"ETL windows\" to minimize user impact. MATERIALIZED VIEW\nSTRATEGIES\n\nQuery Rewrite: Automatically using materialized views instead of base tables. Cost-Based\nOptimization: Using metadata statistics to pick the best execution \nplan.\nCaching: Keeping frequently accessed query results in high-speed RAM.\nParallel Execution: Splitting large aggregation tasks across multiple CPUs.\nData Partitioning: Splitting large cubes into manageable physical segments. QUERY OPTIMIZATION\nMETHODS\n\nAdding dimensions causes an exponential explosion in possible cuboids \nD$a2ta^n b$ec.omes increasingly sparse as the number of dimensions increases.\nTraditional array-based storage MOLAP) becomes highly inefficient.\nRequires specialized compression and shell-cube strategies for high dimensions. Impacts the cost\nof materialization and the complexity of indexing. THE CURSE OF\nDIMENSIONALITY\n\nA data generalization technique used to summarize massive datasets. Iteratively replaces\nspecific values with more general concept levels. Removes attributes with too many distinct\nvalues to reduce complexity. Produces a \"Generalized Relation\" that provides high-level\nbusiness insights. Integrated with OLAP to facilitate discovery-driven data exploration. ATTRIBUTE ORIENTED\nINDUCTION\n\nWindow Functions: Support for running totals and moving averages. Analytical Ranking:\nFunctions like Rank (), Dense_Rank (), and N-tile (). Multi-Level Aggregates: Support for\nGrouping Sets and CUBE extensions. Time-Series Analysis: Comparing performance over\ndifferent time intervals. Cross-Tabulation: Dynamic generation of cross-tabs for complex\nreporting. ADVANCED ANALYTICAL\nLOGIC\n\nReal-Time OLAP Analyzing streaming data as it arrives in the system. Cloud-Native\nOLAP Leveraging elastic storage and serverless computation. In-Memory OLAP Utilizing\nmassive RAM capacities for instantaneous analysis. AIDriven OLAP Automated\nidentification of anomalies and interesting trends",
+      "score": 0.6808995721370164,
+      "section_title": "Efficiently handles multi-dimensional queries with multiple selection criteria. BITMAP INDEXING",
+      "position_index": 1080,
+      "document_id": "cab2f35d-adc6-4ebe-a315-898f2bad72ec",
+      "document_name": "Unit-4 Advanced OLAP Concepts.pptx.pdf",
+      "page_references": [
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "source_intervals": [
+        {
+          "source_start": 8623,
+          "source_end": 9015,
+          "mapping": "combined_source_span",
+          "page_number": 23,
+          "page_char_start": 0,
+          "page_char_end": 392
+        },
+        {
+          "source_start": 9017,
+          "source_end": 9405,
+          "mapping": "combined_source_span",
+          "page_number": 24,
+          "page_char_start": 0,
+          "page_char_end": 388
+        },
+        {
+          "source_start": 9407,
+          "source_end": 9818,
+          "mapping": "combined_source_span",
+          "page_number": 25,
+          "page_char_start": 0,
+          "page_char_end": 411
+        },
+        {
+          "source_start": 9820,
+          "source_end": 10214,
+          "mapping": "combined_source_span",
+          "page_number": 26,
+          "page_char_start": 0,
+          "page_char_end": 394
+        },
+        {
+          "source_start": 10216,
+          "source_end": 10601,
+          "mapping": "combined_source_span",
+          "page_number": 27,
+          "page_char_start": 0,
+          "page_char_end": 385
+        },
+        {
+          "source_start": 10603,
+          "source_end": 10984,
+          "mapping": "combined_source_span",
+          "page_number": 28,
+          "page_char_start": 0,
+          "page_char_end": 381
+        },
+        {
+          "source_start": 10986,
+          "source_end": 11283,
+          "mapping": "combined_source_span",
+          "page_number": 29,
+          "page_char_start": 0,
+          "page_char_end": 297
+        }
+      ],
+      "segment_id": "b1fa2f53-db0c-4f35-b792-25a77374a25e:seg:0",
+      "raw_chunk_ids": [
+        "b1fa2f53-db0c-4f35-b792-25a77374a25e"
+      ],
+      "embedding_model_id": "BAAI/bge-large-en-v1.5@d4aa6901d3a41ba39fb536a557fa166f842b0e09"
+    }
+  ],
+  "response": "Based on the provided context, **OLAP (Online Analytical Processing)** is a system designed to support long-term strategic decision-making by handling terabytes of historical data for comprehensive analysis, in contrast to OLTP which focuses on daily transactions and current gigabytes of data.\n\nIt supports multidimensional analysis through the following mechanisms:\n\n*   **Data Structure:** Data is viewed as a **\"Cube\"** consisting of **dimensions** (descriptive attributes like Time, Product, and Geography) and **measures** (quantitative values like Sales Amount or Cost).\n*   **Schema Design:** It utilizes de-normalized schemas (such as Star or Snowflake) to facilitate simpler data retrieval and complex aggregations that standard relational databases struggle with.\n*   **Hierarchical Navigation:** It employs **concept hierarchies**, which allow users to navigate through different levels of abstraction within the data.\n*   **Processing Engine:** The OLAP Server acts as a middle-tier engine specifically for multidimensional logic, enabling efficient summarization and sub-second response times for interactive exploration and hidden pattern discovery in multi-level hierarchies.",
+  "knowledge_map": null,
+  "fallback_used": false,
+  "omitted_evidence": [
+    {
+      "id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+      "reason": "context_budget"
+    },
+    {
+      "id": "8655dcf3-0d9c-470e-9fd1-9a66ef1e99c7",
+      "reason": "context_budget"
+    },
+    {
+      "id": "b1fa2f53-db0c-4f35-b792-25a77374a25e",
+      "reason": "context_budget"
+    }
+  ],
+  "token_metrics": {
+    "model": "qwen3.5:4b",
+    "configured_context_tokens": 4096,
+    "input_tokens_preflight": 2753,
+    "preflight_exact": false,
+    "preflight_method": "utf8_byte_upper_bound_estimate",
+    "reserved_output_tokens": 800,
+    "safety_tokens": 256,
+    "provider_prompt_tokens": 626,
+    "provider_output_tokens": 226,
+    "provider_usage_available": true,
+    "truncated": false,
+    "request_rejected": false,
+    "finish_reason": "stop",
+    "context_pack_input_tokens": 2753,
+    "context_pack_exact": false,
+    "context_pack_method": "utf8_byte_upper_bound_estimate",
+    "included_evidence_count": 2,
+    "omitted_evidence_count": 3
+  }
+}

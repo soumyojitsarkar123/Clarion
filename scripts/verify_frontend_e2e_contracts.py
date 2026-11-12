@@ -150,10 +150,10 @@ def run_e2e_verification():
 
     empty_upload_res = client.post(
         "/upload",
-        files={"file": ("empty.txt", b"", "text/plain")}
+        files={"file": ("empty.pdf", b"", "application/pdf")}
     )
     print(f"  Empty file upload status code: {empty_upload_res.status_code} (Expected 400)")
-    assert empty_upload_res.status_code in [400, 422], f"Expected 400/422 for empty file, got {empty_upload_res.status_code}"
+    assert empty_upload_res.status_code == 400, f"Expected 400 for empty PDF, got {empty_upload_res.status_code}"
     results["step6_error_resilience"] = "PASS"
 
     print("\n" + "=" * 70)

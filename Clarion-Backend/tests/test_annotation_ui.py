@@ -203,28 +203,30 @@ def test_http_server_get_endpoints(tmp_path):
         host, port = server.server_address
         t = threading.Thread(target=server.serve_forever, daemon=True)
         t.start()
+        try:
+            # Test GET /
+            req_root = urllib.request.Request(f"http://{host}:{port}/")
+            with urllib.request.urlopen(req_root) as res:
+                assert res.status == 200
+                assert "text/html" in res.headers.get("Content-Type")
+                assert "Content-Length" in res.headers
+                content = res.read().decode("utf-8")
+                assert "Clarion Relation Annotation Console" in content
 
-        # Test GET /
-        req_root = urllib.request.Request(f"http://{host}:{port}/")
-        with urllib.request.urlopen(req_root) as res:
-            assert res.status == 200
-            assert "text/html" in res.headers.get("Content-Type")
-            assert "Content-Length" in res.headers
-            content = res.read().decode("utf-8")
-            assert "Clarion Relation Annotation Console" in content
-
-        # Test GET /api/records
-        req_api = urllib.request.Request(f"http://{host}:{port}/api/records")
-        with urllib.request.urlopen(req_api) as res:
-            assert res.status == 200
-            assert "application/json" in res.headers.get("Content-Type")
-            assert "Content-Length" in res.headers
-            data = json.loads(res.read().decode("utf-8"))
-            assert data["total"] == 3
-            assert len(data["records"]) == 3
-            assert data["filename"] == test_file.name
-
-        server.server_close()
+            # Test GET /api/records
+            req_api = urllib.request.Request(f"http://{host}:{port}/api/records")
+            with urllib.request.urlopen(req_api) as res:
+                assert res.status == 200
+                assert "application/json" in res.headers.get("Content-Type")
+                assert "Content-Length" in res.headers
+                data = json.loads(res.read().decode("utf-8"))
+                assert data["total"] == 3
+                assert len(data["records"]) == 3
+                assert data["filename"] == test_file.name
+        finally:
+            server.shutdown()
+            t.join(timeout=2.0)
+            server.server_close()
 
 
 def test_http_server_post_endpoint_and_safety(tmp_path):
@@ -261,39 +263,41 @@ def test_http_server_post_endpoint_and_safety(tmp_path):
         host, port = server.server_address
         t = threading.Thread(target=server.serve_forever, daemon=True)
         t.start()
+        try:
+            # POST /api/record/0
+            post_payload = json.dumps({
+                "label": "VALID",
+                "error_category": "NONE",
+                "annotator_id": "TestAnnotator",
+                "confidence_rating": 5,
+                "adjudicated_evidence_text": "A knowledge graph organizes structured information.",
+                "notes": "Verified against chunk text.",
+            }).encode("utf-8")
 
-        # POST /api/record/0
-        post_payload = json.dumps({
-            "label": "VALID",
-            "error_category": "NONE",
-            "annotator_id": "TestAnnotator",
-            "confidence_rating": 5,
-            "adjudicated_evidence_text": "A knowledge graph organizes structured information.",
-            "notes": "Verified against chunk text.",
-        }).encode("utf-8")
+            req = urllib.request.Request(
+                f"http://{host}:{port}/api/record/0",
+                data=post_payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req) as res:
+                assert res.status == 200
+                assert "Content-Length" in res.headers
+                resp_data = json.loads(res.read().decode("utf-8"))
+                assert resp_data["success"] is True
+                assert resp_data["record"]["label"] == "VALID"
+                assert resp_data["record"]["annotator_id"] == "TestAnnotator"
 
-        req = urllib.request.Request(
-            f"http://{host}:{port}/api/record/0",
-            data=post_payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req) as res:
-            assert res.status == 200
-            assert "Content-Length" in res.headers
-            resp_data = json.loads(res.read().decode("utf-8"))
-            assert resp_data["success"] is True
-            assert resp_data["record"]["label"] == "VALID"
-            assert resp_data["record"]["annotator_id"] == "TestAnnotator"
-
-        # Verify disk persistence
-        disk_data = json.loads(test_file.read_text())
-        saved_rec = disk_data["records"][0]
-        for field in IMMUTABLE_FIELDS:
-            assert saved_rec[field] == initial_record[field], f"Immutable field {field} was altered!"
-        assert saved_rec["label"] == "VALID"
-        assert saved_rec["annotator_id"] == "TestAnnotator"
-        assert saved_rec["confidence_rating"] == 5
-
-        server.server_close()
+            # Verify disk persistence
+            disk_data = json.loads(test_file.read_text())
+            saved_rec = disk_data["records"][0]
+            for field in IMMUTABLE_FIELDS:
+                assert saved_rec[field] == initial_record[field], f"Immutable field {field} was altered!"
+            assert saved_rec["label"] == "VALID"
+            assert saved_rec["annotator_id"] == "TestAnnotator"
+            assert saved_rec["confidence_rating"] == 5
+        finally:
+            server.shutdown()
+            t.join(timeout=2.0)
+            server.server_close()
 

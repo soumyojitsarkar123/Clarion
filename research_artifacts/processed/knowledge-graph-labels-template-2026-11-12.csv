@@ -1,0 +1,1 @@
+experiment_id,document_id,extraction_run_id,annotation_id,record_type,entity_id,source_entity_id,target_entity_id,relation_label,entity_or_relation_state,evidence_chunk_id,evidence_page,evidence_text,annotator_id,adjudication_state,annotation_timestamp_utc,notes

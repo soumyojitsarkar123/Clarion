@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-12",
+  "classification": "PARTIALLY VERIFIED — NOT RELEASE READY",
+  "checks": {
+    "linux_full_backend_suite": {"status": "passed", "summary": "324 passed, 2 skipped; 325 collected, 1 collection skip", "evidence": "research_artifacts/raw/backend-full-suite-linux-py312-final-2026-11-12.log"},
+    "windows_test_runner": {"status": "blocked", "evidence": "research_artifacts/raw/windows-asyncio-socketpair-repro-2026-11-12.json"},
+    "source_provenance_pdf_faiss": {"status": "passed_isolated", "evidence": "research_artifacts/isolated-provenance-e2e-2026-11-12/isolated_provenance_e2e_manifest.json"},
+    "backup_restore_and_interrupted_index_recovery": {"status": "passed_isolated", "production_data_accessed": false, "evidence": "research_artifacts/processed/backup_restore_rehearsal_2026-11-12.json"},
+    "live_provider_generation": {"status": "blocked", "reason": "Ollama loopback port 11434 denied in this session."},
+    "live_browser_e2e": {"status": "blocked", "reason": "Playwright/browser runtime unavailable."},
+    "security": {"status": "release_blocker", "evidence": "research_artifacts/processed/security_review_2026-11-12.json"},
+    "research_quality_metrics": {"status": "blocked", "evidence": "research_artifacts/processed/research_evaluation_audit_2026-11-12.json"},
+    "github_actions": {"status": "not_run_remotely", "note": "Local Linux equivalent passed."},
+    "repository_recovery": {"status": "preserved", "evidence": "research_artifacts/engineering-final-blocker-resolution-2026-11-12/"}
+  },
+  "release_zip_created": false,
+  "commit_created": false,
+  "research_manuscript_or_reports_written": false,
+  "decision": "Do not create a release archive while live generation/browser, security, and research evidence gates remain open."
+}

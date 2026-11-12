@@ -8,12 +8,13 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Clarion — Document Intelligence & Knowledge Mapping</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💠</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=9">
+    <link rel="stylesheet" href="styles.css?v=15">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 </head>
 
@@ -24,9 +25,9 @@
             <div class="header-brand">
                 <div class="brand-title-row">
                     <span class="brand-logo">Clarion</span>
-                    <span class="brand-badge">RESEARCH PREVIEW</span>
+                    <span class="brand-badge">Research Preview</span>
                 </div>
-                <p class="brand-tagline">Structure-Aware Document Intelligence & Relational Synthesis</p>
+                <p class="brand-tagline">Intelligent Document Analysis & Knowledge Mapping</p>
             </div>
             <div class="status-ribbon">
                 <div class="status-chip" id="doc-chip" title="Selected document">
@@ -53,7 +54,6 @@
                     <span class="chip-label">STATUS</span>
                     <span class="chip-value" id="honest-status-badge">LLM: checking</span>
                 </div>
-                <span class="status-pill" id="llm-pill">LLM: checking</span>
             </div>
         </header>
 
@@ -91,18 +91,13 @@
                         <h2>Selected Document</h2>
                     </div>
                     <div id="doc-info" class="doc-info">No document selected</div>
+                    <div id="doc-processing-stats" class="doc-processing-stats" aria-live="polite">Select a document to view extraction and indexing counts.</div>
                     <div class="action-buttons">
                         <button id="analyze-btn" class="btn btn-primary btn-block" disabled>Start Full Analysis</button>
                     </div>
                     <div id="analysis-status" class="status-box"></div>
                 </section>
 
-                <section class="panel panel-sidebar">
-                    <div class="panel-header">
-                        <h2>Dataset Export</h2>
-                    </div>
-                    <div id="dataset-stats" class="dataset-status">Select a document to view dataset details.</div>
-                </section>
             </aside>
 
             <!-- Workspace: Grounded Intelligence Output -->
@@ -117,35 +112,35 @@
                     <div class="metrics-grid">
                         <div class="metric-card">
                             <span class="metric-label">Words</span>
-                            <span class="metric-value" id="stat-words">0</span>
+                            <span class="metric-value" id="stat-words">--</span>
                         </div>
                         <div class="metric-card">
                             <span class="metric-label">Pages</span>
-                            <span class="metric-value" id="stat-pages">0</span>
+                            <span class="metric-value" id="stat-pages">--</span>
                         </div>
                         <div class="metric-card">
                             <span class="metric-label">Sections</span>
-                            <span class="metric-value" id="stat-sections">0</span>
+                            <span class="metric-value" id="stat-sections">--</span>
                         </div>
                         <div class="metric-card">
                             <span class="metric-label">Chunks</span>
-                            <span class="metric-value" id="stat-chunks">0</span>
+                            <span class="metric-value" id="stat-chunks">--</span>
                         </div>
                         <div class="metric-card">
                             <span class="metric-label">Concepts</span>
-                            <span class="metric-value" id="stat-concepts">0</span>
+                            <span class="metric-value" id="stat-concepts">--</span>
                         </div>
                         <div class="metric-card">
-                            <span class="metric-label">Candidate Relations</span>
-                            <span class="metric-value" id="stat-relations">0</span>
+                            <span class="metric-label">Relations</span>
+                            <span class="metric-value" id="stat-relations">--</span>
                         </div>
                         <div class="metric-card">
-                            <span class="metric-label">Graph Nodes</span>
-                            <span class="metric-value" id="stat-nodes">0</span>
+                            <span class="metric-label">Nodes</span>
+                            <span class="metric-value" id="stat-nodes">--</span>
                         </div>
                         <div class="metric-card">
-                            <span class="metric-label">Graph Edges</span>
-                            <span class="metric-value" id="stat-edges">0</span>
+                            <span class="metric-label">Edges</span>
+                            <span class="metric-value" id="stat-edges">--</span>
                         </div>
                     </div>
                 </section>
@@ -180,18 +175,29 @@
                             <span id="graph-info" class="muted">0 nodes / 0 edges</span>
                         </div>
                         <div class="graph-toolbar">
-                            <div class="search-input-wrap">
-                                <input type="text" id="graph-search" placeholder="Search concepts..." class="input-sm" />
-                            </div>
-                            <select id="relation-filter" class="select-sm">
-                                <option value="all">All Relations</option>
-                                <option value="semantic">Semantic Only</option>
-                                <option value="hierarchy">Structure Only</option>
+                            <input id="graph-search" class="select-sm graph-search" type="search" placeholder="Find a concept" aria-label="Search concepts in the knowledge map" />
+                            <select id="graph-node-filter" class="select-sm" title="Filter node type" aria-label="Filter node type">
+                                <option value="all">All node types</option>
+                                <option value="concept">Concepts</option>
+                                <option value="topic">Topics</option>
+                                <option value="subtopic">Subtopics</option>
+                                <option value="document">Document</option>
+                            </select>
+                            <select id="graph-edge-filter" class="select-sm" title="Filter relationship type" aria-label="Filter relationship type">
+                                <option value="all">All connections</option>
+                                <option value="candidate">Candidate relations</option>
+                                <option value="hierarchy">Document structure</option>
+                            </select>
+                            <select id="graph-layout" class="select-sm" title="Change Graph Layout">
+                                <option value="concentric" selected>Concentric</option>
+                                <option value="breadthfirst">Hierarchy</option>
+                                <option value="cose">Force-directed</option>
                             </select>
                             <div class="btn-group">
                                 <button id="zoom-in" class="btn btn-sm" title="Zoom in">+</button>
                                 <button id="zoom-out" class="btn btn-sm" title="Zoom out">−</button>
                                 <button id="fit-graph" class="btn btn-sm" title="Fit to screen">Fit</button>
+                                <button id="reset-focus" class="btn btn-sm" title="Reset node focus">Reset Focus</button>
                             </div>
                         </div>
                     </div>
@@ -236,17 +242,14 @@
                     </div>
                 </section>
 
-                <!-- 5. CANDIDATE RELATIONS TABLE -->
-                <section class="panel data-panel">
+                <!-- 5. CANDIDATE RELATIONS TABLE (Only shown when relations are present) -->
+                <section class="panel data-panel" id="candidate-relations-panel" style="display: none;">
                     <div class="panel-header">
                         <div class="title-with-badge">
                             <h2>Candidate Semantic Relations</h2>
                             <span class="subtext-pill">Candidate Hypotheses</span>
                         </div>
                         <span id="relations-count" class="badge">0 relations</span>
-                    </div>
-                    <div class="panel-notice">
-                        <strong>Relational Grounding Notice:</strong> Automatically extracted relationships represent candidate semantic hypotheses derived from text co-occurrence and structural syntax. They remain candidate relations until established by human annotation.
                     </div>
                     <div class="table-container">
                         <table class="data-table" id="relations-table">
@@ -302,7 +305,10 @@
                         <div id="rag-output-box" class="rag-output-box" style="display: none;">
                             <div class="rag-answer-header">
                                 <h4>Grounded Response</h4>
-                                <span class="badge" id="rag-mode-badge">RAG Response</span>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span class="badge" id="rag-mode-badge">RAG Response</span>
+                                    <button id="copy-rag-btn" class="btn btn-sm" title="Copy answer to clipboard">Copy</button>
+                                </div>
                             </div>
                             <div id="rag-answer-text" class="rag-answer-text"></div>
                             <div class="rag-sources-header">
@@ -314,13 +320,25 @@
                     </div>
                 </section>
 
-                <!-- 8. TECHNICAL DETAILS & PROCESSING TIMELINE (COLLAPSIBLE) -->
+                <!-- 8. TECHNICAL DETAILS & PROCESSING TIMELINE -->
                 <details class="panel tech-details-panel" id="tech-details-accordion">
                     <summary class="panel-header clickable-summary">
                         <h2>Technical Details & Processing Timeline</h2>
                         <span class="badge" id="pipeline-summary">Waiting for execution</span>
                     </summary>
                     <div class="tech-details-body">
+                        <!-- Live Engine Execution Logs Terminal -->
+                        <div class="tech-section">
+                            <div class="panel-header" style="margin-bottom: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <h3>Engine Execution Logs</h3>
+                                    <span class="badge" id="log-stream-status" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">● Live Stream</span>
+                                </div>
+                                <button id="clear-logs-btn" class="btn btn-sm">Clear Logs</button>
+                            </div>
+                            <pre id="logs-console" class="logs-console"></pre>
+                        </div>
+
                         <!-- Pipeline Stages Timeline Table -->
                         <div class="tech-section">
                             <h3>Stage Execution Timeline</h3>
@@ -391,15 +409,6 @@
                                 Select a document to view report details.
                             </div>
                         </div>
-
-                        <!-- Secondary Collapsible Live Logs Console -->
-                        <div class="tech-section">
-                            <div class="panel-header" style="margin-bottom: 6px;">
-                                <h3>Engine Execution Logs</h3>
-                                <button id="clear-logs-btn" class="btn btn-sm">Clear Logs</button>
-                            </div>
-                            <pre id="logs-console" class="logs-console"></pre>
-                        </div>
                     </div>
                 </details>
 
@@ -408,7 +417,7 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=23"></script>
 </body>
 
 </html>

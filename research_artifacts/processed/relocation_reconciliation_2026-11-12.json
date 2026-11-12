@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-12",
+  "note": "The historical copies and preserved pre-relocation snapshot copies differ from the original root Git blobs. All variants are retained; exact HEAD originals are preserved separately below.",
+  "files": [
+    {"original": "GATE_STATUS.md", "head_blob": "0072566b8a400033911bb0d2777ee4cc89415634", "historical_copy": "reports/historical/GATE_STATUS.md", "historical_git_blob": "60b3263c800a31cdba57443117b7c3d4e666568e", "exact_original_preserved_as": "reports/historical/recovery/GATE_STATUS.root-original.md"},
+    {"original": "appendix_report.md", "head_blob": "1a2ee9ecae7758ca6317d6ab1a7f4a45f8861144", "historical_copy": "reports/historical/appendix_report.md", "historical_git_blob": "50ac7ecce5d07c5f0b8f58cfb94b222efe368373", "exact_original_preserved_as": "reports/historical/recovery/appendix_report.root-original.md"}
+  ],
+  "root_deletions_preserved": true,
+  "silent_overwrite_performed": false
+}

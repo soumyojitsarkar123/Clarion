@@ -1,0 +1,38 @@
+[
+  {
+    "evidence_id": "EVD-001",
+    "source_pdf": "UNIT IV Information Retrieval Overview.pdf",
+    "page": 39,
+    "table_figure": "Slide/page 39; no numbered table",
+    "category": "Directly reported method",
+    "observation": "Recommends test collections with documents, queries and relevance judgments; compare retrieved output against judgments; use same queries/judgments for system comparisons and repeat experiments.",
+    "relevance": "Protocol guidance only; no Clarion result."
+  },
+  {
+    "evidence_id": "EVD-002",
+    "source_pdf": "UNIT IV Information Retrieval Overview.pdf",
+    "page": 40,
+    "table_figure": "Slide/page 40; no numbered table",
+    "category": "Directly reported definitions",
+    "observation": "Precision = relevant retrieved / total retrieved. Recall = relevant retrieved / total relevant. F1 = 2 × P × R / (P + R). No metric values are reported.",
+    "relevance": "Definitions apply only after independent relevance judgments exist."
+  },
+  {
+    "evidence_id": "EVD-003",
+    "source_pdf": "AI_Book.pdf",
+    "page": "1-1151",
+    "table_figure": "Not extractable",
+    "category": "Extraction observation",
+    "observation": "Clarion parser returned zero words for all 1,151 pages; pypdf recovery-limit warning at page 1002; rendered pages 1-2 blank. Identity/content cannot be verified.",
+    "relevance": "Cannot support claims before source recovery or reviewed OCR."
+  },
+  {
+    "evidence_id": "EVD-004",
+    "source_pdf": "All corpus PDFs",
+    "page": "per-page report",
+    "table_figure": "N/A",
+    "category": "Measured by Clarion",
+    "observation": "10 text-bearing PDFs produced 86 retained chunks, 170 tokenizer-safe segments and 170 FAISS vectors with SQLite mappings aligned in an isolated run.",
+    "relevance": "Processing evidence only; not retrieval quality."
+  }
+]

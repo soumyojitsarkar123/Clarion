@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from models.response import KnowledgeMapResponse
 from services.knowledge_map_service import KnowledgeMapService
 from services.document_service import DocumentService
+from services.chunking_service import ChunkingService
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,25 @@ router = APIRouter(prefix="/knowledge-map", tags=["knowledge-map"])
 
 knowledge_map_service = KnowledgeMapService()
 document_service = DocumentService()
+chunking_service = ChunkingService()
+
+
+def _source_evidence(chunk_ids: list[str], document_id: str) -> list[dict]:
+    evidence = []
+    for chunk_id in list(dict.fromkeys(chunk_ids or []))[:8]:
+        chunk = chunking_service.get_chunk(chunk_id)
+        if not chunk or chunk.document_id != document_id:
+            continue
+        provenance = chunk.source_provenance or {}
+        evidence.append({
+            "chunk_id": chunk.chunk_id,
+            "excerpt": chunk.content[:1200],
+            "section_title": chunk.section_title,
+            "page_references": provenance.get("page_references", []),
+            "source_intervals": provenance.get("source_intervals", []),
+            "location_available": bool(provenance.get("location_available")),
+        })
+    return evidence
 
 
 @router.get("/{document_id}", response_model=KnowledgeMapResponse)
@@ -40,6 +60,8 @@ async def get_knowledge_map(document_id: str):
         
         return KnowledgeMapResponse(
             document_id=knowledge_map.document_id,
+            extraction_method=(knowledge_map.metadata or {}).get("extraction_method", "unknown"),
+            analysis_mode=(knowledge_map.metadata or {}).get("analysis_mode", "unknown"),
             main_topics=[
                 {
                     "id": topic.id,
@@ -69,7 +91,10 @@ async def get_knowledge_map(document_id: str):
                     "supporting_sections": getattr(concept, "supporting_sections", []),
                     "definition": concept.definition,
                     "context": concept.context,
-                    "chunk_ids": concept.chunk_ids
+                    "chunk_ids": concept.chunk_ids,
+                    "node_type": "concept",
+                    "extraction_status": "extracted_candidate",
+                    "source_evidence": _source_evidence(concept.chunk_ids, document_id),
                 }
                 for concept in knowledge_map.concepts
             ],
@@ -84,7 +109,12 @@ async def get_knowledge_map(document_id: str):
                     "source_chunk_ids": getattr(rel, "source_chunk_ids", []) or ([rel.source_chunk_id] if getattr(rel, "source_chunk_id", None) else []),
                     "evidence_text": getattr(rel, "evidence_text", None),
                     "description": rel.description,
-                    "confidence": rel.confidence
+                    "confidence": rel.confidence,
+                    "validation_status": "candidate_unverified" if getattr(rel, "is_candidate", True) else "validation_state_unknown",
+                    "source_evidence": _source_evidence(
+                        getattr(rel, "source_chunk_ids", []) or ([getattr(rel, "source_chunk_id", None)] if getattr(rel, "source_chunk_id", None) else []),
+                        document_id,
+                    ),
                 }
                 for rel in knowledge_map.relations
             ]

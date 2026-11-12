@@ -1,0 +1,8 @@
+{
+  "date": "2026-11-12",
+  "environment": "Windows 11, Python 3.12.14 win32, .venv-validation",
+  "command": ".\\.venv-validation\\Scripts\\python.exe -c \"import asyncio,faulthandler; faulthandler.dump_traceback_later(4); print('before_new_event_loop',flush=True); asyncio.new_event_loop(); print('after_new_event_loop',flush=True)\"",
+  "observed": "The process printed before_new_event_loop and did not reach after_new_event_loop. At 4 seconds faulthandler showed socket.accept in the fallback socketpair path through asyncio proactor event loop self-pipe initialization.",
+  "termination": "Manually interrupted after reproducing the hang; this is not a natural process exit.",
+  "result": "Reproduced; Windows full-suite execution remains blocked by this host runtime behavior."
+}

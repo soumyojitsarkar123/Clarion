@@ -107,6 +107,7 @@ class KimiProvider(BaseLLMProvider):
         
         temperature = temperature or self.temperature
         max_tokens = max_tokens or self.max_tokens
+        budget_metrics = self.preflight_request(prompt, system_message, max_tokens)
         
         try:
             messages = []
@@ -128,7 +129,7 @@ class KimiProvider(BaseLLMProvider):
             result = response.json()
             elapsed_ms = (time.time() - start_time) * 1000
             
-            return LLMResponse(
+            return self.record_response_usage(LLMResponse(
                 content=result["choices"][0]["message"]["content"],
                 model=result.get("model", self.model),
                 usage=TokenUsage(
@@ -137,8 +138,9 @@ class KimiProvider(BaseLLMProvider):
                     total_tokens=result["usage"]["total_tokens"]
                 ),
                 finish_reason=result["choices"][0].get("finish_reason", "stop"),
-                response_time_ms=elapsed_ms
-            )
+                response_time_ms=elapsed_ms,
+                metadata={"token_budget": budget_metrics.__dict__},
+            ))
         except httpx.HTTPError as e:
             logger.error(f"Kimi API HTTP error: {e}")
             raise LLMProviderError(f"Kimi API call failed: {str(e)}")

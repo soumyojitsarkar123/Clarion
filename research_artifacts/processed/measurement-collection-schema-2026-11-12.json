@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarion-measurement-records-2026-11-12",
+  "title": "Clarion research measurement records",
+  "description": "Collection schemas only. They define storage and validation, not experimental results or quality claims.",
+  "identity": {
+    "required": ["experiment_id", "record_id", "document_id", "timestamp_utc", "software_revision", "config_hash", "model_identity", "measurement_method"],
+    "properties": {
+      "experiment_id": "string",
+      "record_id": "string",
+      "document_id": "string",
+      "source_sha256": "64-character SHA-256 hex string",
+      "timestamp_utc": "RFC 3339 date-time",
+      "software_revision": "Git commit SHA or explicit dirty-tree identifier",
+      "config_hash": "SHA-256 of canonical experiment configuration",
+      "model_identity": {"provider": "string", "model_id": "string", "revision": "string or null"},
+      "measurement_method": "string"
+    }
+  },
+  "record_types": {
+    "document_processing": {
+      "required": ["physical_pages", "extracted_pages", "text_bearing_pages", "raw_words", "normalized_words", "candidate_raw_chunks", "retained_chunks", "rejected_chunks", "embedding_segments", "mapped_vectors", "faiss_vectors", "stage_durations_seconds", "warnings", "failure_state"],
+      "counts": "non-negative integer or null when unavailable; null must not be replaced with zero",
+      "stage_durations_seconds": ["extraction", "chunking", "embedding", "indexing", "mapping", "graph_construction", "total"]
+    },
+    "retrieval_result": {
+      "required": ["query_id", "document_id", "query_text", "retrieval_config", "model_identity", "execution_time_seconds", "retrieved_items"],
+      "retrieved_items_fields": ["chunk_id", "rank", "score", "source_page", "source_interval", "segment_id"],
+      "relevance_judgments": {"required": ["query_id", "document_id", "chunk_id", "relevance_grade", "annotator_id", "adjudication_state"], "metrics_gate": "Human-verified qrels required before Precision@k, Recall@k, MRR, or nDCG."}
+    },
+    "knowledge_graph": {
+      "required": ["document_id", "extraction_run_id", "candidate_entities", "retained_entities", "candidate_relations", "validated_relations", "rejected_relations", "duplicate_entity_count", "duplicate_edge_count", "evidence_backed_relation_count", "unsupported_relation_count"],
+      "entity_fields": ["entity_id", "canonical_name", "entity_type", "source_chunk_ids", "source_pages", "evidence_text", "state"],
+      "relation_fields": ["relation_id", "source_entity_id", "target_entity_id", "label", "direction", "source_chunk_ids", "source_pages", "evidence_text", "confidence", "state"],
+      "metrics_gate": "Relation precision, recall, or F1 requires defensible human gold labels."
+    },
+    "performance": {
+      "required": ["hardware", "os", "python_version", "software_revision", "config_hash", "model_identity", "seed", "stage_durations_seconds", "memory_measurement_method"],
+      "memory_measurement_method": "State the unit and sampling method; null when not measured reliably."
+    }
+  },
+  "null_policy": "Unavailable values are null with a warning/reason; zero means measured zero.",
+  "evaluation_validity": {"retrieval_quality": "blocked_until_human_qrels", "relation_extraction_quality": "blocked_until_gold_labels", "performance_comparisons": "separate_by_hardware_config_and_model_revision"}
+}

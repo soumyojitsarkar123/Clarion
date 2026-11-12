@@ -4,6 +4,10 @@ Document Service - handles document ingestion and storage.
 
 import uuid
 import sqlite3
+import json
+import hashlib
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -13,6 +17,8 @@ from models.document import Document, DocumentMetadata, DocumentStatus
 from utils.file_handler import extract_text, get_file_type
 from utils.config import settings, ensure_directories
 from utils.sqlite import connect as sqlite_connect
+from services.provenance_migrations import apply_provenance_schema
+from utils.text_metrics import count_words
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +55,8 @@ class DocumentService:
                 error_message TEXT
             )
         """)
+        conn.commit()
+        apply_provenance_schema(self.db_path)
         
         conn.commit()
         conn.close()
@@ -62,8 +70,10 @@ class DocumentService:
         cursor.execute("""
             INSERT OR REPLACE INTO documents 
             (id, filename, file_size, file_type, upload_time, page_count, 
-             word_count, status, text_content, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             word_count, status, text_content, error_message, source_provenance_json,
+             source_file_path, source_file_sha256, extracted_page_count,
+             text_bearing_page_count, raw_word_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             document.id,
             document.metadata.filename,
@@ -74,8 +84,43 @@ class DocumentService:
             document.metadata.word_count,
             document.status,
             document.text_content,
-            document.error_message
+            document.error_message,
+            json.dumps(document.source_provenance, ensure_ascii=False),
+            document.source_file_path,
+            document.metadata.source_file_sha256,
+            document.metadata.extracted_page_count,
+            document.metadata.text_bearing_page_count,
+            document.metadata.raw_word_count,
         ))
+
+        cursor.execute("DELETE FROM document_source_pages WHERE document_id = ?", (document.id,))
+        cursor.execute("DELETE FROM document_source_blocks WHERE document_id = ?", (document.id,))
+        for page in document.source_pages:
+            cursor.execute(
+                """INSERT INTO document_source_pages
+                   (document_id, page_number, raw_text, source_char_start, source_char_end,
+                    extraction_method, extraction_version, warnings_json, location_available)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (document.id, page.get("page_number"), page.get("raw_text"),
+                 page.get("source_char_start"), page.get("source_char_end"),
+                 page.get("extraction_method", "unknown"), page.get("extraction_version", "unknown"),
+                 json.dumps(page.get("warnings", []), ensure_ascii=False),
+                 int(bool(page.get("location_available", False)))),
+            )
+        for block in document.source_blocks:
+            cursor.execute(
+                """INSERT INTO document_source_blocks
+                   (document_id, block_id, block_type, block_index, raw_text,
+                    source_char_start, source_char_end, extraction_method,
+                    extraction_version, warnings_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (document.id, block.get("block_id"), block.get("block_type", "unknown"),
+                 block.get("block_index", 0), block.get("raw_text"),
+                 block.get("source_char_start"), block.get("source_char_end"),
+                 document.source_provenance.get("extraction_method", "unknown"),
+                 document.source_provenance.get("extraction_version", "unknown"),
+                 json.dumps(block.get("warnings", []), ensure_ascii=False)),
+            )
         
         conn.commit()
         conn.close()
@@ -88,11 +133,24 @@ class DocumentService:
         
         cursor.execute("SELECT * FROM documents WHERE id = ?", (document_id,))
         row = cursor.fetchone()
-        conn.close()
-        
         if not row:
+            conn.close()
             return None
-        
+        source_provenance = {}
+        try:
+            source_provenance = json.loads(row["source_provenance_json"] or "{}")
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+            pass
+        page_rows = conn.execute(
+            "SELECT * FROM document_source_pages WHERE document_id=? ORDER BY page_number",
+            (document_id,),
+        ).fetchall()
+        block_rows = conn.execute(
+            "SELECT * FROM document_source_blocks WHERE document_id=? ORDER BY block_index",
+            (document_id,),
+        ).fetchall()
+        conn.close()
+
         return Document(
             id=row["id"],
             metadata=DocumentMetadata(
@@ -101,11 +159,25 @@ class DocumentService:
                 file_type=row["file_type"],
                 upload_time=datetime.fromisoformat(row["upload_time"]),
                 page_count=row["page_count"],
-                word_count=row["word_count"]
+                word_count=row["word_count"],
+                extracted_page_count=row["extracted_page_count"] if "extracted_page_count" in row.keys() else None,
+                text_bearing_page_count=row["text_bearing_page_count"] if "text_bearing_page_count" in row.keys() else None,
+                raw_word_count=row["raw_word_count"] if "raw_word_count" in row.keys() else None,
+                source_file_sha256=row["source_file_sha256"] if "source_file_sha256" in row.keys() else None,
             ),
             status=DocumentStatus(row["status"]),
             text_content=row["text_content"],
-            error_message=row["error_message"]
+            error_message=row["error_message"],
+            source_provenance=source_provenance,
+            source_pages=[{
+                **dict(item),
+                "warnings": json.loads(item["warnings_json"] or "[]"),
+                "location_available": bool(item["location_available"]),
+            } for item in page_rows],
+            source_blocks=[{
+                **dict(item), "warnings": json.loads(item["warnings_json"] or "[]")
+            } for item in block_rows],
+            source_file_path=row["source_file_path"] if "source_file_path" in row.keys() else None,
         )
     
     def upload_document(
@@ -139,7 +211,7 @@ class DocumentService:
         try:
             text_content, extracted_meta = extract_text(file_content, filename)
             page_count = extracted_meta.get("page_count")
-            word_count = len(text_content.split()) if text_content else 0
+            word_count = extracted_meta.get("normalized_word_count", count_words(text_content))
             
             if file_type == "pdf" and not page_count:
                 page_count = extracted_meta.get("page_count")
@@ -154,6 +226,25 @@ class DocumentService:
             logger.error(f"Error extracting text: {str(e)}")
             raise
         
+        source_file_sha256 = hashlib.sha256(file_content).hexdigest()
+        source_dir = settings.data_dir / "source_documents"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        source_suffix = ".docx" if file_type in ("docx", "doc") else ".pdf"
+        source_path = source_dir / f"{doc_id}{source_suffix}"
+        fd, temp_path = tempfile.mkstemp(prefix=f".{doc_id}.", suffix=".upload", dir=source_dir)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(file_content)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, source_path)
+        except Exception:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
+
         document = Document(
             id=doc_id,
             metadata=DocumentMetadata(
@@ -162,13 +253,24 @@ class DocumentService:
                 file_type=file_type,
                 upload_time=datetime.now(),
                 page_count=page_count,
-                word_count=word_count
+                word_count=word_count,
+                extracted_page_count=extracted_meta.get("extracted_page_count"),
+                text_bearing_page_count=extracted_meta.get("text_bearing_page_count"),
+                raw_word_count=extracted_meta.get("raw_word_count", word_count),
+                source_file_sha256=source_file_sha256,
             ),
             status=DocumentStatus.UPLOADED,
-            text_content=text_content
+            text_content=text_content,
+            source_provenance=extracted_meta.get("source_provenance", {}),
+            source_pages=extracted_meta.get("source_pages", []),
+            source_blocks=extracted_meta.get("source_blocks", []),
+            source_file_path=str(source_path),
         )
-        
-        self._save_to_db(document)
+        try:
+            self._save_to_db(document)
+        except Exception:
+            source_path.unlink(missing_ok=True)
+            raise
         logger.info(f"Document uploaded successfully: {doc_id}")
         
         return document
@@ -233,6 +335,9 @@ class DocumentService:
             raise ValueError(f"Document not found: {document_id}")
         
         document.text_content = text_content
+        document.source_provenance = {}
+        document.source_pages = []
+        document.source_blocks = []
         self._save_to_db(document)
         return document
     
@@ -261,11 +366,16 @@ class DocumentService:
                     file_type=row["file_type"],
                     upload_time=datetime.fromisoformat(row["upload_time"]),
                     page_count=row["page_count"],
-                    word_count=row["word_count"]
+                    word_count=row["word_count"],
+                    extracted_page_count=row["extracted_page_count"] if "extracted_page_count" in row.keys() else None,
+                    text_bearing_page_count=row["text_bearing_page_count"] if "text_bearing_page_count" in row.keys() else None,
+                    raw_word_count=row["raw_word_count"] if "raw_word_count" in row.keys() else None,
+                    source_file_sha256=row["source_file_sha256"] if "source_file_sha256" in row.keys() else None,
                 ),
                 status=DocumentStatus(row["status"]),
                 text_content=row["text_content"],
                 error_message=row["error_message"]
+                ,source_file_path=row["source_file_path"] if "source_file_path" in row.keys() else None
             ))
         
         return documents
@@ -283,11 +393,22 @@ class DocumentService:
         conn = sqlite_connect(self.db_path)
         cursor = conn.cursor()
         
+        cursor.execute("SELECT source_file_path FROM documents WHERE id = ?", (document_id,))
+        source_row = cursor.fetchone()
         cursor.execute("DELETE FROM documents WHERE id = ?", (document_id,))
         deleted = cursor.rowcount > 0
         
         conn.commit()
         conn.close()
+
+        if deleted and source_row and source_row[0]:
+            source_root = (settings.data_dir / "source_documents").resolve()
+            source_path = Path(source_row[0]).resolve()
+            try:
+                source_path.relative_to(source_root)
+                source_path.unlink(missing_ok=True)
+            except (ValueError, OSError):
+                logger.warning("Retained source file was not removed because it is outside the managed source directory")
         
         if deleted:
             logger.info(f"Document deleted: {document_id}")

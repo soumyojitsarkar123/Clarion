@@ -112,7 +112,7 @@ class GraphExporter:
             }
             
             # Add optional fields if present
-            for field in ["definition", "context", "community", "layer"]:
+            for field in ["name", "definition", "context", "community", "layer", "chunk_ids"]:
                 if field in node_data and node_data[field] is not None:
                     node_element["data"][field] = node_data[field]
 
@@ -144,6 +144,11 @@ class GraphExporter:
             
             if "validated" in edge_data:
                 edge_element["data"]["validated"] = edge_data["validated"]
+
+            if "is_candidate" in edge_data:
+                edge_element["data"]["is_candidate"] = edge_data["is_candidate"]
+            if "chunk_ids" in edge_data:
+                edge_element["data"]["chunk_ids"] = edge_data["chunk_ids"]
 
             if "calibrated_probability" in edge_data and edge_data["calibrated_probability"] is not None:
                 edge_element["data"]["calibrated_probability"] = edge_data["calibrated_probability"]

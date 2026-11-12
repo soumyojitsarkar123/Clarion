@@ -1,0 +1,1 @@
+Frozen pre-clean engineering snapshot. Contains tracked-worktree diff relative to recorded HEAD; a hash-manifested archive of all non-environment/non-cache Git-untracked files at freeze; exact Git status and HEAD. Restore only into a separate checkout after inspection.

@@ -1,0 +1,3 @@
+# Retrieval evaluation results
+
+**Status: NOT EVALUATED.** No valid independent query relevance judgments exist for the internal PDF collection, and no controlled benchmark run is present. Consequently Precision@k, Recall@k, MRR, nDCG, graph retrieval gains, reranking gains, and answer grounding scores are not available. The isolated FAISS index verifies indexing/count alignment only; it does not establish relevance. See [`../protocols/RETRIEVAL_EVALUATION_PROTOCOL.md`](../protocols/RETRIEVAL_EVALUATION_PROTOCOL.md) for the frozen protocol requirements and [`../../research_artifacts/processed/isolated_pdf_index_results.csv`](../../research_artifacts/processed/isolated_pdf_index_results.csv) for scope-limited index measurements.

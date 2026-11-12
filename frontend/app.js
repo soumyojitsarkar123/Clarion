@@ -46,6 +46,7 @@ const STAGE_INDEX = Object.fromEntries(PIPELINE_STAGES.map((stage, index) => [st
 
 let selectedDocId = null;
 let selectedDoc = null;
+let currentDocuments = [];
 let graph = null;
 let logSocket = null;
 let monitorTimer = null;
@@ -57,6 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initPipelineBoard();
     initGraph();
     bindEvents();
+    connectLogStream();
+    loadDatasetStats();
     if (window.location.protocol === "file:") {
         setStatus("upload-status", "Serve the frontend on http://localhost:8080. file:// blocks API uploads.", "error");
     }
@@ -74,9 +77,17 @@ function bindEvents() {
     });
     document.getElementById("refresh-report-btn").addEventListener("click", loadAnalysisReport);
 
-    document.getElementById("relation-filter").addEventListener("change", (e) => {
-        applyRelationFilter(e.target.value);
-    });
+    const layoutSelect = document.getElementById("graph-layout");
+    if (layoutSelect) {
+        layoutSelect.addEventListener("change", (e) => {
+            applyGraphLayout(e.target.value);
+        });
+    }
+
+    const resetFocusBtn = document.getElementById("reset-focus");
+    if (resetFocusBtn) {
+        resetFocusBtn.addEventListener("click", resetGraphFocus);
+    }
 
     document.getElementById("zoom-in").addEventListener("click", () => {
         if (graph) graph.zoom(graph.zoom() * 1.25);
@@ -87,14 +98,10 @@ function bindEvents() {
     document.getElementById("fit-graph").addEventListener("click", () => {
         if (graph) graph.fit(undefined, 35);
     });
-
-    // Real-time graph concept search
-    const searchInput = document.getElementById("graph-search");
-    if (searchInput) {
-        searchInput.addEventListener("input", (e) => {
-            filterGraphSearch(e.target.value);
-        });
-    }
+    ["graph-search", "graph-node-filter", "graph-edge-filter"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("input", applyGraphFilters);
+        document.getElementById(id)?.addEventListener("change", applyGraphFilters);
+    });
 
     // Grounded RAG Query events
     const ragBtn = document.getElementById("rag-query-btn");
@@ -104,6 +111,11 @@ function bindEvents() {
         ragInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter") askDocument();
         });
+    }
+
+    const copyRagBtn = document.getElementById("copy-rag-btn");
+    if (copyRagBtn) {
+        copyRagBtn.addEventListener("click", copyRagAnswer);
     }
 
     // Quick prompt chips
@@ -162,6 +174,7 @@ async function loadDocuments() {
         const response = await fetch(`${API_BASE}/upload/list`);
         const payload = await response.json();
         const documents = payload.documents || [];
+        currentDocuments = documents;
         if (!documents.length) {
             container.innerHTML = `<div class="muted">No documents uploaded.</div>`;
             return [];
@@ -175,6 +188,7 @@ async function loadDocuments() {
             item.type = "button";
             item.className = "document-item";
             item.dataset.docId = doc.id;
+            item.dataset.id = doc.id;
             if (selectedDocId === doc.id) {
                 item.classList.add("selected");
             }
@@ -188,9 +202,6 @@ async function loadDocuments() {
             container.appendChild(item);
         }
 
-        if (!selectedDocId && documents.length > 0) {
-            selectDocument(documents[0]);
-        }
         return documents;
     } catch (error) {
         container.innerHTML = `<div class="muted">${escapeHtml(formatFetchError(error, "/upload/list"))}</div>`;
@@ -198,30 +209,54 @@ async function loadDocuments() {
     }
 }
 
-function selectDocument(doc) {
+function selectDocument(docOrId) {
+    if (!docOrId) return;
+    let doc = docOrId;
+    if (typeof docOrId === "string") {
+        doc = (currentDocuments || []).find((d) => d && (d.id === docOrId || d.document_id === docOrId)) || {
+            id: docOrId,
+            name: docOrId,
+            status: "uploaded",
+        };
+    }
+    if (!doc || !doc.id) return;
+
     selectedDocId = doc.id;
     selectedDoc = doc;
     document.querySelectorAll(".document-item").forEach((item) => item.classList.remove("selected"));
-    const matching = document.querySelector(`.document-item[data-doc-id="${selectedDocId}"]`);
+    const matching = document.querySelector(`.document-item[data-doc-id="${selectedDocId}"], .document-item[data-id="${selectedDocId}"]`);
     if (matching) matching.classList.add("selected");
 
     const sizeFormatted = doc.size ? (doc.size / 1024 / 1024).toFixed(2) : "0.00";
     const docPages = doc.page_count ?? doc.pages;
-    document.getElementById("doc-info").innerHTML = `
-        <strong>${escapeHtml(doc.name)}</strong><br>
-        Status: <span class="badge">${escapeHtml(doc.status || 'uploaded')}</span><br>
-        Size: ${sizeFormatted} MB • Pages: ${docPages ?? 'N/A'} • Words: ${doc.word_count ? Number(doc.word_count).toLocaleString() : 'N/A'}
-    `;
+    const docInfo = document.getElementById("doc-info");
+    if (docInfo) {
+        docInfo.innerHTML = `
+            <strong>${escapeHtml(doc.name || "Untitled")}</strong><br>
+            Status: <span class="badge">${escapeHtml(doc.status || 'uploaded')}</span><br>
+            Size: ${sizeFormatted} MB • Physical pages: ${docPages ?? 'Unavailable'} • Normalized words: ${doc.word_count !== null && doc.word_count !== undefined ? Number(doc.word_count).toLocaleString() : 'Unavailable'}
+        `;
+    }
+    loadDocumentMetrics(doc.id);
 
-    document.getElementById("status-doc-name").textContent = doc.name;
-    document.getElementById("overview-doc-title").textContent = `${doc.name} (${doc.id})`;
+    const statusDocName = document.getElementById("status-doc-name");
+    if (statusDocName) statusDocName.textContent = doc.name || "Untitled";
 
-    if (doc.word_count) updateOverviewMetric("stat-words", doc.word_count);
-    if (docPages) updateOverviewMetric("stat-pages", docPages);
+    const overviewTitle = document.getElementById("overview-doc-title");
+    if (overviewTitle) overviewTitle.textContent = `${doc.name || "Untitled"} (${doc.id})`;
+
+    updateOverviewMetric("stat-words", doc.word_count ?? "--");
+    updateOverviewMetric("stat-pages", docPages ?? "--");
+    ["sections", "chunks", "concepts", "relations", "nodes", "edges"].forEach((m) => {
+        const el = document.getElementById(`stat-${m}`);
+        if (el) el.textContent = "--";
+    });
 
     const analyzeBtn = document.getElementById("analyze-btn");
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = isDocumentAnalyzed(doc) ? "Re-run Full Analysis" : "Start Full Analysis";
+    if (analyzeBtn) {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = isDocumentAnalyzed(doc) ? "Re-run Full Analysis" : "Start Full Analysis";
+    }
 
     const ragBtn = document.getElementById("rag-query-btn");
     if (ragBtn) ragBtn.disabled = !isDocumentAnalyzed(doc);
@@ -242,30 +277,105 @@ function selectDocument(doc) {
     monitorPipeline();
 }
 
+window.selectDocument = selectDocument;
+
 function resetWorkspaceViews(message) {
     resetGraphPanels(message);
-    document.getElementById("overall-summary-box").textContent = message;
-    document.getElementById("key-insights-list").innerHTML = `<li class="muted">${escapeHtml(message)}</li>`;
-    document.getElementById("doc-type-badge").textContent = "Type: Pending";
-    document.getElementById("insights-mode-badge").textContent = "Analysis: Pending";
-    document.getElementById("insights-mode-badge").className = "mode-badge";
-    document.getElementById("analysis-report").textContent = message;
-    document.getElementById("structure-container").innerHTML = `<div class="muted">${escapeHtml(message)}</div>`;
-    document.getElementById("structure-count").textContent = "0 sections";
+    const summaryBox = document.getElementById("overall-summary-box");
+    if (summaryBox) summaryBox.textContent = message;
 
-    // Reset 8 metrics
-    ["words", "pages", "sections", "chunks", "concepts", "relations", "nodes", "edges"].forEach((m) => {
+    const insightsList = document.getElementById("key-insights-list");
+    if (insightsList) insightsList.innerHTML = `<li class="muted">${escapeHtml(message)}</li>`;
+
+    const typeBadge = document.getElementById("doc-type-badge");
+    if (typeBadge) typeBadge.textContent = "Type: Pending";
+
+    const modeBadge = document.getElementById("insights-mode-badge");
+    if (modeBadge) {
+        modeBadge.textContent = "Analysis: Pending";
+        modeBadge.className = "mode-badge";
+    }
+
+    const reportEl = document.getElementById("analysis-report");
+    if (reportEl) reportEl.textContent = message;
+
+    const structContainer = document.getElementById("structure-container");
+    if (structContainer) structContainer.innerHTML = `<div class="muted">${escapeHtml(message)}</div>`;
+
+    const structCount = document.getElementById("structure-count");
+    if (structCount) structCount.textContent = "0 sections";
+
+    // Reset Top Extracted Concepts table and counter
+    renderConceptsTable([]);
+
+    // Reset Selected Node Details Drawer / Inspector
+    const inspectorTitle = document.getElementById("inspector-title");
+    if (inspectorTitle) inspectorTitle.textContent = "Concept Inspector";
+    const inspectorBadge = document.getElementById("inspector-badge");
+    if (inspectorBadge) inspectorBadge.textContent = "Click a node to inspect";
+    const inspectorBody = document.getElementById("inspector-body");
+    if (inspectorBody) {
+        inspectorBody.innerHTML = `<p class="muted">Select any concept node in the knowledge map above to view its grounded textual definition, occurrence frequency, supporting chunks, and candidate relations.</p>`;
+    }
+
+    // Reset RAG query output and status
+    const ragBox = document.getElementById("rag-output-box");
+    if (ragBox) ragBox.style.display = "none";
+    const ragAnswer = document.getElementById("rag-answer-text");
+    if (ragAnswer) ragAnswer.textContent = "";
+    const ragSources = document.getElementById("rag-sources-list");
+    if (ragSources) ragSources.innerHTML = "";
+    const ragStatus = document.getElementById("rag-status");
+    if (ragStatus) {
+        ragStatus.textContent = "";
+        ragStatus.className = "status-box";
+    }
+
+    // Clear cached knowledge map and summary objects
+    currentKnowledgeMap = null;
+    currentSummary = null;
+
+    // Keep known upload metrics (words, pages) if available; reset stage-specific analysis metrics
+    const words = selectedDoc?.word_count;
+    const pages = selectedDoc?.page_count ?? selectedDoc?.pages;
+    updateOverviewMetric("stat-words", words !== undefined && words !== null ? words : "--");
+    updateOverviewMetric("stat-pages", pages !== undefined && pages !== null ? pages : "--");
+    ["sections", "chunks", "concepts", "relations", "nodes", "edges"].forEach((m) => {
         const el = document.getElementById(`stat-${m}`);
-        if (el) el.textContent = "0";
+        if (el) el.textContent = "--";
     });
 
-    renderDatasetStats({
-        total_records: 0,
-        labeled_records: 0,
-        unlabeled_records: 0,
-        exportFolder: "Pending analysis",
-        latestExport: "No export yet",
-    });
+    const relPanel = document.getElementById("candidate-relations-panel");
+    if (relPanel) relPanel.style.display = "none";
+    const relCount = document.getElementById("relations-count");
+    if (relCount) relCount.textContent = "0 relations";
+    const relTbody = document.getElementById("relations-table-body");
+    if (relTbody) relTbody.innerHTML = `<tr><td colspan="5" class="muted text-center">No candidate relations loaded</td></tr>`;
+
+    loadDatasetStats();
+}
+
+async function loadDocumentMetrics(documentId) {
+    const panel = document.getElementById("doc-processing-stats");
+    if (!panel) return;
+    panel.textContent = "Loading extraction and indexing counts…";
+    try {
+        const response = await fetch(`${API_BASE}/upload/${encodeURIComponent(documentId)}/metrics`);
+        if (!response.ok) throw new Error(`Metrics unavailable (${response.status})`);
+        const payload = await response.json();
+        if (selectedDocId !== documentId) return;
+        const c = payload.counts || {};
+        const show = (value) => value === null || value === undefined ? "Not recorded" : Number(value).toLocaleString();
+        panel.innerHTML = `
+            <div><strong>Pages</strong> Physical ${show(c.physical_pages)} · extracted ${show(c.extracted_pages)} · with text ${show(c.text_bearing_pages)} · indexed ${show(c.indexed_pages)}</div>
+            <div><strong>Words</strong> raw ${show(c.raw_words)} · normalized ${show(c.normalized_words)}</div>
+            <div><strong>Chunks</strong> raw candidates ${show(c.candidate_raw_chunks)} · retained ${show(c.retained_chunks)} · rejected ${show(c.rejected_chunks)}</div>
+            <div><strong>Embedding</strong> segments ${show(c.embedding_segments)} · mapped vectors ${show(c.mapped_vectors)} · FAISS vectors ${show(c.faiss_vectors)}</div>
+            <small>${escapeHtml(payload.word_count_definition || "")}</small>
+        `;
+    } catch (error) {
+        if (selectedDocId === documentId) panel.textContent = `Processing counts unavailable: ${error.message}`;
+    }
 }
 
 async function startAnalysis() {
@@ -376,79 +486,89 @@ async function refreshPipelineStatus() {
                     monitorTimer = null;
                 }
             } else if (payload && payload.status === "not_found") {
-                // Analyzed document disconnect recovery: query persisted analysis report
-                try {
-                    const reportRes = await fetch(`${API_BASE}/system/analysis-report/${encodeURIComponent(selectedDocId)}`);
-                    if (reportRes.ok) {
-                        const rep = await reportRes.json();
-                        if (rep && (rep.summary || rep.metrics || rep.stage_validations || rep.artifacts)) {
-                            const durVal = rep.total_duration_sec ?? (
-                                rep.started_at && rep.completed_at
-                                    ? Math.max(0, (new Date(rep.completed_at).getTime() - new Date(rep.started_at).getTime()) / 1000)
-                                    : null
-                            );
+                if (isDocumentAnalyzed(selectedDoc)) {
+                    // Analyzed document disconnect recovery: query persisted analysis report
+                    try {
+                        const reportRes = await fetch(`${API_BASE}/system/analysis-report/${encodeURIComponent(selectedDocId)}`);
+                        if (reportRes.ok) {
+                            const rep = await reportRes.json();
+                            if (rep && (rep.summary || rep.metrics || rep.stage_validations || rep.artifacts)) {
+                                const durVal = rep.total_duration_sec ?? (
+                                    rep.started_at && rep.completed_at
+                                        ? Math.max(0, (new Date(rep.completed_at).getTime() - new Date(rep.started_at).getTime()) / 1000)
+                                        : null
+                                );
 
-                            const stageMap = {};
-                            const stagesList = rep.stages_completed && rep.stages_completed.length > 0
-                                ? rep.stages_completed
-                                : ["ingestion", "chunking", "embedding", "llm_analysis", "graph_building"];
-                            stagesList.forEach((s) => {
-                                stageMap[s] = { status: "completed", duration_sec: null };
-                            });
-                            if (rep.stage_validations && Array.isArray(rep.stage_validations)) {
-                                rep.stage_validations.forEach((sv) => {
-                                    stageMap[sv.stage] = {
-                                        status: sv.status || (sv.validation_passed ? "completed" : "completed"),
-                                        duration_sec: (sv.quality_metrics && sv.quality_metrics.duration_sec) ?? null,
-                                    };
+                                const stageMap = {};
+                                const stagesList = rep.stages_completed && rep.stages_completed.length > 0
+                                    ? rep.stages_completed
+                                    : ["ingestion", "chunking", "embedding", "mapping", "graph_building"];
+                                stagesList.forEach((s) => {
+                                    stageMap[s] = { status: "completed", duration_sec: null };
                                 });
+                                if (rep.stage_validations && Array.isArray(rep.stage_validations)) {
+                                    rep.stage_validations.forEach((sv) => {
+                                        stageMap[sv.stage] = {
+                                            status: sv.status || (sv.validation_passed ? "completed" : "completed"),
+                                            duration_sec: (sv.quality_metrics && sv.quality_metrics.duration_sec) ?? null,
+                                        };
+                                    });
+                                }
+
+                                const isDegraded = rep.status === "degraded" || rep.analysis_mode === "deterministic_fallback";
+                                const syntheticPayload = {
+                                    document_id: selectedDocId,
+                                    status: rep.status || (rep.success ? "completed" : "failed"),
+                                    analysis_mode: rep.analysis_mode || (isDegraded ? "deterministic_fallback" : "llm"),
+                                    active_model: rep.active_model || "qwen3.5:4b",
+                                    total_duration_sec: durVal,
+                                    overall_progress: 100,
+                                    stages: stageMap,
+                                };
+
+                                renderPipelineStatus(syntheticPayload);
+                                renderAnalysisReport(rep);
+
+                                const summary = document.getElementById("pipeline-summary");
+                                const modeChip = document.getElementById("status-mode");
+                                const modelChip = document.getElementById("status-model");
+                                const durationChip = document.getElementById("status-duration");
+
+                                summary.textContent = `${isDegraded ? "Degraded (Fallback)" : "Completed"} — 100%`;
+                                if (isDegraded) {
+                                    modeChip.textContent = "Deterministic Fallback";
+                                    document.getElementById("mode-chip").className = "status-chip mode-fallback";
+                                    updateHonestStatus("Fallback Active", "fallback");
+                                } else {
+                                    modeChip.textContent = "LLM Grounded";
+                                    document.getElementById("mode-chip").className = "status-chip";
+                                    updateHonestStatus("LLM Ready", "ready");
+                                }
+
+                                if (rep.active_model) modelChip.textContent = rep.active_model;
+                                if (durVal !== null && durVal !== undefined) {
+                                    durationChip.textContent = `${Number(durVal).toFixed(1)}s`;
+                                }
+
+                                const analyzeBtn = document.getElementById("analyze-btn");
+                                analyzeBtn.disabled = false;
+                                analyzeBtn.textContent = "Re-run Full Analysis";
+
+                                const ragBtn = document.getElementById("rag-query-btn");
+                                if (ragBtn) ragBtn.disabled = false;
                             }
-
-                            const isDegraded = rep.status === "degraded" || rep.analysis_mode === "deterministic_fallback";
-                            const syntheticPayload = {
-                                document_id: selectedDocId,
-                                status: rep.status || (rep.success ? "completed" : "failed"),
-                                analysis_mode: rep.analysis_mode || (isDegraded ? "deterministic_fallback" : "llm"),
-                                active_model: rep.active_model || "qwen3.5:4b",
-                                total_duration_sec: durVal,
-                                overall_progress: 100,
-                                stages: stageMap,
-                            };
-
-                            renderPipelineStatus(syntheticPayload);
-                            renderAnalysisReport(rep);
-
-                            const summary = document.getElementById("pipeline-summary");
-                            const modeChip = document.getElementById("status-mode");
-                            const modelChip = document.getElementById("status-model");
-                            const durationChip = document.getElementById("status-duration");
-
-                            summary.textContent = `${isDegraded ? "Degraded (Fallback)" : "Completed"} — 100%`;
-                            if (isDegraded) {
-                                modeChip.textContent = "Deterministic Fallback";
-                                document.getElementById("mode-chip").className = "status-chip mode-fallback";
-                                updateHonestStatus("Fallback Active", "fallback");
-                            } else {
-                                modeChip.textContent = "LLM Grounded";
-                                document.getElementById("mode-chip").className = "status-chip";
-                                updateHonestStatus("LLM Ready", "ready");
-                            }
-
-                            if (rep.active_model) modelChip.textContent = rep.active_model;
-                            if (durVal !== null && durVal !== undefined) {
-                                durationChip.textContent = `${Number(durVal).toFixed(1)}s`;
-                            }
-
-                            const analyzeBtn = document.getElementById("analyze-btn");
-                            analyzeBtn.disabled = false;
-                            analyzeBtn.textContent = "Re-run Full Analysis";
-
-                            const ragBtn = document.getElementById("rag-query-btn");
-                            if (ragBtn) ragBtn.disabled = false;
                         }
+                    } catch (e) {
+                        console.warn("Failed to recover from analysis report:", e);
                     }
-                } catch (e) {
-                    console.warn("Failed to recover from analysis report:", e);
+                } else {
+                    // Document is pending analysis: maintain truthful pending state
+                    const summary = document.getElementById("pipeline-summary");
+                    if (summary) summary.textContent = "Pending Analysis — 0%";
+                    const timelineBody = document.getElementById("timeline-table-body");
+                    if (timelineBody) {
+                        timelineBody.innerHTML = `<tr><td colspan="5" class="muted text-center">Pipeline has not executed. Click 'Start Full Analysis' to begin.</td></tr>`;
+                    }
                 }
             }
         }
@@ -466,9 +586,24 @@ async function loadDocumentSummary(docId) {
         renderSummaryAndInsights(summary);
         renderDocumentStructure(summary.sections || []);
         updateOverviewMetric("stat-sections", (summary.sections || []).length);
+        if (summary.metadata && summary.metadata.chunk_count !== undefined && summary.metadata.chunk_count !== null) {
+            updateOverviewMetric("stat-chunks", summary.metadata.chunk_count);
+        }
     } catch (err) {
         console.error("Failed to load document summary", err);
     }
+}
+
+function isGroundedInsight(text) {
+    if (!text || typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (trimmed.length < 15) return false;
+    // Strictly filter out synthetic template artifacts
+    if (/^Covers\s+[a-z0-9_,\s]+[.!?]?$/i.test(trimmed)) return false;
+    if (/^Also touches on\s+[a-z0-9_,\s]+[.!?]?$/i.test(trimmed)) return false;
+    if (trimmed.startsWith("Deterministic fallback analysis")) return false;
+    if (trimmed.startsWith("LLM unavailable. Running deterministic fallback")) return false;
+    return true;
 }
 
 function renderSummaryAndInsights(summary) {
@@ -480,7 +615,11 @@ function renderSummaryAndInsights(summary) {
     const docType = summary.document_type || "unknown";
     typeBadge.textContent = `Type: ${docType.replace("_", " ")}`;
 
-    const isFallback = (summary.overall_summary || "").includes("Deterministic fallback analysis");
+    const isFallback = Boolean(
+        summary.metadata?.fallback_used ||
+        summary.metadata?.analysis_mode === "deterministic_fallback" ||
+        summary.metadata?.llm_summary_accepted === false
+    );
     if (isFallback) {
         modeBadge.textContent = "Mode: Deterministic Fallback";
         modeBadge.className = "mode-badge";
@@ -491,26 +630,36 @@ function renderSummaryAndInsights(summary) {
 
     overallBox.textContent = summary.overall_summary || "No synthesized summary available.";
 
-    // Generate 3-5 grounded bullet points from sections and summary
+    // Generate grounded bullet points from verified sections and summary
     const bullets = [];
     if (summary.overall_summary) {
-        const sentences = summary.overall_summary.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 15);
-        if (sentences.length > 0) bullets.push(sentences[0]);
-        if (sentences.length > 1 && !isFallback) bullets.push(sentences[1]);
+        const sentences = summary.overall_summary
+            .split(/(?<=[.!?])\s+/)
+            .map(s => s.trim())
+            .filter(isGroundedInsight);
+        for (const s of sentences) {
+            if (bullets.length >= 2) break;
+            bullets.push(s);
+        }
     }
 
     const sections = summary.sections || [];
-    for (const sec of sections.slice(0, 4)) {
-        if (sec.key_points && sec.key_points.length > 0) {
-            bullets.push(`${sec.title}: ${sec.key_points[0]}`);
-        } else if (sec.summary) {
-            bullets.push(`${sec.title}: ${sec.summary}`);
-        }
+    for (const sec of sections) {
         if (bullets.length >= 5) break;
+        const validPoints = (sec.key_points || []).map(p => p.trim()).filter(isGroundedInsight);
+        if (validPoints.length > 0) {
+            bullets.push(`${sec.title}: ${validPoints[0]}`);
+        } else if (sec.summary && isGroundedInsight(sec.summary)) {
+            bullets.push(`${sec.title}: ${sec.summary.trim()}`);
+        }
     }
 
     if (bullets.length === 0) {
-        insightsList.innerHTML = `<li class="muted">No key structural insights extracted.</li>`;
+        if (sections.length > 0) {
+            insightsList.innerHTML = `<li>Document structured into ${sections.length} analyzed sections across extracted body.</li>`;
+        } else {
+            insightsList.innerHTML = `<li class="muted">No key structural insights extracted.</li>`;
+        }
     } else {
         insightsList.innerHTML = bullets.map(b => `<li>${escapeHtml(b)}</li>`).join("");
     }
@@ -547,7 +696,7 @@ function renderConceptsTable(concepts) {
 
     tbody.innerHTML = sorted.map((c) => {
         const sections = (c.supporting_sections || []).slice(0, 3).map(s => `<span class="badge">${escapeHtml(s)}</span>`).join(" ");
-        const definition = c.definition || c.context || "Identified recurring technical terminology.";
+        const definition = c.definition || c.context || "No description is available from the extracted source context.";
 
         // Centrality calculation: degree and normalized centrality from knowledge map relations
         const cName = (c.name || "").toLowerCase();
@@ -571,23 +720,26 @@ function renderConceptsTable(concepts) {
 }
 
 function renderCandidateRelationsTable(relations) {
+    const panel = document.getElementById("candidate-relations-panel");
     const tbody = document.querySelector("#relations-table tbody");
     const countBadge = document.getElementById("relations-count");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     if (!relations || relations.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="muted text-center">No candidate relations loaded</td></tr>`;
-        countBadge.textContent = "0 relations";
+        if (panel) panel.style.display = "none";
+        if (countBadge) countBadge.textContent = "0 relations";
         return;
     }
 
-    countBadge.textContent = `${relations.length} relations`;
+    if (panel) panel.style.display = "block";
+    if (countBadge) countBadge.textContent = `${relations.length} relations`;
     const sorted = [...relations].sort((a, b) => (Number(b.confidence || 0) - Number(a.confidence || 0)));
 
     tbody.innerHTML = sorted.map((r) => {
         const relType = r.relation_type || "explanation";
         const conf = Number(r.confidence || 0).toFixed(2);
-        const evidence = r.evidence_text || r.description || "Inferred from co-occurrence in document context.";
+        const evidence = r.evidence_text || "No supporting passage is attached to this candidate.";
         const chunkId = r.source_chunk_id || (r.source_chunk_ids && r.source_chunk_ids[0]) || (r.chunk_ids && r.chunk_ids[0]);
         const citation = chunkId ? `<div class="chunk-citation" title="Candidate relation source chunk citation">Chunk: ${escapeHtml(chunkId)}</div>` : "";
         return `
@@ -597,12 +749,25 @@ function renderCandidateRelationsTable(relations) {
                 <td><strong>${escapeHtml(r.to_concept)}</strong></td>
                 <td><span class="confidence-score">${conf}</span></td>
                 <td>
-                    <div><em>${escapeHtml(evidence)}</em></div>
+            <div><em>${escapeHtml(evidence)}</em></div>
+            <div class="relation-validation-state">${escapeHtml(r.validation_status || (r.is_candidate ? "candidate, unverified" : "validation state unavailable"))}</div>
                     ${citation}
                 </td>
             </tr>
         `;
     }).join("");
+}
+
+function cleanSpacingDisplay(text) {
+    if (!text) return "";
+    return String(text)
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1 $2")
+        .replace(/([a-zA-Z])(\d)/g, "$1 $2")
+        .replace(/(\d)([a-zA-Z])/g, "$1 $2")
+        .replace(/([a-zA-Z0-9])([:;])([a-zA-Z0-9])/g, "$1$2 $3")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function renderDocumentStructure(sections) {
@@ -618,16 +783,18 @@ function renderDocumentStructure(sections) {
 
     countBadge.textContent = `${sections.length} sections`;
     container.innerHTML = sections.map((sec) => {
-        const points = (sec.key_points || []).map(p => `<li>${escapeHtml(p)}</li>`).join("");
+        const cleanTitle = cleanSpacingDisplay(sec.title || "Untitled Section");
+        const cleanSummary = cleanSpacingDisplay(sec.summary || "");
+        const points = (sec.key_points || []).map(p => `<li>${escapeHtml(cleanSpacingDisplay(p))}</li>`).join("");
         const level = Math.max(1, parseInt(sec.level || 1, 10));
         const indentPx = (level - 1) * 20;
         return `
             <div class="structure-item level-${level}" style="margin-left: ${indentPx}px;">
                 <div class="structure-item-header">
                     <span class="section-level-badge">L${level}</span>
-                    <span class="structure-item-title">${escapeHtml(sec.title || "Untitled Section")}</span>
+                    <span class="structure-item-title">${escapeHtml(cleanTitle)}</span>
                 </div>
-                ${sec.summary ? `<div class="structure-item-summary">${escapeHtml(sec.summary)}</div>` : ""}
+                ${cleanSummary ? `<div class="structure-item-summary">${escapeHtml(cleanSummary)}</div>` : ""}
                 ${points ? `<ul class="structure-points-list">${points}</ul>` : ""}
             </div>
         `;
@@ -670,20 +837,47 @@ async function askDocument() {
             results.forEach((r, idx) => {
                 const card = document.createElement("div");
                 card.className = "source-chunk-card";
-                const scoreDisplay = r.score ? Number(r.score).toFixed(3) : "N/A";
+                const scoreDisplay = (r.score !== undefined && r.score !== null) ? Number(r.score).toFixed(3) : "Verified";
+                const sourceName = escapeHtml(r.document_name || selectedDoc?.name || selectedDoc?.filename || "Source document");
+                const spans = Array.isArray(r.source_intervals) ? r.source_intervals : [];
+                const citation = spans.length ? spans.map((span) => {
+                    const page = span.page_number ? `Page ${escapeHtml(String(span.page_number))}` : "Page unavailable";
+                    const offsets = Number.isInteger(span.page_char_start) && Number.isInteger(span.page_char_end)
+                        ? ` · page characters ${span.page_char_start}–${span.page_char_end}`
+                        : (Number.isInteger(span.source_start) && Number.isInteger(span.source_end)
+                            ? ` · extracted-text characters ${span.source_start}–${span.source_end}` : " · source interval unavailable");
+                    return `${page}${offsets}`;
+                }).join("; ") : "Page and source interval unavailable";
                 card.innerHTML = `
                     <div class="source-chunk-header">
                         <span>[Evidence ${idx + 1}] ${escapeHtml(r.section_title || "Section")} (Chunk ${escapeHtml((r.chunk_id || "").slice(0, 8))})</span>
-                        <span>Relevance: ${scoreDisplay}</span>
+                        <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Relevance: ${scoreDisplay}</span>
                     </div>
-                    <div class="source-chunk-snippet">"${escapeHtml((r.content || "").slice(0, 260))}..."</div>
+                    <div class="source-citation">${sourceName} · ${citation}</div>
+                    <div class="source-chunk-snippet">"${escapeHtml((r.content || "").slice(0, 320))}..."</div>
                 `;
                 sourcesList.appendChild(card);
             });
         }
 
-        statusBox.textContent = "Grounded response synthesized successfully.";
-        statusBox.className = "status-box success";
+        const modeBadge = document.getElementById("rag-mode-badge");
+        if (data.fallback_used) {
+            statusBox.innerHTML = `Grounded response synthesized via deterministic fallback <span class="badge badge-warning" style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;margin-left:8px;">Fallback Analysis</span>`;
+            statusBox.className = "status-box warning";
+            if (modeBadge) {
+                modeBadge.textContent = "Fallback Analysis";
+                modeBadge.style.background = "#f59e0b";
+                modeBadge.style.color = "#fff";
+            }
+        } else {
+            statusBox.textContent = "Grounded response synthesized successfully.";
+            statusBox.className = "status-box success";
+            if (modeBadge) {
+                modeBadge.textContent = "RAG Response";
+                modeBadge.style.background = "";
+                modeBadge.style.color = "";
+            }
+        }
     } catch (err) {
         statusBox.textContent = `Query error: ${formatFetchError(err, "/query")}`;
         statusBox.className = "status-box error";
@@ -693,10 +887,33 @@ async function askDocument() {
     }
 }
 
+function copyRagAnswer() {
+    const answerText = document.getElementById("rag-answer-text");
+    const copyBtn = document.getElementById("copy-rag-btn");
+    if (!answerText || !answerText.textContent) return;
+    navigator.clipboard.writeText(answerText.textContent).then(() => {
+        if (copyBtn) {
+            const original = copyBtn.textContent;
+            copyBtn.textContent = "Copied!";
+            copyBtn.style.color = "#10b981";
+            setTimeout(() => {
+                copyBtn.textContent = original;
+                copyBtn.style.color = "";
+            }, 2000);
+        }
+    }).catch(err => {
+        console.error("Clipboard copy failed", err);
+    });
+}
+
 function updateOverviewMetric(elementId, value) {
     const el = document.getElementById(elementId);
     if (el) {
-        el.textContent = typeof value === "number" ? Number(value).toLocaleString() : value;
+        if (value === null || value === undefined || value === "") {
+            el.textContent = "--";
+        } else {
+            el.textContent = typeof value === "number" ? Number(value).toLocaleString() : value;
+        }
     }
 }
 
@@ -726,6 +943,94 @@ function resetPipelineBoard() {
     document.getElementById("pipeline-summary").textContent = "Waiting for execution";
 }
 
+/**
+ * Format a stage duration (in seconds) with appropriate precision.
+ * - null/undefined → "--" (not zero)
+ * - < 1 second      → "Xms"  (e.g. "3ms", "125ms")
+ * - >= 1 second     → "X.XXs" (e.g. "1.25s")
+ */
+function formatStageDuration(durSec) {
+    if (durSec === null || durSec === undefined) return "--";
+    const ms = Math.round(Number(durSec) * 1000);
+    if (ms < 1000) return `${ms}ms`;
+    return `${Number(durSec).toFixed(2)}s`;
+}
+
+/**
+ * Resolve semantically meaningful input/output labels and values for each
+ * pipeline stage. Returns { inLabel, inVal, outLabel, outVal }.
+ * Values are taken from the stage object without fabrication.
+ */
+function resolveStageMetrics(stageName, s) {
+    const qm = s.quality_metrics || {};
+    switch (stageName) {
+        case "ingestion":
+            return {
+                inLabel: "File bytes",
+                inVal: s.input_size ?? null,
+                outLabel: "Characters extracted",
+                outVal: s.output_size ?? qm.char_count ?? null,
+            };
+        case "chunking":
+            return {
+                inLabel: "Characters",
+                inVal: s.input_size ?? null,
+                outLabel: "Chunks produced",
+                outVal: s.chunk_count ?? s.output_size ?? qm.chunk_count ?? null,
+            };
+        case "embedding":
+            return {
+                inLabel: "Chunks embedded",
+                inVal: s.input_size ?? qm.chunk_count ?? null,
+                outLabel: "Vectors (dims)",
+                outVal: s.output_size != null
+                    ? `${s.output_size}${qm.embedding_dim ? " × " + qm.embedding_dim : ""}`
+                    : null,
+            };
+        case "mapping":
+            return {
+                inLabel: "Chunks analysed",
+                inVal: s.input_size ?? null,
+                outLabel: "Relations extracted",
+                outVal: s.output_size ?? qm.relation_count ?? null,
+            };
+        case "graph_building":
+            return {
+                inLabel: "Relations mapped",
+                inVal: s.input_size ?? null,
+                outLabel: "Nodes / Edges",
+                outVal: (s.node_count != null && s.edge_count != null)
+                    ? `${s.node_count} / ${s.edge_count}`
+                    : (s.output_size ?? null),
+            };
+        case "evaluation":
+            return {
+                inLabel: "Candidate relations evaluated",
+                inVal: s.input_size ?? qm.candidates_evaluated ?? null,
+                outLabel: "Risk flags detected",
+                outVal: s.output_size ?? qm.risk_flags ?? null,
+            };
+        case "hierarchy":
+            return {
+                inLabel: "Graph elements processed",
+                inVal: s.input_size ?? (
+                    (qm.node_count != null && qm.edge_count != null)
+                        ? qm.node_count + qm.edge_count
+                        : null
+                ),
+                outLabel: "Hierarchy levels generated",
+                outVal: s.output_size ?? qm.hierarchy_levels ?? qm.depth ?? null,
+            };
+        default:
+            return {
+                inLabel: "Input",
+                inVal: s.input_size ?? null,
+                outLabel: "Output",
+                outVal: s.output_size ?? null,
+            };
+    }
+}
+
 function renderPipelineStatus(payload) {
     if (!payload || !payload.stages) return;
     const stages = payload.stages;
@@ -740,17 +1045,17 @@ function renderPipelineStatus(payload) {
     } else {
         timelineBody.innerHTML = stageEntries.map(([name, s]) => {
             const durVal = s.duration_sec ?? s.duration_seconds;
-            const dur = durVal !== undefined && durVal !== null ? `${Number(durVal).toFixed(2)}s` : "--";
-            const inSize = s.input_size !== undefined && s.input_size !== null ? s.input_size : "--";
-            const outSize = s.output_size !== undefined && s.output_size !== null ? s.output_size : (s.chunk_count || s.node_count || "--");
+            const dur = formatStageDuration(durVal);
+            const { inLabel, inVal, outLabel, outVal } = resolveStageMetrics(name, s);
             const statusClass = s.status === "completed" ? "completed" : (s.status === "fallback" ? "fallback" : "pending");
+            const displayName = PIPELINE_STAGES.find(ps => ps.key === name)?.label || name;
             return `
                 <tr>
-                    <td><strong>${escapeHtml(name)}</strong></td>
+                    <td><strong>${escapeHtml(displayName)}</strong></td>
                     <td><span class="stage-status-pill ${statusClass}">${escapeHtml(s.status || "pending")}</span></td>
-                    <td><span class="confidence-score">${dur}</span></td>
-                    <td>${inSize}</td>
-                    <td>${outSize}</td>
+                    <td><span class="confidence-score">${escapeHtml(dur)}</span></td>
+                    <td title="${escapeHtml(inLabel)}">${escapeHtml(inLabel)}: ${inVal !== null && inVal !== undefined ? inVal : "--"}</td>
+                    <td title="${escapeHtml(outLabel)}">${escapeHtml(outLabel)}: ${outVal !== null && outVal !== undefined ? outVal : "--"}</td>
                 </tr>
             `;
         }).join("");
@@ -792,15 +1097,65 @@ function setStageState(stageKey, stageStatus, progress) {
     }
 }
 
+function formatLogEntry(raw) {
+    if (typeof raw === "string") {
+        try {
+            const item = JSON.parse(raw);
+            return formatLogObject(item);
+        } catch {
+            return raw;
+        }
+    }
+    return formatLogObject(raw);
+}
+
+function formatLogObject(obj) {
+    if (!obj || typeof obj !== "object") return String(obj);
+    let time = "";
+    if (obj.timestamp) {
+        time = obj.timestamp.includes(" ") ? obj.timestamp.split(" ")[1] : (obj.timestamp.split("T")[1]?.slice(0, 8) || obj.timestamp);
+    }
+    const level = obj.level ? `[${obj.level}]` : "[INFO]";
+    const stage = obj.stage && obj.stage !== "system" ? `[${obj.stage.toUpperCase()}]` : "";
+    const msg = obj.message || JSON.stringify(obj);
+    return `${time ? time + " " : ""}${level} ${stage ? stage + " " : ""}${msg}`.trim();
+}
+
+async function loadInitialLogs() {
+    try {
+        const response = await fetch(`${API_BASE}/logs/recent?lines=60`);
+        if (response.ok) {
+            const payload = await response.json();
+            const consoleBox = document.getElementById("logs-console");
+            const rawLines = payload.lines || payload.logs;
+            if (rawLines && Array.isArray(rawLines) && consoleBox) {
+                consoleBox.textContent = rawLines.map(formatLogEntry).join("\n") + "\n";
+                consoleBox.scrollTop = consoleBox.scrollHeight;
+            }
+        }
+    } catch {
+        // silent
+    }
+}
+
 function connectLogStream() {
     if (logSocket) {
         logSocket.close();
         logSocket = null;
     }
     stopLogPolling();
+    loadInitialLogs();
+
+    const statusBadge = document.getElementById("log-stream-status");
 
     try {
         logSocket = new WebSocket(`${WS_BASE}/logs/stream`);
+        logSocket.onopen = () => {
+            if (statusBadge) {
+                statusBadge.textContent = "● Live Stream";
+                statusBadge.style.color = "#10b981";
+            }
+        };
         logSocket.onmessage = (event) => {
             try {
                 const payload = JSON.parse(event.data);
@@ -822,14 +1177,20 @@ function connectLogStream() {
 
 function startLogPolling() {
     if (logPollTimer) return;
+    const statusBadge = document.getElementById("log-stream-status");
+    if (statusBadge) {
+        statusBadge.textContent = "● Live Polling";
+        statusBadge.style.color = "#38bdf8";
+    }
     logPollTimer = setInterval(async () => {
         try {
             const response = await fetch(`${API_BASE}/logs/recent?lines=80`);
             if (response.ok) {
                 const payload = await response.json();
                 const consoleBox = document.getElementById("logs-console");
-                if (payload.logs && Array.isArray(payload.logs)) {
-                    consoleBox.textContent = payload.logs.join("\n");
+                const rawLines = payload.lines || payload.logs;
+                if (rawLines && Array.isArray(rawLines) && consoleBox) {
+                    consoleBox.textContent = rawLines.map(formatLogEntry).join("\n") + "\n";
                     consoleBox.scrollTop = consoleBox.scrollHeight;
                 }
             }
@@ -848,7 +1209,8 @@ function stopLogPolling() {
 
 function appendLogLine(payload) {
     const consoleBox = document.getElementById("logs-console");
-    const line = typeof payload === "string" ? payload : `[${payload.level || "INFO"}] ${payload.message || JSON.stringify(payload)}`;
+    if (!consoleBox) return;
+    const line = formatLogEntry(payload);
     consoleBox.textContent += line + "\n";
     consoleBox.scrollTop = consoleBox.scrollHeight;
     trimLogs(consoleBox);
@@ -856,15 +1218,17 @@ function appendLogLine(payload) {
 
 function appendRawLog(raw) {
     const consoleBox = document.getElementById("logs-console");
-    consoleBox.textContent += raw + "\n";
+    if (!consoleBox) return;
+    const line = formatLogEntry(raw);
+    consoleBox.textContent += line + "\n";
     consoleBox.scrollTop = consoleBox.scrollHeight;
     trimLogs(consoleBox);
 }
 
 function trimLogs(consoleBox) {
     const lines = consoleBox.textContent.split("\n");
-    if (lines.length > 300) {
-        consoleBox.textContent = lines.slice(-250).join("\n");
+    if (lines.length > 400) {
+        consoleBox.textContent = lines.slice(-300).join("\n");
     }
 }
 
@@ -879,7 +1243,7 @@ function initGraph() {
                     "background-color": function (ele) {
                         const type = ele.data("type");
                         if (type === "topic") return "#0ea5e9";
-                        if (type === "subtopic") return "#6366f1";
+                        if (type === "subtopic") return "#0284c7";
                         if (type === "document") return "#f97316";
                         return "#10b981";
                     },
@@ -908,16 +1272,25 @@ function initGraph() {
                         return ele.data("relation_type") === "hierarchy" ? 2.0 : 1.2;
                     },
                     "line-color": function (ele) {
-                        return ele.data("relation_type") === "hierarchy" ? "#475569" : "#8b5cf6";
+                        return ele.data("relation_type") === "hierarchy" ? "#475569" : "#38bdf8";
                     },
                     "target-arrow-color": function (ele) {
-                        return ele.data("relation_type") === "hierarchy" ? "#475569" : "#8b5cf6";
+                        return ele.data("relation_type") === "hierarchy" ? "#475569" : "#38bdf8";
                     },
                     "target-arrow-shape": "triangle",
                     "curve-style": "bezier",
                     opacity: 0.6,
+                    "line-style": "solid",
+                    "font-size": 8,
+                    "text-rotation": "autorotate",
+                    "text-background-color": "#0b1220",
+                    "text-background-opacity": 0.85,
+                    "text-background-padding": 2,
                 },
             },
+            { selector: 'edge[is_candidate = true]', style: { "line-style": "dashed", "line-dash-pattern": [6, 4], "line-color": "#f59e0b", "target-arrow-color": "#f59e0b" } },
+            { selector: 'edge[validated = true]', style: { "line-style": "solid", "line-color": "#34d399", "target-arrow-color": "#34d399" } },
+            { selector: ".filter-hidden", style: { display: "none" } },
             {
                 selector: 'edge[relation_type = "hierarchy"]',
                 style: {
@@ -933,9 +1306,33 @@ function initGraph() {
                     "box-shadow": "0 0 12px #38bdf8",
                 },
             },
+            {
+                selector: ".dimmed",
+                style: {
+                    opacity: 0.15,
+                },
+            },
+            {
+                selector: ".neighbor",
+                style: {
+                    "border-width": 2.5,
+                    "border-color": "#38bdf8",
+                    opacity: 1.0,
+                },
+            },
+            {
+                selector: ".selected-focus",
+                style: {
+                    "border-width": 3.5,
+                    "border-color": "#38bdf8",
+                    "background-color": "#0284c7",
+                    opacity: 1.0,
+                    label: function (ele) { return ele.isEdge() ? (ele.data("relation_type") || "relationship") : graphDisplayLabel(ele.data()); },
+                },
+            },
         ],
         layout: {
-            name: "preset",
+            name: "concentric",
             padding: 40,
             fit: true,
         },
@@ -947,7 +1344,7 @@ function initGraph() {
     graph.on("mouseover", "node", function (e) {
         const data = e.target.data();
         const tooltip = document.getElementById("graph-tooltip");
-        const definition = data.definition || data.description || "Identified concept in document knowledge map.";
+        const definition = data.definition || data.description || "No source description is available.";
         tooltip.innerHTML = `
             <strong>${escapeHtml(data.label || data.name || data.id)}</strong><br>
             <span class="badge">${escapeHtml(data.type || "concept")}</span>
@@ -960,8 +1357,8 @@ function initGraph() {
         const data = e.target.data();
         const tooltip = document.getElementById("graph-tooltip");
         tooltip.innerHTML = `
-            <strong>${escapeHtml(data.relation_type || "relates-to")}</strong><br>
-            <div style="font-size: 0.78rem; margin-top: 4px; color: #cbd5e1">${escapeHtml(data.description || "Semantic candidate relation")}</div>
+            <strong>${escapeHtml(data.relation_type || "connection")}${data.is_candidate ? " · candidate" : ""}</strong><br>
+            <div style="font-size: 0.78rem; margin-top: 4px; color: #cbd5e1">${escapeHtml(data.description || "")}</div>
         `;
         tooltip.style.display = "block";
     });
@@ -978,10 +1375,90 @@ function initGraph() {
         document.getElementById("graph-tooltip").style.display = "none";
     });
 
-    // Inspector click handler
+    // Inspector click and 1-hop neighborhood highlight
     graph.on("tap", "node", function (e) {
+        focusGraphNode(e.target);
         inspectNode(e.target.data());
     });
+    graph.on("tap", "edge", function (e) {
+        focusGraphEdge(e.target);
+        inspectRelation(e.target.data());
+    });
+
+    // Click canvas background to reset focus
+    graph.on("tap", function (e) {
+        if (e.target === graph) {
+            resetGraphFocus();
+        }
+    });
+}
+
+function focusGraphNode(node) {
+    if (!graph || !node) return;
+    graph.elements().removeClass("dimmed neighbor selected-focus highlighted");
+    const neighborhood = node.closedNeighborhood();
+    graph.elements().not(neighborhood).addClass("dimmed");
+    neighborhood.nodes().not(node).addClass("neighbor");
+    node.addClass("selected-focus");
+}
+
+function focusGraphEdge(edge) {
+    if (!graph || !edge) return;
+    graph.elements().removeClass("dimmed neighbor selected-focus highlighted");
+    const neighborhood = edge.connectedNodes().union(edge);
+    graph.elements().not(neighborhood).addClass("dimmed");
+    neighborhood.nodes().addClass("neighbor");
+    edge.addClass("selected-focus");
+}
+
+function resetGraphFocus() {
+    if (!graph) return;
+    graph.elements().removeClass("dimmed neighbor selected-focus highlighted");
+}
+
+function focusNodeByName(conceptName) {
+    if (!graph || !conceptName) return;
+    const target = graph.nodes().filter(n => {
+        const d = n.data();
+        return (d.label || d.name || d.id || "").toLowerCase() === conceptName.toLowerCase();
+    });
+    if (target.length > 0) {
+        focusGraphNode(target.first());
+        graph.animate({
+            center: { eles: target.first() },
+            zoom: Math.max(graph.zoom(), 1.0),
+            duration: 400
+        });
+        inspectNode(target.first().data());
+    }
+}
+
+function applyGraphLayout(layoutName) {
+    if (!graph) return;
+    const validLayouts = ["concentric", "breadthfirst", "cose"];
+    const name = validLayouts.includes(layoutName) ? layoutName : "concentric";
+    const layoutOptions = {
+        name: name,
+        animate: true,
+        animationDuration: 500,
+        padding: 40,
+        fit: true,
+    };
+    if (name === "breadthfirst") {
+        layoutOptions.directed = true;
+        layoutOptions.spacingFactor = 1.3;
+    } else if (name === "concentric") {
+        layoutOptions.concentric = function(node) {
+            return node.data("type") === "document" ? 3 : (node.data("type") === "topic" ? 2 : 1);
+        };
+        layoutOptions.levelWidth = function() { return 1; };
+    } else if (name === "cose") {
+        layoutOptions.nodeRepulsion = () => 8000;
+        layoutOptions.idealEdgeLength = () => 110;
+        layoutOptions.componentSpacing = 90;
+        layoutOptions.numIter = 500;
+    }
+    graph.layout(layoutOptions).run();
 }
 
 function inspectNode(data) {
@@ -1003,8 +1480,8 @@ function inspectNode(data) {
         );
     }
 
-    const definition = (matchedConcept && matchedConcept.definition) || data.definition || data.description || "No formal definition provided in chunk context.";
-    const occurrences = (matchedConcept && matchedConcept.frequency) ? `${matchedConcept.frequency} occurrences` : (data.frequency ? `${data.frequency} occurrences` : "Identified in graph synthesis");
+    const definition = (matchedConcept && (matchedConcept.definition || matchedConcept.context)) || data.definition || data.description || "No source description is available.";
+    const occurrences = matchedConcept?.frequency !== undefined ? `${matchedConcept.frequency} occurrences` : (data.frequency !== undefined ? `${data.frequency} occurrences` : "Occurrence count unavailable");
     const supportingSections = (matchedConcept && matchedConcept.supporting_sections) || data.supporting_sections || [];
     const chunkIds = (matchedConcept && matchedConcept.chunk_ids) || data.chunk_ids || [];
 
@@ -1018,17 +1495,31 @@ function inspectNode(data) {
             relationsHtml = `
                 <div class="inspector-relations-list">
                     <strong>Connected Candidate Relations (${connected.length}):</strong>
-                    ${connected.slice(0, 4).map(r => `
-                        <div class="relation-item-pill">
+                    ${connected.slice(0, 6).map(r => {
+                        const targetConcept = (r.from_concept || "").toLowerCase() === nodeName.toLowerCase() ? r.to_concept : r.from_concept;
+                        return `
+                        <div class="relation-item-pill" onclick="focusNodeByName('${escapeHtml(targetConcept)}')" title="Click to focus ${escapeHtml(targetConcept)} in graph">
                             <span class="relation-type-tag">${escapeHtml(r.relation_type)}</span>
                             <span>${escapeHtml(r.from_concept)} ➔ ${escapeHtml(r.to_concept)}</span>
                             <span class="confidence-score">${Number(r.confidence || 0).toFixed(2)}</span>
                         </div>
-                    `).join("")}
+                        `;
+                    }).join("")}
                 </div>
             `;
         }
     }
+
+    const sourceEvidence = matchedConcept?.source_evidence || [];
+    const evidenceHtml = sourceEvidence.length ? `
+        <div class="inspector-citations">
+            <strong>Source passages</strong>
+            ${sourceEvidence.map(item => {
+                const pages = (item.page_references || []).filter(Number.isInteger);
+                const links = pages.length ? pages.map(page => `<a class="source-page-link" href="${API_BASE}/upload/${encodeURIComponent(selectedDocId)}/source#page=${page}" target="_blank" rel="noopener">Open PDF · page ${page}</a>`).join(" ") : `<span class="muted">Page location unavailable</span>`;
+                return `<blockquote><p>${escapeHtml(item.excerpt || "")}</p><small>${escapeHtml(item.section_title || "Extracted passage")} · chunk ${escapeHtml(item.chunk_id || "")}</small><div>${links}</div></blockquote>`;
+            }).join("")}
+        </div>` : `<p class="muted">No chunk-level source passage is available for this node.</p>`;
 
     // Source Grounding Citations
     let citationsHtml = "";
@@ -1046,27 +1537,32 @@ function inspectNode(data) {
         <p><strong>Definition & Context:</strong> ${escapeHtml(definition)}</p>
         <p><strong>Frequency / Occurrences:</strong> ${escapeHtml(occurrences)}</p>
         ${citationsHtml}
+        ${evidenceHtml}
         ${relationsHtml}
     `;
 }
 
-function filterGraphSearch(query) {
-    if (!graph) return;
-    const cleanQuery = query.trim().toLowerCase();
-    graph.nodes().removeClass("highlighted");
-
-    if (!cleanQuery) return;
-
-    const matches = graph.nodes().filter(node => {
-        const label = String(node.data("label") || node.data("name") || "").toLowerCase();
-        return label.includes(cleanQuery);
-    });
-
-    matches.addClass("highlighted");
-    if (matches.length > 0) {
-        graph.center(matches);
+function inspectRelation(data) {
+    const relationId = String(data.id || "").replace(/^rel_/, "");
+    const relation = (currentKnowledgeMap?.relations || []).find(item => item.id === relationId);
+    const title = document.getElementById("inspector-title");
+    const badge = document.getElementById("inspector-badge");
+    const body = document.getElementById("inspector-body");
+    title.textContent = relation ? `${relation.from_concept} → ${relation.to_concept}` : "Document structure connection";
+    badge.textContent = relation ? `${relation.relation_type} · candidate, unverified` : "Structural grouping";
+    if (!relation) {
+        body.innerHTML = `<p>This edge represents document or topic hierarchy. It is not a semantic claim.</p>`;
+        return;
     }
+    const evidence = relation.source_evidence || [];
+    const evidenceCards = evidence.map(item => {
+        const pages = (item.page_references || []).filter(Number.isInteger);
+        const links = pages.map(page => `<a class="source-page-link" href="${API_BASE}/upload/${encodeURIComponent(selectedDocId)}/source#page=${page}" target="_blank" rel="noopener">Open PDF · page ${page}</a>`).join(" ");
+        return `<blockquote><p>${escapeHtml(item.excerpt || "")}</p><small>${escapeHtml(item.section_title || "Extracted passage")} · chunk ${escapeHtml(item.chunk_id || "")}</small><div>${links || "Page location unavailable"}</div></blockquote>`;
+    }).join("");
+    body.innerHTML = `<p><strong>Candidate relationship:</strong> ${escapeHtml(relation.from_concept)} ${escapeHtml(relation.relation_type)} ${escapeHtml(relation.to_concept)}</p><p><strong>Status:</strong> Not independently validated. Confidence ${Number(relation.confidence).toFixed(2)} is a system score, not a human-verified probability.</p><p><strong>Evidence passage:</strong> ${escapeHtml(relation.evidence_text || "No supporting sentence was retained.")}</p>${evidenceCards || `<p class="muted">No source chunk is attached to this relationship.</p>`}`;
 }
+
 
 async function loadGraph(documentId) {
     if (!isDocumentAnalyzed(selectedDoc)) {
@@ -1083,13 +1579,10 @@ async function loadGraph(documentId) {
         const elements = simplifyGraphElements(toGraphElements(payload));
         graph.elements().remove();
         graph.add(elements);
-        graph.layout({
-            name: "preset",
-            positions: buildMindMapPositions(elements),
-            animate: true,
-            fit: true,
-            padding: 50,
-        }).run();
+        applyGraphFilters();
+        const layoutSelect = document.getElementById("graph-layout");
+        const activeLayout = layoutSelect ? layoutSelect.value || "concentric" : "concentric";
+        applyGraphLayout(activeLayout);
         graph.autoungrabify(true);
 
         const nodeCount = graph.nodes().length;
@@ -1098,8 +1591,6 @@ async function loadGraph(documentId) {
 
         updateOverviewMetric("stat-nodes", nodeCount);
         updateOverviewMetric("stat-edges", edgeCount);
-
-        applyRelationFilter(document.getElementById("relation-filter")?.value || "all");
     } catch (error) {
         document.getElementById("graph-info").textContent = "Graph load failed.";
     }
@@ -1110,41 +1601,27 @@ function resetGraphPanels(message) {
     if (graph) graph.elements().remove();
 }
 
-function applyRelationFilter(filterVal) {
+function applyGraphFilters() {
     if (!graph) return;
-    graph.batch(() => {
-        if (filterVal === "all") {
-            graph.edges().style("display", "element");
-        } else if (filterVal === "semantic") {
-            graph.edges().forEach((e) => {
-                const rel = e.data("relation_type");
-                e.style("display", rel !== "hierarchy" ? "element" : "none");
-            });
-        } else if (filterVal === "hierarchy") {
-            graph.edges().forEach((e) => {
-                const rel = e.data("relation_type");
-                e.style("display", rel === "hierarchy" ? "element" : "none");
-            });
-        }
+    const query = (document.getElementById("graph-search")?.value || "").trim().toLowerCase();
+    const nodeType = document.getElementById("graph-node-filter")?.value || "all";
+    const edgeType = document.getElementById("graph-edge-filter")?.value || "all";
+    graph.nodes().forEach(node => {
+        const data = node.data();
+        const matches = (nodeType === "all" || data.type === nodeType) && (!query || graphDisplayLabel(data).toLowerCase().includes(query));
+        node.toggleClass("filter-hidden", !matches);
+    });
+    graph.edges().forEach(edge => {
+        const relationType = edge.data("relation_type");
+        const isHierarchy = relationType === "hierarchy";
+        const matches = edgeType === "all" || (edgeType === "hierarchy" && isHierarchy) || (edgeType === "candidate" && !isHierarchy);
+        const hiddenEndpoint = edge.source().hasClass("filter-hidden") || edge.target().hasClass("filter-hidden");
+        edge.toggleClass("filter-hidden", !matches || hiddenEndpoint);
     });
 }
 
 function simplifyGraphElements(elementsArr) {
     return elementsArr;
-}
-
-function buildMindMapPositions(elementsArr) {
-    const nodes = elementsArr.filter((e) => e.data && e.data.source === undefined);
-    const positions = {};
-    const radius = Math.max(160, nodes.length * 16);
-    nodes.forEach((n, idx) => {
-        const angle = (2 * Math.PI * idx) / Math.max(nodes.length, 1);
-        positions[n.data.id] = {
-            x: Math.round(radius * Math.cos(angle)),
-            y: Math.round(radius * Math.sin(angle)),
-        };
-    });
-    return positions;
 }
 
 function graphDisplayLabel(data) {
@@ -1218,7 +1695,9 @@ async function refreshSystemStatus() {
             const modeText = document.getElementById("status-mode")?.textContent || "";
             if (modeText.includes("Fallback")) {
                 updateHonestStatus("Fallback Active", "fallback");
-            } else if (!llmAvailable || llmCheck.status === "unhealthy") {
+            } else if (llmCheck.status === "unhealthy" || llmAvailable === false) {
+                updateHonestStatus("LLM Unavailable", "unavailable");
+            } else if (llmCheck.status === "warning") {
                 updateHonestStatus("LLM Degraded", "degraded");
             } else {
                 updateHonestStatus("LLM Ready", "ready");
@@ -1228,7 +1707,7 @@ async function refreshSystemStatus() {
         const dot = document.getElementById("system-dot");
         if (dot) dot.className = "status-indicator-dot error";
         document.getElementById("health-pill").textContent = "System: offline";
-        updateHonestStatus("LLM Degraded", "degraded");
+        updateHonestStatus("LLM Unavailable", "unavailable");
     }
 }
 
@@ -1236,14 +1715,40 @@ function isDocumentAnalyzed(doc) {
     return String(doc?.status || "").toLowerCase() === "analyzed";
 }
 
-function renderDatasetStats(stats) {
+async function loadDatasetStats() {
     const box = document.getElementById("dataset-stats");
     if (!box) return;
-    box.innerHTML = `
-        <strong>Export Records:</strong> ${stats.total_records || 0}<br>
-        <strong>Status:</strong> ${escapeHtml(stats.exportFolder || "Ready")}<br>
-        <strong>Latest File:</strong> ${escapeHtml(stats.latestExport || "None")}
-    `;
+    const jsonBtn = document.getElementById("export-json-btn");
+    const csvBtn = document.getElementById("export-csv-btn");
+
+    if (jsonBtn) {
+        jsonBtn.href = `${API_BASE}/dataset/relations/export?format=json${selectedDocId ? "&document_id=" + encodeURIComponent(selectedDocId) : ""}`;
+    }
+    if (csvBtn) {
+        csvBtn.href = `${API_BASE}/dataset/relations/export?format=csv${selectedDocId ? "&document_id=" + encodeURIComponent(selectedDocId) : ""}`;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/dataset/relations/stats`);
+        if (!response.ok) return;
+        const stats = await response.json();
+        if (box) {
+            box.innerHTML = `
+                <div style="font-size: 0.82rem; line-height: 1.6;">
+                    <div><strong>Total Records:</strong> ${Number(stats.total_records || 0).toLocaleString()} candidate relations</div>
+                    <div><strong>Unreviewed Pool:</strong> ${Number(stats.unlabeled_records || 0).toLocaleString()} (100% research integrity)</div>
+                    <div><strong>Avg LLM Confidence:</strong> ${(Number(stats.average_llm_confidence || 0) * 100).toFixed(1)}%</div>
+                    <div><strong>Avg Co-occurrence:</strong> ${(Number(stats.average_cooccurrence || 0) * 100).toFixed(1)}%</div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        if (box) box.textContent = "Dataset statistics unavailable";
+    }
+}
+
+function renderDatasetStats(stats) {
+    loadDatasetStats();
 }
 
 async function loadAnalysisReport() {
@@ -1328,14 +1833,9 @@ function setStatus(elementId, message, type = "") {
 function updateHonestStatus(statusText, variant) {
     const badge = document.getElementById("honest-status-badge");
     const chip = document.getElementById("honest-chip");
-    const pill = document.getElementById("llm-pill");
 
     if (badge) badge.textContent = statusText;
     if (chip) {
         chip.className = `status-chip honest-${variant || "ready"}`;
-    }
-    if (pill) {
-        pill.textContent = statusText;
-        pill.className = `status-pill ${variant || "ready"}`;
     }
 }
